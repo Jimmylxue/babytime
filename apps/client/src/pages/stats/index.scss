@@ -1,0 +1,199 @@
+.page {
+  min-height: 100vh;
+  background: #F8F9FE;
+  padding: 24px 32px 140px;
+}
+
+.section-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1A1A2E;
+  margin-bottom: 20px;
+  display: block;
+}
+
+// 时间范围选择
+.time-range {
+  display: flex;
+  background: #fff;
+  border-radius: 16px;
+  padding: 8px;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.range-item {
+  flex: 1;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 26px;
+  color: #6B7280;
+
+  &.active {
+    background: #5B6EF5;
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+// 最新数据
+.latest-section {
+  margin-bottom: 32px;
+}
+
+.latest-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.latest-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.latest-icon {
+  font-size: 40px;
+  margin-right: 20px;
+}
+
+.latest-info {
+  flex: 1;
+}
+
+.latest-value {
+  font-size: 32px;
+  font-weight: 600;
+  color: #1A1A2E;
+  display: block;
+}
+
+.latest-date {
+  font-size: 24px;
+  color: #9CA3AF;
+  margin-top: 4px;
+  display: block;
+}
+
+.latest-empty {
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.latest-empty-text {
+  font-size: 26px;
+  color: #9CA3AF;
+}
+
+// 图表区域
+.charts-section {
+  margin-bottom: 32px;
+}
+
+.chart-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.chart-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1A1A2E;
+  margin-bottom: 24px;
+  display: block;
+}
+
+.chart-scroll-view {
+  width: 100%;
+}
+
+.chart-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 200px;
+  padding-top: 40px;
+  min-width: 100%;
+}
+
+.bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  min-width: 90px; /* Increased from 80px to accommodate MM-DD format */
+}
+
+.bar-wrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bar {
+  width: 36px;
+  background: linear-gradient(180deg, #5B6EF5 0%, #8B96F9 100%);
+  border-radius: 8px 8px 0 0;
+  min-height: 4px;
+  position: relative;
+  transition: height 0.3s;
+}
+
+.bar-value {
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  color: #5B6EF5;
+  white-space: nowrap;
+}
+
+.bar-label {
+  font-size: 20px; /* slightly smaller to fit MM-DD */
+  color: #9CA3AF;
+  margin-top: 12px;
+  white-space: nowrap;
+}
+
+// 空状态
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 40px;
+}
+
+.empty-icon {
+  font-size: 80px;
+  margin-bottom: 24px;
+}
+
+.empty-text {
+  font-size: 32px;
+  font-weight: 600;
+  color: #1A1A2E;
+  margin-bottom: 12px;
+}
+
+.empty-desc {
+  font-size: 26px;
+  color: #9CA3AF;
+}

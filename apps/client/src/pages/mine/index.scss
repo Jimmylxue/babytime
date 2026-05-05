@@ -1,0 +1,485 @@
+.mine-page {
+  min-height: 100vh;
+  background: #F8F9FE;
+  padding-bottom: 140px;
+}
+
+// 个人信息头部
+.mine-hd {
+  padding: 32px 32px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.mine-avatar {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5B6EF5, #8B96F9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mine-avatar-img {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+}
+
+.mine-avatar-emoji {
+  font-size: 60px;
+}
+
+.mine-avatar-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mine-avatar-badge-icon {
+  font-size: 20px;
+}
+
+.mine-info {
+  flex: 1;
+}
+
+.mine-name {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1A1A2E;
+  display: block;
+}
+
+.mine-role {
+  font-size: 24px;
+  color: #5B6EF5;
+  background: #EEF0FF;
+  padding: 4px 12px;
+  border-radius: 8px;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.mine-edit-tip {
+  font-size: 24px;
+  color: #9CA3AF;
+  margin-top: 8px;
+  display: block;
+}
+
+// 菜单卡片
+.mine-card {
+  margin: 0 24px 20px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 4px 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.mine-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 28px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:active {
+    background: #F8F9FE;
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #F3F4F6;
+  }
+}
+
+.mi-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.mi-icon-1 { background: #FFF3E0; }
+.mi-icon-2 { background: #E8F5E9; }
+.mi-icon-3 { background: #E3F2FD; }
+.mi-icon-4 { background: #FFF8E1; }
+.mi-icon-5 { background: #FCE4EC; }
+.mi-icon-6 { background: #E0F7FA; }
+.mi-icon-danger { background: #FEF2F2; }
+
+.mi-text {
+  flex: 1;
+  font-size: 28px;
+  font-weight: 500;
+  color: #1A1A2E;
+}
+
+.mi-text-danger {
+  color: #EF4444;
+}
+
+.mi-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mi-badge {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  background: #5B6EF5;
+  padding: 4px 16px;
+  border-radius: 20px;
+}
+
+.mi-arrow {
+  font-size: 32px;
+  color: #D1D5DB;
+}
+
+.mi-version {
+  font-size: 24px;
+  color: #9CA3AF;
+}
+
+// 页脚
+.mine-footer {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.mine-footer-text {
+  font-size: 22px;
+  color: #D1D5DB;
+  display: block;
+  line-height: 1.8;
+}
+
+// 修改昵称弹窗
+.sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn 0.3s ease;
+}
+
+.sheet-panel {
+  width: 100%;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: #E5E7EB;
+  border-radius: 2px;
+  margin: 12px auto 0;
+}
+
+.sheet-header {
+  padding: 24px 32px 16px;
+  text-align: center;
+}
+
+.sheet-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1A1A2E;
+}
+
+.sheet-body {
+  padding: 0 32px 48px;
+}
+
+// 编辑个人信息
+.edit-avatar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.edit-label {
+  font-size: 28px;
+  color: #1A1A2E;
+  font-weight: 500;
+}
+
+.edit-avatar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-avatar-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+}
+
+.edit-avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #F3F4F6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+
+.edit-field {
+  display: flex;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.edit-input {
+  flex: 1;
+  text-align: right;
+  font-size: 28px;
+  color: #1A1A2E;
+}
+
+.role-select {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.role-option {
+  padding: 12px 24px;
+  border-radius: 12px;
+  background: #F3F4F6;
+  font-size: 26px;
+  color: #6B7280;
+
+  &.active {
+    background: #EEF0FF;
+    color: #5B6EF5;
+    font-weight: 600;
+  }
+}
+
+.nickname-input {
+  width: 100%;
+  height: 88px;
+  padding: 0 24px;
+  background: #F8F9FE;
+  border-radius: 16px;
+  font-size: 28px;
+  color: #1A1A2E;
+  margin-bottom: 24px;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 20px;
+}
+
+.sheet-btn {
+  flex: 1;
+  height: 88px;
+  border-radius: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.sheet-btn-cancel {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.sheet-btn-confirm {
+  background: linear-gradient(135deg, #5B6EF5, #8B96F9);
+  color: #fff;
+}
+
+.sheet-panel-large {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+// 家庭成员样式
+.family-members {
+  margin-bottom: 32px;
+}
+
+.family-label {
+  font-size: 26px;
+  font-weight: 600;
+  color: #1A1A2E;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.family-desc {
+  font-size: 24px;
+  color: #9CA3AF;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #F3F4F6;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.member-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #F3F4F6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  overflow: hidden;
+
+  image {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+.member-name {
+  flex: 1;
+  font-size: 28px;
+  color: #1A1A2E;
+}
+
+.member-role {
+  font-size: 22px;
+  color: #9CA3AF;
+  background: #F3F4F6;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.member-role-tag {
+  font-size: 22px;
+  color: #5B6EF5;
+  background: #EEF0FF;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.family-section {
+  margin-bottom: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #F3F4F6;
+}
+
+.invite-code-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #F8F9FE;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+.invite-code-text {
+  flex: 1;
+  font-size: 32px;
+  font-weight: 700;
+  color: #5B6EF5;
+  letter-spacing: 2px;
+}
+
+.invite-copy-btn {
+  background: #5B6EF5;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 24px;
+}
+
+.invite-generate-btn {
+  background: linear-gradient(135deg, #5B6EF5, #8B96F9);
+  color: #fff;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.invite-input-row {
+  display: flex;
+  gap: 16px;
+}
+
+.invite-input {
+  flex: 1;
+  height: 80px;
+  background: #F8F9FE;
+  border-radius: 16px;
+  padding: 0 24px;
+  font-size: 28px;
+}
+
+.invite-join-btn {
+  background: #5B6EF5;
+  color: #fff;
+  padding: 0 32px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

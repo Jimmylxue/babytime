@@ -1,0 +1,11 @@
+{
+  "name": "@baby-time/shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "小宝贝日记 - 共享类型和常量",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\""
+  }
+}

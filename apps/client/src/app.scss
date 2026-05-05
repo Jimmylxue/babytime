@@ -1,0 +1,61 @@
+@import "tailwindcss/utilities";
+
+// 设计变量
+$primary: #5B6EF5;
+$primary-light: #8B96F9;
+$secondary: #FF8A80;
+$bg: #F8F9FE;
+$card: #FFFFFF;
+$text: #1A1A2E;
+$text-secondary: #6B7280;
+$border: #E5E7EB;
+$success: #10B981;
+$warning: #F59E0B;
+
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  background-color: $bg;
+  color: $text;
+  font-size: 28px;
+  line-height: 1.5;
+}
+
+// 通用类
+.container {
+  padding: 24px 32px;
+}
+
+.card {
+  background: $card;
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  border-radius: 48px;
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
+  color: #fff;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid $border;
+  color: $text;
+}
+
+.section-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: $text;
+  margin-bottom: 20px;
+}

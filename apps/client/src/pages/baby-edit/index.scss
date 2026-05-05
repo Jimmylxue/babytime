@@ -1,0 +1,160 @@
+.edit-page {
+  min-height: 100vh;
+  background: #F8F9FE;
+  padding: 32px;
+}
+
+// 头像选择
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin-bottom: 16px;
+}
+
+.avatar-img {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+}
+
+.avatar-placeholder {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.male {
+    background: #E3F2FD;
+  }
+
+  &.female {
+    background: #FCE4EC;
+  }
+}
+
+.avatar-icon {
+  font-size: 80px;
+}
+
+.avatar-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  background: #5B6EF5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid #fff;
+}
+
+.badge-icon {
+  font-size: 24px;
+}
+
+.avatar-tip {
+  font-size: 26px;
+  color: #6B7280;
+}
+
+// 表单
+.form-card {
+  background: #fff;
+  border-radius: 24px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.form-group {
+  margin-bottom: 28px;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+}
+
+.form-label {
+  font-size: 26px;
+  color: #6B7280;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.form-input {
+  width: 100%;
+  height: 88px;
+  background: #F8F9FE;
+  border-radius: 16px;
+  padding: 0 24px;
+  font-size: 28px;
+  color: #1A1A2E;
+  box-sizing: border-box;
+}
+
+.date-picker {
+  display: flex;
+  align-items: center;
+}
+
+.placeholder {
+  color: #9CA3AF;
+}
+
+.gender-select {
+  display: flex;
+  gap: 20px;
+}
+
+.gender-option {
+  flex: 1;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #F8F9FE;
+  border-radius: 16px;
+  font-size: 26px;
+  color: #6B7280;
+  border: 2px solid transparent;
+
+  &.active {
+    background: #EEF0FF;
+    color: #5B6EF5;
+    border-color: #5B6EF5;
+  }
+}
+
+.gender-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+// 提交按钮
+.submit-btn {
+  height: 96px;
+  background: linear-gradient(135deg, #5B6EF5 0%, #8B96F9 100%);
+  border-radius: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.submit-text {
+  font-size: 32px;
+  font-weight: 600;
+  color: #fff;
+}

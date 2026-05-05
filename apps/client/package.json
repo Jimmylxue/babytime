@@ -1,0 +1,51 @@
+{
+  "name": "@baby-time/client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "小宝贝日记 - 微信小程序前端",
+  "templateInfo": {
+    "name": "default",
+    "typescript": true,
+    "css": "sass"
+  },
+  "scripts": {
+    "build:weapp": "taro build --type weapp",
+    "dev:weapp": "npm run build:weapp -- --watch",
+    "dev": "npm run dev:weapp",
+    "build": "npm run build:weapp"
+  },
+  "browserslist": [
+    "last 3 versions",
+    "Android >= 4.1",
+    "ios >= 8"
+  ],
+  "dependencies": {
+    "@babel/runtime": "^7.21.5",
+    "@tarojs/components": "3.6.31",
+    "@tarojs/helper": "3.6.31",
+    "@tarojs/plugin-framework-react": "3.6.31",
+    "@tarojs/plugin-platform-weapp": "3.6.31",
+    "@tarojs/react": "3.6.31",
+    "@tarojs/runtime": "3.6.31",
+    "@tarojs/shared": "3.6.31",
+    "@tarojs/taro": "3.6.31",
+    "@tanstack/react-query": "^5.28.4",
+    "axios": "^1.6.8",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.21.8",
+    "@tarojs/cli": "3.6.31",
+    "@tarojs/webpack5-runner": "3.6.31",
+    "@types/react": "^18.2.0",
+    "autoprefixer": "^10.4.19",
+    "babel-preset-taro": "3.6.31",
+    "postcss": "^8.4.38",
+    "sass": "^1.75.0",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5",
+    "webpack": "5.78.0"
+  }
+}
