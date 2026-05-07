@@ -1,36 +1,43 @@
 .baby-page {
   min-height: 100vh;
-  background: #F8F9FE;
-  padding: 24px 32px 40px;
+  background: #FFFDF9;
+  padding: 32px 24px 140px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
+  animation: fadeUp 0.6s ease;
 }
 
 .page-title {
-  font-size: 36px;
-  font-weight: 600;
-  color: #1A1A2E;
+  font-size: 40px;
+  font-weight: 700;
+  color: #2D2A2E;
 }
 
 .add-btn {
-  width: 56px;
-  height: 56px;
-  background: linear-gradient(135deg, #5B6EF5 0%, #8B96F9 100%);
-  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(255, 165, 180, 0.3);
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.9);
+  }
 }
 
 .add-icon {
-  font-size: 32px;
+  font-size: 36px;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 // 宝贝列表
@@ -38,44 +45,53 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 .baby-card {
   background: #fff;
-  border-radius: 24px;
-  padding: 28px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 36px;
+  padding: 32px;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  transition: transform 0.2s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .baby-main {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .baby-avatar {
-  width: 96px;
-  height: 96px;
-  border-radius: 24px;
+  width: 100px;
+  height: 100px;
+  border-radius: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 48px;
   margin-right: 24px;
   overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
 
   &.male {
-    background: #E3F2FD;
+    background: #EEF4FA;
   }
 
   &.female {
-    background: #FCE4EC;
+    background: #FFF0ED;
   }
 }
 
 .avatar-img {
-  width: 96px;
-  height: 96px;
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
 }
 
 .baby-detail {
@@ -83,22 +99,23 @@
 }
 
 .baby-name {
-  font-size: 32px;
-  font-weight: 600;
-  color: #1A1A2E;
+  font-size: 36px;
+  font-weight: 700;
+  color: #2D2A2E;
   display: block;
 }
 
 .baby-age {
-  font-size: 26px;
-  color: #5B6EF5;
+  font-size: 28px;
+  color: #FFA5B4;
+  font-weight: 600;
   margin-top: 6px;
   display: block;
 }
 
 .baby-birthday {
   font-size: 24px;
-  color: #9CA3AF;
+  color: #A8A59E;
   margin-top: 4px;
   display: block;
 }
@@ -106,9 +123,9 @@
 // 操作按钮
 .baby-actions {
   display: flex;
-  gap: 16px;
-  padding-top: 20px;
-  border-top: 1px solid #F3F4F6;
+  gap: 20px;
+  padding-top: 24px;
+  border-top: 1px dashed #F0EDE6;
 }
 
 .action-btn {
@@ -116,53 +133,66 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 72px;
-  background: #F8F9FE;
-  border-radius: 12px;
+  height: 76px;
+  background: #F9F9F9;
+  border-radius: 16px;
+  transition: background 0.2s;
+
+  &:active {
+    background: #F0F0F0;
+  }
 
   &.delete {
-    background: #FEF2F2;
+    background: #FFF5F5;
+    
+    &:active {
+      background: #FFE5E5;
+    }
   }
 }
 
 .action-icon {
-  font-size: 28px;
-  margin-right: 8px;
+  font-size: 30px;
+  margin-right: 10px;
 }
 
 .action-text {
-  font-size: 24px;
-  color: #6B7280;
+  font-size: 26px;
+  color: #6D6A6E;
+  font-weight: 500;
 
   .delete & {
-    color: #EF4444;
+    color: #FF8A8A;
   }
 }
 
 // 空状态
 .empty-state {
   background: #fff;
-  border-radius: 24px;
-  padding: 80px 40px;
+  border-radius: 36px;
+  padding: 100px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  animation: fadeUp 0.6s ease;
 }
 
 .empty-icon {
-  font-size: 80px;
-  margin-bottom: 24px;
+  font-size: 100px;
+  margin-bottom: 32px;
+  animation: float 4s ease-in-out infinite;
 }
 
 .empty-text {
-  font-size: 30px;
-  font-weight: 600;
-  color: #1A1A2E;
+  font-size: 36px;
+  font-weight: 700;
+  color: #2D2A2E;
   margin-bottom: 12px;
 }
 
 .empty-desc {
-  font-size: 26px;
-  color: #9CA3AF;
+  font-size: 28px;
+  color: #A8A59E;
 }

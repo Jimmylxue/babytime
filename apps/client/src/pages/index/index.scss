@@ -1,7 +1,7 @@
 .page {
   min-height: 100vh;
-  background: #F8F9FE;
-  padding: 24px 32px 140px;
+  background: #FFFDF9;
+  padding: 32px 24px 140px;
 }
 
 // 登录提示
@@ -11,33 +11,37 @@
   align-items: center;
   justify-content: center;
   padding: 120px 40px;
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tip-icon {
-  font-size: 80px;
-  margin-bottom: 24px;
+  font-size: 100px;
+  margin-bottom: 32px;
+  animation: float 4s ease-in-out infinite;
 }
 
 .tip-text {
   font-size: 36px;
-  font-weight: 600;
-  color: #1A1A2E;
+  font-weight: 700;
+  color: #2D2A2E;
   margin-bottom: 12px;
 }
 
 .tip-desc {
   font-size: 28px;
-  color: #6B7280;
+  color: #8E8B82;
   margin-bottom: 60px;
 }
 
 // 宝宝卡片
 .baby-card {
-  background: linear-gradient(135deg, #5B6EF5 0%, #8B96F9 100%);
-  border-radius: 24px;
-  padding: 32px;
-  margin-bottom: 32px;
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
+  border-radius: 36px;
+  padding: 36px 32px;
+  margin-bottom: 40px;
   color: #fff;
+  box-shadow: 0 16px 32px rgba(255, 165, 180, 0.2);
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .baby-header {
@@ -46,21 +50,24 @@
 }
 
 .baby-avatar {
-  width: 80px;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
-  margin-right: 20px;
+  font-size: 48px;
+  margin-right: 24px;
   overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+  animation: float 5s ease-in-out infinite;
 
   .avatar-img {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
+    object-fit: cover;
   }
 }
 
@@ -69,35 +76,41 @@
 }
 
 .baby-name {
-  font-size: 36px;
-  font-weight: 600;
+  font-size: 40px;
+  font-weight: 700;
   display: block;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .baby-age {
-  font-size: 26px;
-  opacity: 0.9;
-  margin-top: 4px;
+  font-size: 28px;
+  opacity: 0.95;
+  margin-top: 6px;
   display: block;
 }
 
 .baby-birthday {
   font-size: 24px;
-  opacity: 0.7;
-  margin-top: 16px;
+  opacity: 0.8;
+  margin-top: 20px;
   display: block;
+  background: rgba(255,255,255,0.2);
+  display: inline-block;
+  padding: 4px 16px;
+  border-radius: 20px;
 }
 
 // 统计区域
 .stats-section {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 .section-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: #1A1A2E;
-  margin-bottom: 20px;
+  font-size: 32px;
+  font-weight: 700;
+  color: #2D2A2E;
+  margin-bottom: 24px;
   display: block;
 }
 
@@ -109,56 +122,64 @@
 
 .stat-card {
   background: #fff;
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 32px;
+  padding: 28px 24px;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  transition: transform 0.2s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .stat-icon {
-  font-size: 36px;
+  font-size: 44px;
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  animation: bounceSoft 3s ease-in-out infinite;
 }
 
 .stat-value {
-  font-size: 44px;
-  font-weight: 600;
-  color: #1A1A2E;
+  font-size: 48px;
+  font-weight: 700;
+  color: #2D2A2E;
   display: block;
 }
 
 .stat-label {
-  font-size: 24px;
-  color: #6B7280;
+  font-size: 26px;
+  color: #8E8B82;
   margin-top: 4px;
   display: block;
 }
 
 .stat-detail {
-  font-size: 22px;
-  color: #5B6EF5;
-  margin-top: 8px;
+  font-size: 24px;
+  color: #FFA5B4;
+  font-weight: 600;
+  margin-top: 12px;
   display: block;
 }
 
 .stat-unit {
   font-size: 24px;
-  font-weight: 400;
-  color: #6B7280;
-  margin-left: 4px;
+  font-weight: 500;
+  color: #8E8B82;
+  margin-left: 6px;
 }
 
 .stat-sub {
-  font-size: 20px;
-  color: #9CA3AF;
-  margin-top: 4px;
+  font-size: 22px;
+  color: #A8A59E;
+  margin-top: 6px;
   display: block;
 }
 
 .vital-signs {
   display: flex;
   gap: 20px;
-  margin-top: 16px;
+  margin-top: 24px;
 }
 
 .vital-item {
@@ -166,82 +187,73 @@
   display: flex;
   align-items: center;
   background: #fff;
-  border-radius: 12px;
-  padding: 16px 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 16px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
 }
 
 .vital-icon {
-  font-size: 28px;
+  font-size: 32px;
   margin-right: 12px;
 }
 
 .vital-text {
-  font-size: 24px;
-  color: #1A1A2E;
-  font-weight: 500;
+  font-size: 26px;
+  color: #2D2A2E;
+  font-weight: 600;
 }
 
 // 快速记录
 .quick-section {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
 .action-grid {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px 16px;
 }
 
 .action-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: calc(25% - 18px);
+  width: 100%;
+  transition: transform 0.2s;
+  
+  &:active {
+    transform: scale(0.92);
+  }
 }
 
 .action-icon {
-  width: 96px;
-  height: 96px;
-  border-radius: 24px;
+  width: 100px;
+  height: 100px;
+  border-radius: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 44px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.02);
 
-  &.feeding {
-    background: #FFF3E0;
-  }
-
-  &.diaper {
-    background: #E8F5E9;
-  }
-
-  &.sleep {
-    background: #E3F2FD;
-  }
-
-  &.food {
-    background: #FCE4EC;
-  }
-
-  &.photo {
-    background: #F3E8FF;
-  }
-
-  &.more {
-    background: #F3F4F6;
-
-    &.active {
-      background: #EEF0FF;
-    }
+  &.feeding { background: #FFF0ED; color: #FF9AA2; }
+  &.diaper { background: #F0F6E6; color: #A3C9A8; }
+  &.sleep { background: #EEF4FA; color: #8BCBFF; }
+  &.food { background: #FFF2D9; color: #FFC570; }
+  &.photo { background: #F4EFFF; color: #CBAACB; }
+  &.more { 
+    background: #F9F9F9; color: #A8A59E;
+    &.active { background: #FFF0ED; color: #FFA5B4; }
   }
 }
 
 .action-text {
-  font-size: 24px;
-  color: #6B7280;
+  font-size: 26px;
+  font-weight: 600;
+  color: #6D6A6E;
 }
 
 // 底部弹窗
@@ -282,7 +294,7 @@
 .sheet-title {
   font-size: 32px;
   font-weight: 700;
-  color: #1A1A2E;
+  color: #2D2A2E;
 }
 
 .sheet-body {
@@ -300,24 +312,29 @@
   flex-direction: column;
   align-items: center;
   padding: 16px 0;
+  border-radius: 24px;
+  transition: background 0.2s;
+
+  &:active {
+    background: #FFFDF9;
+  }
 }
 
 .sheet-item-icon {
-  width: 96px;
-  height: 96px;
-  border-radius: 24px;
-  background: #F8F9FE;
+  width: 80px;
+  height: 80px;
+  background: #FFFDF9;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 44px;
-  margin-bottom: 12px;
+  font-size: 36px;
+  margin-bottom: 8px;
 }
 
 .sheet-item-label {
   font-size: 24px;
-  color: #1A1A2E;
-  font-weight: 500;
+  color: #2D2A2E;
 }
 
 @keyframes fadeIn {

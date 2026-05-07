@@ -8,13 +8,15 @@ export default defineAppConfig({
     'pages/record/index',
     'pages/photo/index',
     'pages/baby-edit/index',
+    'pages/agreement/index',
+    'pages/privacy/index',
   ],
   tabBar: {
     custom: true,
-    color: '#999',
-    selectedColor: '#5B6EF5',
-    backgroundColor: '#fff',
-    borderStyle: 'black',
+    color: '#A8A59E',
+    selectedColor: '#FFA5B4',
+    backgroundColor: '#FFFDF9',
+    borderStyle: 'white',
     list: [
       {
         pagePath: 'pages/index/index',
@@ -32,8 +34,8 @@ export default defineAppConfig({
   },
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#5B6EF5',
+    navigationBarBackgroundColor: '#FFFDF9',
     navigationBarTitleText: '小宝贝日记',
-    navigationBarTextStyle: 'white',
+    navigationBarTextStyle: 'black',
   },
 })

@@ -1,35 +1,68 @@
 @import "tailwindcss/utilities";
 
-// 设计变量
-$primary: #5B6EF5;
-$primary-light: #8B96F9;
-$secondary: #FF8A80;
-$bg: #F8F9FE;
+// 新版设计变量：更优雅、简约的奶茶系/莫兰迪色系
+$primary: #FFA5B4; // 柔和的桃粉色
+$primary-light: #FFC4D0;
+$secondary: #8BCBFF; // 柔和的婴儿蓝
+$bg: #FFFDF9; // 偏暖的奶油白
 $card: #FFFFFF;
-$text: #1A1A2E;
-$text-secondary: #6B7280;
-$border: #E5E7EB;
-$success: #10B981;
-$warning: #F59E0B;
+$text: #2D2A2E; // 更柔和的深灰
+$text-secondary: #8E8B82; // 暖灰
+$border: #F0EDE6;
+$success: #82D0B4;
+$warning: #FFC570;
 
 page {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Helvetica Neue', sans-serif;
   background-color: $bg;
   color: $text;
   font-size: 28px;
-  line-height: 1.5;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-// 通用类
+// 优雅动画定义
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounceSoft {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+
+// 通用类优化
 .container {
-  padding: 24px 32px;
+  padding: 24px;
 }
 
 .card {
   background: $card;
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 32px; // 更大的圆角
+  padding: 36px;
+  box-shadow: 0 12px 32px rgba(130, 110, 90, 0.04); // 暖色调阴影
+  border: 1px solid rgba(255,255,255,0.8);
 }
 
 .btn {
@@ -40,11 +73,17 @@ page {
   border-radius: 48px;
   font-size: 30px;
   font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn:active {
+  transform: scale(0.96);
 }
 
 .btn-primary {
   background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
   color: #fff;
+  box-shadow: 0 12px 24px rgba(255, 165, 180, 0.25);
 }
 
 .btn-outline {
@@ -54,8 +93,10 @@ page {
 }
 
 .section-title {
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 700;
   color: $text;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  position: relative;
+  display: inline-block;
 }

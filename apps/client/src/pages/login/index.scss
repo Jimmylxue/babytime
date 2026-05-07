@@ -1,6 +1,6 @@
 .login-page {
   min-height: 100vh;
-  background: #F8F9FE;
+  background: #FFFDF9;
   display: flex;
   flex-direction: column;
 }
@@ -18,40 +18,43 @@
   align-items: center;
   margin-top: 80px;
   margin-bottom: 80px;
+  animation: fadeUp 0.6s ease;
 }
 
 .logo-circle {
-  width: 140px;
-  height: 140px;
-  background: linear-gradient(135deg, #5B6EF5 0%, #8B96F9 100%);
-  border-radius: 35px;
+  width: 160px;
+  height: 160px;
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
+  border-radius: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 32px;
-  box-shadow: 0 8px 24px rgba(91, 110, 245, 0.3);
+  box-shadow: 0 12px 32px rgba(255, 165, 180, 0.3);
+  animation: float 5s ease-in-out infinite;
 }
 
 .logo-icon {
-  font-size: 72px;
+  font-size: 80px;
 }
 
 .app-title {
-  font-size: 44px;
+  font-size: 48px;
   font-weight: 700;
-  color: #1A1A2E;
+  color: #2D2A2E;
   margin-bottom: 12px;
 }
 
 .app-subtitle {
   font-size: 28px;
-  color: #6B7280;
+  color: #8E8B82;
 }
 
 .features {
   display: flex;
   justify-content: space-around;
   margin-bottom: 80px;
+  animation: fadeUp 0.6s ease 0.1s both;
 }
 
 .feature-item {
@@ -61,34 +64,86 @@
 }
 
 .feature-icon {
-  font-size: 48px;
+  font-size: 56px;
   margin-bottom: 16px;
 }
 
 .feature-text {
-  font-size: 24px;
-  color: #6B7280;
+  font-size: 26px;
+  color: #8E8B82;
+  font-weight: 500;
 }
 
 .login-btn {
   height: 96px;
-  background: linear-gradient(135deg, #5B6EF5 0%, #8B96F9 100%);
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
   border-radius: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 32px;
-  box-shadow: 0 8px 24px rgba(91, 110, 245, 0.3);
+  box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
+  transition: transform 0.2s;
+  animation: fadeUp 0.6s ease 0.2s both;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.login-btn-disabled {
+  opacity: 0.5;
 }
 
 .login-btn-text {
   font-size: 32px;
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
 }
 
 .agreement {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 24px;
-  color: #9CA3AF;
+  color: #A8A59E;
+  animation: fadeUp 0.6s ease 0.3s both;
+  flex-wrap: wrap;
+}
+
+.agreement-checkbox {
+  padding: 8px;
+  margin-right: 4px;
+}
+
+.checkbox {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #D1CFC9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.checkbox-checked {
+  background: #FFA5B4;
+  border-color: #FFA5B4;
+}
+
+.checkbox-icon {
+  font-size: 20px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.agreement-text {
+  font-size: 24px;
+  color: #A8A59E;
+}
+
+.agreement-link {
+  font-size: 24px;
+  color: #FFA5B4;
 }

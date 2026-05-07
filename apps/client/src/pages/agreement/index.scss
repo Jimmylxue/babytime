@@ -1,0 +1,67 @@
+.agreement-page,
+.privacy-page {
+  min-height: 100vh;
+  background: #FFFDF9;
+  padding: 48px 40px;
+}
+
+.agreement-header,
+.privacy-header {
+  text-align: center;
+  margin-bottom: 64px;
+  animation: fadeUp 0.6s ease;
+}
+
+.agreement-title,
+.privacy-title {
+  font-size: 44px;
+  font-weight: 700;
+  color: #2D2A2E;
+  margin-bottom: 24px;
+  display: block;
+}
+
+.agreement-update,
+.privacy-update {
+  font-size: 26px;
+  color: #A8A59E;
+  display: block;
+}
+
+.agreement-body,
+.privacy-body {
+  font-size: 30px;
+  color: #6D6A6E;
+  line-height: 1.8;
+  animation: fadeUp 0.6s ease 0.1s both;
+  text-align: justify;
+}
+
+.section-title {
+  font-size: 34px;
+  font-weight: 700;
+  color: #2D2A2E;
+  margin-top: 56px;
+  margin-bottom: 24px;
+  display: block;
+  position: relative;
+  padding-left: 20px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 32px;
+    background: linear-gradient(180deg, #FFA5B4, #FFC4D0);
+    border-radius: 4px;
+  }
+}
+
+.section-text {
+  margin-bottom: 24px;
+  display: block;
+  color: #4A4744;
+}

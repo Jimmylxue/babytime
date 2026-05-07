@@ -10,7 +10,7 @@ interface TabItem {
 
 const tabs: TabItem[] = [
 	{ pagePath: '/pages/index/index', text: '首页', icon: '🏠' },
-	{ pagePath: '/pages/stats/index', text: '统计', icon: '📊' },
+	{ pagePath: '/pages/stats/index', text: '统计', icon: '📈' },
 	{ pagePath: '/pages/mine/index', text: '我的', icon: '👤' },
 ]
 

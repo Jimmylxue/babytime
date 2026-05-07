@@ -12,11 +12,11 @@ import './index.scss';
 const quickActions = [
   { type: 'feeding', icon: '🍼', label: '喂奶' },
   { type: 'diaper', icon: '💩', label: '换尿布' },
-  { type: 'sleep', icon: '😴', label: '睡觉' },
   { type: 'photo', icon: '📷', label: '拍照' },
 ];
 
 const moreActions = [
+  { type: 'sleep', icon: '😴', label: '睡觉' },
   { type: 'food', icon: '🍚', label: '辅食' },
   { type: 'water', icon: '💧', label: '喝水' },
   { type: 'bath', icon: '🛁', label: '洗澡' },

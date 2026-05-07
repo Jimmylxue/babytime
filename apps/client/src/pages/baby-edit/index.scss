@@ -1,6 +1,6 @@
 .edit-page {
   min-height: 100vh;
-  background: #F8F9FE;
+  background: #FFFDF9;
   padding: 32px;
 }
 
@@ -9,7 +9,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 48px;
+  animation: fadeUp 0.6s ease;
 }
 
 .avatar-wrapper {
@@ -23,6 +24,8 @@
   width: 160px;
   height: 160px;
   border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.05);
 }
 
 .avatar-placeholder {
@@ -32,18 +35,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.05);
 
   &.male {
-    background: #E3F2FD;
+    background: #EEF4FA;
   }
 
   &.female {
-    background: #FCE4EC;
+    background: #FFF0ED;
   }
 }
 
 .avatar-icon {
   font-size: 80px;
+  animation: float 5s ease-in-out infinite;
 }
 
 .avatar-badge {
@@ -52,12 +57,13 @@
   right: 0;
   width: 48px;
   height: 48px;
-  background: #5B6EF5;
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 4px solid #fff;
+  border: 4px solid #FFFDF9;
+  box-shadow: 0 4px 8px rgba(255, 165, 180, 0.3);
 }
 
 .badge-icon {
@@ -66,20 +72,22 @@
 
 .avatar-tip {
   font-size: 26px;
-  color: #6B7280;
+  color: #A8A59E;
 }
 
 // 表单
 .form-card {
   background: #fff;
-  border-radius: 24px;
-  padding: 32px;
-  margin-bottom: 40px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 36px;
+  padding: 40px 32px;
+  margin-bottom: 48px;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  animation: fadeUp 0.6s ease 0.1s both;
 }
 
 .form-group {
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 
   &:last-of-type {
     margin-bottom: 0;
@@ -87,21 +95,29 @@
 }
 
 .form-label {
-  font-size: 26px;
-  color: #6B7280;
+  font-size: 28px;
+  font-weight: 600;
+  color: #8E8B82;
   margin-bottom: 16px;
   display: block;
 }
 
 .form-input {
   width: 100%;
-  height: 88px;
-  background: #F8F9FE;
-  border-radius: 16px;
+  height: 96px;
+  background: #F9F9F9;
+  border-radius: 20px;
   padding: 0 24px;
   font-size: 28px;
-  color: #1A1A2E;
+  color: #2D2A2E;
   box-sizing: border-box;
+  transition: all 0.3s;
+  
+  &:focus {
+    background: #fff;
+    border: 2px solid #FFC4D0;
+    box-shadow: 0 0 0 4px rgba(255, 165, 180, 0.1);
+  }
 }
 
 .date-picker {
@@ -110,7 +126,7 @@
 }
 
 .placeholder {
-  color: #9CA3AF;
+  color: #A8A59E;
 }
 
 .gender-select {
@@ -120,41 +136,51 @@
 
 .gender-option {
   flex: 1;
-  height: 100px;
+  height: 108px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #F8F9FE;
-  border-radius: 16px;
+  background: #F9F9F9;
+  border-radius: 20px;
   font-size: 26px;
-  color: #6B7280;
+  color: #8E8B82;
   border: 2px solid transparent;
+  transition: all 0.2s;
 
   &.active {
-    background: #EEF0FF;
-    color: #5B6EF5;
-    border-color: #5B6EF5;
+    background: #FFF0ED;
+    color: #FFA5B4;
+    border-color: #FFA5B4;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(255, 165, 180, 0.15);
   }
 }
 
 .gender-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
+  font-size: 40px;
+  margin-bottom: 6px;
 }
 
 // 提交按钮
 .submit-btn {
   height: 96px;
-  background: linear-gradient(135deg, #5B6EF5 0%, #8B96F9 100%);
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
   border-radius: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
+  transition: transform 0.2s;
+  animation: fadeUp 0.6s ease 0.2s both;
+
+  &:active {
+    transform: scale(0.96);
+  }
 }
 
 .submit-text {
   font-size: 32px;
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
 }
