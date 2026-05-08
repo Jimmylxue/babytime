@@ -38,3 +38,6 @@ coverage/
 
 # Uploads
 uploads/
+
+# WeChat CI key
+.miniprogram.key

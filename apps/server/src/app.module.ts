@@ -17,6 +17,7 @@ import { FamilyModule } from './modules/family/family.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: join(__dirname, '..', '..', '..', '.env'),
     }),
     // 静态文件服务 - uploads 目录
     ServeStaticModule.forRoot({
