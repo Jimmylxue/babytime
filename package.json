@@ -1,19 +1,19 @@
 {
-  "name": "baby-time",
-  "version": "1.0.0",
-  "private": true,
-  "description": "小宝贝日记 - 婴儿日常记录工具",
-  "scripts": {
-    "dev:client": "npm --prefix apps/client run dev",
-    "dev:server": "npm --prefix apps/server run start:dev",
-    "build:client": "npm --prefix apps/client run build",
-    "build:server": "npm --prefix apps/server run build",
-    "build": "npm run build:server && npm run build:client"
-  },
-  "devDependencies": {
-    "typescript": "^5.4.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+	"name": "baby-time",
+	"version": "1.0.0",
+	"private": true,
+	"description": "小宝贝日记 - 婴儿日常记录工具",
+	"scripts": {
+		"dev:client": "npm --prefix apps/client run dev",
+		"dev:server": "npm --prefix apps/server run start:dev",
+		"build:client": "npm --prefix apps/client run build",
+		"build:server": "npm --prefix apps/server run build",
+		"build": "npm run build:server && npm run build:client"
+	},
+	"devDependencies": {
+		"typescript": "^5.4.5"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	}
 }

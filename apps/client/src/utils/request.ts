@@ -1,7 +1,6 @@
 import Taro from '@tarojs/taro'
 import { useAuthStore } from '../stores/authStore'
-
-const BASE_URL = 'http://localhost:3000/api'
+import { API_PREFIX } from '../config/env'
 
 interface RequestOptions {
 	url: string
@@ -37,7 +36,7 @@ export const request = <T = any>(
 
 	return new Promise((resolve, reject) => {
 		Taro.request({
-			url: `${BASE_URL}${restOptions.url}`,
+			url: `${API_PREFIX}${restOptions.url}`,
 			method: restOptions.method || 'GET',
 			data: restOptions.data,
 			header,
@@ -143,7 +142,7 @@ export const uploadFile = (filePath: string): Promise<{ url: string }> => {
 	const token = Taro.getStorageSync('token')
 	return new Promise((resolve, reject) => {
 		Taro.uploadFile({
-			url: `${BASE_URL}/upload`,
+			url: `${API_PREFIX}/upload`,
 			filePath,
 			name: 'file',
 			formData: {

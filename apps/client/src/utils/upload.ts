@@ -1,7 +1,6 @@
 import Taro from '@tarojs/taro';
 import { uploadFile, photoApi } from './request';
-
-const BASE_URL = 'http://localhost:3000';
+import { API_BASE } from '../config/env';
 
 /**
  * 选择图片并上传到后端
@@ -20,7 +19,7 @@ export const chooseAndUploadImage = async (): Promise<string | null> => {
       const uploadRes = await uploadFile(res.tempFilePaths[0]);
       const imageUrl = uploadRes.url.startsWith('http')
         ? uploadRes.url
-        : `${BASE_URL}${uploadRes.url}`;
+        : `${API_BASE}${uploadRes.url}`;
       Taro.hideLoading();
       return imageUrl;
     }
