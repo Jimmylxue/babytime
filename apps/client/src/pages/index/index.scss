@@ -354,11 +354,17 @@
   height: 88px;
   border-radius: 44px;
   font-size: 30px;
-  font-weight: 600;
+  font-weight: 700;
   width: 400px;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.96);
+  }
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #5B6EF5 0%, #8B96F9 100%);
+  background: linear-gradient(135deg, #FFA5B4, #FFC4D0);
   color: #fff;
+  box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
 }
