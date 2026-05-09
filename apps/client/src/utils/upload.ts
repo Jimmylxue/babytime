@@ -18,7 +18,9 @@ export const chooseAndUploadImage = async (): Promise<string | null> => {
     if (res.tempFilePaths.length > 0) {
       Taro.showLoading({ title: '上传中...' });
       const uploadRes = await uploadFile(res.tempFilePaths[0]);
-      const imageUrl = `${BASE_URL}${uploadRes.url}`;
+      const imageUrl = uploadRes.url.startsWith('http')
+        ? uploadRes.url
+        : `${BASE_URL}${uploadRes.url}`;
       Taro.hideLoading();
       return imageUrl;
     }
