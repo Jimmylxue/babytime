@@ -5,7 +5,6 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   UseGuards,
   Request,
   HttpCode,
@@ -49,9 +48,9 @@ export class FamilyController {
     };
   }
 
-  @Get('members/:babyId')
-  async getFamilyMembers(@Request() req, @Param('babyId') babyId: string) {
-    const members = await this.familyService.getFamilyMembers(req.user.id, babyId);
+  @Get('members')
+  async getFamilyMembers(@Request() req) {
+    const members = await this.familyService.getFamilyMembers(req.user.id);
     return {
       code: 0,
       message: 'success',
@@ -69,6 +68,16 @@ export class FamilyController {
     };
   }
 
+  @Get('binding-status')
+  async getBindingStatus(@Request() req) {
+    const status = await this.familyService.checkFamilyBinding(req.user.id);
+    return {
+      code: 0,
+      message: 'success',
+      data: status,
+    };
+  }
+
   @Delete('member/:memberId')
   @HttpCode(200)
   async removeMember(@Request() req, @Param('memberId') memberId: string) {
@@ -76,6 +85,16 @@ export class FamilyController {
     return {
       code: 0,
       message: '已移除成员',
+    };
+  }
+
+  @Post('leave')
+  @HttpCode(200)
+  async leaveFamily(@Request() req) {
+    await this.familyService.leaveFamily(req.user.id);
+    return {
+      code: 0,
+      message: '已退出家庭',
     };
   }
 }

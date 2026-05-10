@@ -178,10 +178,14 @@ export const familyApi = {
 		request<any>({ url: '/family/invite', method: 'POST', data: { babyId, role } }),
 	acceptInvite: (inviteCode: string, role?: string) =>
 		request<any>({ url: `/family/accept/${inviteCode}`, method: 'POST', data: { role } }),
-	getMembers: (babyId: string) =>
-		request<any[]>({ url: `/family/members/${babyId}` }),
+	getMembers: () =>
+		request<any[]>({ url: '/family/members' }),
 	getMyFamilies: () =>
 		request<any[]>({ url: '/family/my-families' }),
+	getBindingStatus: () =>
+		request<{ isBound: boolean; reason: 'owner' | 'member' | null }>({ url: '/family/binding-status' }),
 	removeMember: (memberId: string) =>
 		request<any>({ url: `/family/member/${memberId}`, method: 'DELETE' }),
+	leaveFamily: () =>
+		request<any>({ url: '/family/leave', method: 'POST' }),
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore, DailyStat } from '../../stores/recordStore'
+import { MOCK_STATS } from '../../utils/mock'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -81,18 +82,10 @@ export default function StatsPage() {
 		)
 	}
 
-	if (!isLoggedIn || !currentBaby) {
-		return (
-			<View className="page">
-				<View className="empty-state">
-					<Text className="empty-icon">📊</Text>
-					<Text className="empty-text">暂无数据</Text>
-					<Text className="empty-desc">请先登录并添加宝贝</Text>
-				</View>
-				<TabBar />
-			</View>
-		)
-	}
+	// 未登录时使用 mock 数据
+	const displayDailyStats = isLoggedIn && currentBaby ? dailyStats : MOCK_STATS.dailyStats;
+	const displayHeightWeight = isLoggedIn && currentBaby ? latestHeightWeight : MOCK_STATS.latestHeightWeight;
+	const displayTemperature = isLoggedIn && currentBaby ? latestTemperature : MOCK_STATS.latestTemperature;
 
 	return (
 		<View className="page">
@@ -113,33 +106,33 @@ export default function StatsPage() {
 			<View className="latest-section">
 				<Text className="section-title">最新数据</Text>
 				<View className="latest-grid">
-					{latestHeightWeight && (
+					{displayHeightWeight && (
 						<View className="latest-card">
 							<Text className="latest-icon">📏</Text>
 							<View className="latest-info">
 								<Text className="latest-value">
-									{latestHeightWeight.height}cm / {latestHeightWeight.weight}kg
+									{displayHeightWeight.height}cm / {displayHeightWeight.weight}kg
 								</Text>
 								<Text className="latest-date">
-									{new Date(latestHeightWeight.date).toLocaleDateString()}
+									{new Date(displayHeightWeight.date).toLocaleDateString()}
 								</Text>
 							</View>
 						</View>
 					)}
-					{latestTemperature && (
+					{displayTemperature && (
 						<View className="latest-card">
 							<Text className="latest-icon">🌡️</Text>
 							<View className="latest-info">
 								<Text className="latest-value">
-									{latestTemperature.temperature}°C
+									{displayTemperature.temperature}°C
 								</Text>
 								<Text className="latest-date">
-									{new Date(latestTemperature.date).toLocaleDateString()}
+									{new Date(displayTemperature.date).toLocaleDateString()}
 								</Text>
 							</View>
 						</View>
 					)}
-					{!latestHeightWeight && !latestTemperature && (
+					{!displayHeightWeight && !displayTemperature && (
 						<View className="latest-empty">
 							<Text className="latest-empty-text">暂无身高体重和体温记录</Text>
 						</View>
@@ -148,13 +141,13 @@ export default function StatsPage() {
 			</View>
 
 			{/* 统计图表 */}
-			{dailyStats.length > 0 && (
+			{displayDailyStats.length > 0 && (
 				<View className="charts-section">
 					<Text className="section-title">趋势图表</Text>
-					{renderBarChart(dailyStats, 'feedingCount', '喂奶次数', '次')}
-					{renderBarChart(dailyStats, 'totalMilk', '奶量', 'ml')}
-					{renderBarChart(dailyStats, 'diaperCount', '换尿布次数', '次')}
-					{renderBarChart(dailyStats, 'sleepTotal', '睡眠时长', '时')}
+					{renderBarChart(displayDailyStats, 'feedingCount', '喂奶次数', '次')}
+					{renderBarChart(displayDailyStats, 'totalMilk', '奶量', 'ml')}
+					{renderBarChart(displayDailyStats, 'diaperCount', '换尿布次数', '次')}
+					{renderBarChart(displayDailyStats, 'sleepTotal', '睡眠时长', '时')}
 				</View>
 			)}
 

@@ -6,6 +6,8 @@ import { useBabyStore } from '../../stores/babyStore';
 import { useRecordStore } from '../../stores/recordStore';
 import { calculateAge } from '../../utils/date';
 import { takePhotoAndSave } from '../../utils/upload';
+import { needLogin } from '../../utils/needLogin';
+import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock';
 import TabBar from '../../components/TabBar';
 import './index.scss';
 
@@ -52,8 +54,6 @@ export default function Index() {
     }
   });
 
-  const age = currentBaby ? calculateAge(currentBaby.birthday) : null;
-
   const formatSleepTime = (minutes: number) => {
     if (minutes < 60) return `${minutes}分钟`;
     const hours = Math.floor(minutes / 60);
@@ -92,7 +92,11 @@ export default function Index() {
   // 最近一次睡眠时长
   const lastSleepDuration = sleepRecords.length > 0 ? sleepRecords[0].duration : null;
 
-  const navigateToRecord = (type: string) => {
+  const navigateToRecord = async (type: string) => {
+    if (!isLoggedIn) {
+      needLogin();
+      return;
+    }
     if (!currentBaby) {
       Taro.showToast({ title: '请先添加宝贝', icon: 'none' });
       return;
@@ -107,24 +111,10 @@ export default function Index() {
     setShowMore(false);
   };
 
-  if (!isLoggedIn) {
-    return (
-      <View className="page">
-        <View className="login-tip">
-          <Text className="tip-icon">👶</Text>
-          <Text className="tip-text">欢迎使用小宝贝日记</Text>
-          <Text className="tip-desc">记录宝宝成长的每一天</Text>
-          <View
-            className="btn btn-primary"
-            onClick={() => Taro.redirectTo({ url: '/pages/login/index' })}
-          >
-            <Text>立即登录</Text>
-          </View>
-        </View>
-        <TabBar />
-      </View>
-    );
-  }
+  // 未登录时使用 mock 数据
+  const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY;
+  const displaySummary = isLoggedIn ? summary : MOCK_SUMMARY;
+  const displayAge = displayBaby ? calculateAge(displayBaby.birthday) : null;
 
   return (
     <View className="page">
@@ -132,39 +122,39 @@ export default function Index() {
       <View className="baby-card">
         <View className="baby-header">
           <View className="baby-avatar">
-            {currentBaby?.avatar ? (
-              <Image className="avatar-img" src={currentBaby.avatar} mode="aspectFill" />
+            {displayBaby?.avatar ? (
+              <Image className="avatar-img" src={displayBaby.avatar} mode="aspectFill" />
             ) : (
-              <Text>{currentBaby?.gender === 'male' ? '👦' : '👧'}</Text>
+              <Text>{displayBaby?.gender === 'male' ? '👦' : '👧'}</Text>
             )}
           </View>
           <View className="baby-info">
-            <Text className="baby-name">{currentBaby?.name || '未添加宝贝'}</Text>
-            {age && (
+            <Text className="baby-name">{displayBaby?.name || '未添加宝贝'}</Text>
+            {displayAge && (
               <Text className="baby-age">
-                {age.months}个月{age.days}天
+                {displayAge.months}个月{displayAge.days}天
               </Text>
             )}
           </View>
         </View>
-        {currentBaby && (
+        {displayBaby && (
           <Text className="baby-birthday">
-            {currentBaby.birthday} 出生
+            {displayBaby.birthday} 出生
           </Text>
         )}
       </View>
 
       {/* 今日统计 */}
-      {summary && (
+      {displaySummary && (
         <View className="stats-section">
           <Text className="section-title">今日记录</Text>
           <View className="stats-grid">
             <View className="stat-card">
               <Text className="stat-icon">🍼</Text>
-              <Text className="stat-value">{summary.feedingCount}<Text className="stat-unit">次</Text></Text>
+              <Text className="stat-value">{displaySummary.feedingCount}<Text className="stat-unit">次</Text></Text>
               <Text className="stat-label">喂奶</Text>
-              {summary.totalMilk > 0 && (
-                <Text className="stat-detail">共{summary.totalMilk}ml</Text>
+              {displaySummary.totalMilk > 0 && (
+                <Text className="stat-detail">共{displaySummary.totalMilk}ml</Text>
               )}
               {lastFeedingMethod && (
                 <Text className="stat-sub">{feedingMethodLabel[lastFeedingMethod] || lastFeedingMethod}</Text>
@@ -172,7 +162,7 @@ export default function Index() {
             </View>
             <View className="stat-card">
               <Text className="stat-icon">💩</Text>
-              <Text className="stat-value">{summary.diaperCount}<Text className="stat-unit">次</Text></Text>
+              <Text className="stat-value">{displaySummary.diaperCount}<Text className="stat-unit">次</Text></Text>
               <Text className="stat-label">换尿布</Text>
               {diaperDetailParts.length > 0 && (
                 <Text className="stat-detail">{diaperDetailParts.join(' ')}</Text>
@@ -180,10 +170,10 @@ export default function Index() {
             </View>
             <View className="stat-card">
               <Text className="stat-icon">😴</Text>
-              <Text className="stat-value">{summary.sleepCount}<Text className="stat-unit">次</Text></Text>
+              <Text className="stat-value">{displaySummary.sleepCount}<Text className="stat-unit">次</Text></Text>
               <Text className="stat-label">睡觉</Text>
-              {summary.sleepTotal > 0 && (
-                <Text className="stat-detail">共{formatSleepTime(summary.sleepTotal)}</Text>
+              {displaySummary.sleepTotal > 0 && (
+                <Text className="stat-detail">共{formatSleepTime(displaySummary.sleepTotal)}</Text>
               )}
               {lastSleepDuration != null && lastSleepDuration > 0 && (
                 <Text className="stat-sub">最近{formatSleepTime(lastSleepDuration)}</Text>
@@ -191,7 +181,7 @@ export default function Index() {
             </View>
             <View className="stat-card">
               <Text className="stat-icon">🍚</Text>
-              <Text className="stat-value">{summary.foodCount}<Text className="stat-unit">次</Text></Text>
+              <Text className="stat-value">{displaySummary.foodCount}<Text className="stat-unit">次</Text></Text>
               <Text className="stat-label">辅食</Text>
               {lastFoodName && (
                 <Text className="stat-detail">{lastFoodName}</Text>
@@ -220,7 +210,7 @@ export default function Index() {
       )}
 
       {/* 快速记录 */}
-      {currentBaby && (
+      {displayBaby && (
         <View className="quick-section">
           <Text className="section-title">快速记录</Text>
           <View className="action-grid">

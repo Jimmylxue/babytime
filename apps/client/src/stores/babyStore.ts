@@ -8,6 +8,7 @@ export interface Baby {
   birthday: string;
   avatar?: string;
   createdAt: string;
+  isOwner?: boolean;
 }
 
 interface BabyState {

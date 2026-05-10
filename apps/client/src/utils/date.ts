@@ -5,9 +5,10 @@ export function calculateAge(birthday: string): { months: number; days: number }
   const birthDate = new Date(birthday);
   const today = new Date();
 
-  // 计算总天数
-  const diffTime = today.getTime() - birthDate.getTime();
-  const totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  // 未来日期直接返回 0
+  if (birthDate > today) {
+    return { months: 0, days: 0 };
+  }
 
   // 计算月龄
   let months = (today.getFullYear() - birthDate.getFullYear()) * 12;

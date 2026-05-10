@@ -102,16 +102,18 @@ export default function BabyPage() {
                     <Text className="action-icon">📸</Text>
                     <Text className="action-text">相册</Text>
                   </View>
-                  <View
-                    className="action-btn delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(baby);
-                    }}
-                  >
-                    <Text className="action-icon">🗑️</Text>
-                    <Text className="action-text">删除</Text>
-                  </View>
+                  {baby.isOwner !== false && (
+                    <View
+                      className="action-btn delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(baby);
+                      }}
+                    >
+                      <Text className="action-icon">🗑️</Text>
+                      <Text className="action-text">删除</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             );

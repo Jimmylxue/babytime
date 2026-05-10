@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Photo } from './entities/photo.entity';
@@ -48,9 +48,8 @@ export class PhotoService {
       throw new NotFoundException('照片不存在');
     }
 
-    if (photo.baby.userId !== userId) {
-      throw new ForbiddenException('无权访问');
-    }
+    // 通过 babyService.findOne 检查权限（创建者或家庭成员均可）
+    await this.babyService.findOne(photo.babyId, userId);
 
     return photo;
   }

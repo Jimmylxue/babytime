@@ -1,6 +1,6 @@
 import { View, Text, Input, Picker, Image } from '@tarojs/components';
 import Taro, { useRouter, useDidShow } from '@tarojs/taro';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useBabyStore } from '../../stores/babyStore';
 import { babyApi } from '../../utils/request';
 import { chooseAndUploadImage } from '../../utils/upload';
@@ -17,6 +17,10 @@ export default function BabyEditPage() {
   const [birthday, setBirthday] = useState('');
   const [avatar, setAvatar] = useState('');
   const [loading, setLoading] = useState(false);
+  const today = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
 
   useDidShow(() => {
     if (isEdit && babyId) {
@@ -144,7 +148,7 @@ export default function BabyEditPage() {
 
         <View className="form-group">
           <Text className="form-label">出生日期</Text>
-          <Picker mode="date" onChange={onDateChange}>
+          <Picker mode="date" end={today} onChange={onDateChange} value={birthday || today}>
             <View className="form-input date-picker">
               <Text className={birthday ? '' : 'placeholder'}>
                 {birthday || '请选择出生日期'}
