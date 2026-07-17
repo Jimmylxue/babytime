@@ -147,6 +147,16 @@
 .cell-detail {
   flex: 1;
   padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cell-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .cell-interval {

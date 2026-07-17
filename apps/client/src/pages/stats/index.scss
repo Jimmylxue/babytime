@@ -330,10 +330,23 @@
   color: #A8A59E;
 }
 
+.timeline-text-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .timeline-text {
   font-size: 26px;
   color: #6D6A6E;
   display: block;
+}
+
+.timeline-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .timeline-empty {

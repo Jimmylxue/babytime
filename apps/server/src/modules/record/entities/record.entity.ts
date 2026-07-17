@@ -89,6 +89,9 @@ export class Record {
   })
   diaperStatus: DiaperStatus;
 
+  @Column({ name: 'diaper_image', nullable: true, comment: '尿布照片URL' })
+  diaperImage: string;
+
   // 辅食/饮水相关
   @Column({ name: 'food_name', nullable: true, comment: '辅食名称' })
   foodName: string;

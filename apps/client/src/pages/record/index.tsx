@@ -1,8 +1,9 @@
-import { View, Text, Input, Picker } from '@tarojs/components';
+import { View, Text, Input, Picker, Image } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { useState } from 'react';
 import { useRecordStore } from '../../stores/recordStore';
 import { formatHM, formatDurationLong } from '../../utils/date';
+import { chooseAndUploadImage } from '../../utils/upload';
 import './index.scss';
 
 const recordTypes = {
@@ -44,6 +45,7 @@ export default function RecordPage() {
   const [duration, setDuration] = useState('');
   const [sleepEndTime, setSleepEndTime] = useState(formatHM(new Date()));
   const [diaperStatus, setDiaperStatus] = useState('wet');
+  const [diaperImage, setDiaperImage] = useState('');
   const [foodName, setFoodName] = useState('');
   const [temperature, setTemperature] = useState('');
   const [height, setHeight] = useState('');
@@ -113,6 +115,7 @@ export default function RecordPage() {
           break;
         case 'diaper':
           data.diaperStatus = diaperStatus;
+          if (diaperImage) data.diaperImage = diaperImage;
           break;
         case 'sleep': {
           const { start, end, durationMinutes } = getSleepRange();
@@ -246,20 +249,52 @@ export default function RecordPage() {
 
         {/* 尿布相关 */}
         {type === 'diaper' && (
-          <View className="form-group">
-            <Text className="form-label">状态</Text>
-            <View className="method-grid">
-              {diaperStatuses.map((s) => (
-                <View
-                  key={s.value}
-                  className={`method-item ${diaperStatus === s.value ? 'active' : ''}`}
-                  onClick={() => setDiaperStatus(s.value)}
-                >
-                  <Text>{s.label}</Text>
-                </View>
-              ))}
+          <>
+            <View className="form-group">
+              <Text className="form-label">状态</Text>
+              <View className="method-grid">
+                {diaperStatuses.map((s) => (
+                  <View
+                    key={s.value}
+                    className={`method-item ${diaperStatus === s.value ? 'active' : ''}`}
+                    onClick={() => setDiaperStatus(s.value)}
+                  >
+                    <Text>{s.label}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
+            <View className="form-group">
+              <Text className="form-label">照片 (可选)</Text>
+              {diaperImage ? (
+                <View className="image-preview">
+                  <Image
+                    className="image-preview-img"
+                    src={diaperImage}
+                    mode="aspectFill"
+                    onClick={() => Taro.previewImage({ current: diaperImage, urls: [diaperImage] })}
+                  />
+                  <View
+                    className="image-remove-badge"
+                    onClick={() => setDiaperImage('')}
+                  >
+                    <Text>×</Text>
+                  </View>
+                </View>
+              ) : (
+                <View
+                  className="image-picker"
+                  onClick={async () => {
+                    const url = await chooseAndUploadImage();
+                    if (url) setDiaperImage(url);
+                  }}
+                >
+                  <Text className="image-picker-icon">📷</Text>
+                  <Text className="image-picker-text">上传照片</Text>
+                </View>
+              )}
+            </View>
+          </>
         )}
 
         {/* 睡眠相关：入睡/起床时间，自动推算时长 */}

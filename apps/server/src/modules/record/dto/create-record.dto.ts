@@ -48,6 +48,10 @@ export class CreateRecordDto {
   @IsOptional()
   diaperStatus?: DiaperStatus;
 
+  @IsString()
+  @IsOptional()
+  diaperImage?: string;
+
   // 辅食/饮水
   @IsString()
   @IsOptional()

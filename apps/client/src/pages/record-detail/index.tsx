@@ -1,5 +1,5 @@
-import { View, Text, ScrollView } from '@tarojs/components';
-import { useRouter } from '@tarojs/taro';
+import { View, Text, ScrollView, Image } from '@tarojs/components';
+import Taro, { useRouter } from '@tarojs/taro';
 import { useEffect, useState } from 'react';
 import { useRecordStore } from '../../stores/recordStore';
 import { formatDate, formatDurationLong, formatHM } from '../../utils/date';
@@ -82,7 +82,17 @@ export default function RecordDetailPage() {
                     <Text className="cell-date">{formatDate(item.startTime).slice(5)}</Text>
                     <Text className="cell-hm">{formatHM(item.startTime)}</Text>
                   </View>
-                  <Text className="table-cell cell-detail">{getRecordMainText(type, item)}</Text>
+                  <View className="table-cell cell-detail">
+                    <Text>{getRecordMainText(type, item)}</Text>
+                    {type === 'diaper' && item.diaperImage && (
+                      <Image
+                        className="cell-thumb"
+                        src={item.diaperImage}
+                        mode="aspectFill"
+                        onClick={() => Taro.previewImage({ current: item.diaperImage, urls: [item.diaperImage] })}
+                      />
+                    )}
+                  </View>
                   <Text className="table-cell cell-interval">{getIntervalShortText(item.intervalMinutes)}</Text>
                 </View>
               ))}

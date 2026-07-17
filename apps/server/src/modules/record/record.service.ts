@@ -239,6 +239,11 @@ export class RecordService {
       previousAnchor += previous.duration * 60 * 1000;
     }
 
+    // 按天维度计算间隔：锚点时间和当前记录不在同一天，就不计入间隔（不跨天）
+    if (this.getLocalDateStr(new Date(previousAnchor)) !== this.getLocalDateStr(new Date(currentStart))) {
+      return null;
+    }
+
     const diffMs = currentStart - previousAnchor;
     if (diffMs < 0) return null;
     return Math.round(diffMs / 60000);

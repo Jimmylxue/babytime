@@ -105,6 +105,12 @@ export default function PhotoPage() {
                   <View
                     key={photo.id}
                     className="photo-item"
+                    onClick={() =>
+                      Taro.previewImage({
+                        current: photo.url,
+                        urls: item.photos.map((p) => p.url),
+                      })
+                    }
                     onLongPress={() => handleDeletePhoto(photo.id)}
                   >
                     <Image

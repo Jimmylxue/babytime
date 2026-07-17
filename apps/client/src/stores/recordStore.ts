@@ -13,6 +13,7 @@ export interface Record {
   formulaAmount?: number;
   duration?: number;
   diaperStatus?: string;
+  diaperImage?: string;
   foodName?: string;
   temperature?: number;
   height?: number;

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, ScrollView, Picker, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../stores/authStore'
@@ -287,7 +287,17 @@ export default function StatsPage() {
 										<Text className="timeline-time">{formatHM(item.startTime)}</Text>
 										<Text className="timeline-interval">{getIntervalText(activeType, item.intervalMinutes)}</Text>
 									</View>
-									<Text className="timeline-text">{getRecordMainText(activeType, item)}</Text>
+									<View className="timeline-text-row">
+										<Text className="timeline-text">{getRecordMainText(activeType, item)}</Text>
+										{activeType === 'diaper' && item.diaperImage && (
+											<Image
+												className="timeline-thumb"
+												src={item.diaperImage}
+												mode="aspectFill"
+												onClick={() => Taro.previewImage({ current: item.diaperImage, urls: [item.diaperImage] })}
+											/>
+										)}
+									</View>
 								</View>
 							</View>
 						))}

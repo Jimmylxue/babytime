@@ -104,6 +104,21 @@ export default function Index() {
     setShowMore(false);
   };
 
+  // 查看换尿布明细（含上传的尿布照片）
+  const goToDiaperDetail = () => {
+    if (!isLoggedIn) {
+      needLogin();
+      return;
+    }
+    if (!currentBaby) {
+      Taro.showToast({ title: '请先添加宝贝', icon: 'none' });
+      return;
+    }
+    Taro.navigateTo({
+      url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=diaper`,
+    });
+  };
+
   // 未登录时使用 mock 数据
   const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY;
   const displaySummary = isLoggedIn ? summary : MOCK_SUMMARY;
@@ -158,7 +173,7 @@ export default function Index() {
                 </Text>
               )}
             </View>
-            <View className="stat-card">
+            <View className="stat-card" onClick={() => goToDiaperDetail()}>
               <Text className="stat-icon">💩</Text>
               <Text className="stat-value">{displaySummary.diaperCount}<Text className="stat-unit">次</Text></Text>
               <Text className="stat-label">换尿布</Text>
