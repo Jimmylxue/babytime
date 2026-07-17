@@ -33,6 +33,14 @@ export class CreateRecordDto {
 
   @IsNumber()
   @IsOptional()
+  breastAmount?: number;
+
+  @IsNumber()
+  @IsOptional()
+  formulaAmount?: number;
+
+  @IsNumber()
+  @IsOptional()
   duration?: number;
 
   // 尿布相关

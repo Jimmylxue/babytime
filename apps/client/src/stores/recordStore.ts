@@ -9,6 +9,8 @@ export interface Record {
   endTime?: string;
   feedingMethod?: string;
   amount?: number;
+  breastAmount?: number;
+  formulaAmount?: number;
   duration?: number;
   diaperStatus?: string;
   foodName?: string;
@@ -47,16 +49,31 @@ export interface DailyStat {
   waterTotal: number;
 }
 
+// 明细记录：在 Record 基础上附带与上一条同类型记录的间隔分钟数
+export interface DetailRecord extends Record {
+  intervalMinutes: number | null;
+}
+
+export interface DetailSummary {
+  count: number;
+  totalAmount?: number;
+  totalDuration?: number;
+  avgIntervalMinutes: number | null;
+}
+
 interface RecordState {
   records: Record[];
   summary: TodaySummary | null;
   dailyStats: DailyStat[];
   latestHeightWeight: { height: number; weight: number; date: string } | null;
   latestTemperature: { temperature: number; date: string } | null;
+  detailItems: DetailRecord[];
+  detailSummary: DetailSummary | null;
   loading: boolean;
   fetchRecords: (babyId: string, date?: string) => Promise<void>;
   fetchSummary: (babyId: string) => Promise<void>;
   fetchStats: (babyId: string, days?: number) => Promise<void>;
+  fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number }) => Promise<void>;
   addRecord: (data: any) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
 }
@@ -67,6 +84,8 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   dailyStats: [],
   latestHeightWeight: null,
   latestTemperature: null,
+  detailItems: [],
+  detailSummary: null,
   loading: false,
 
   fetchRecords: async (babyId: string, date?: string) => {
@@ -101,6 +120,18 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       });
     } catch (error) {
       console.error('获取统计数据失败', error);
+    }
+  },
+
+  fetchDetail: async (babyId: string, type: string, params: { date?: string; days?: number }) => {
+    try {
+      const res = await recordApi.getDetail(babyId, type, params);
+      set({
+        detailItems: res.data?.items || [],
+        detailSummary: res.data?.summary || null,
+      });
+    } catch (error) {
+      console.error('获取明细数据失败', error);
     }
   },
 

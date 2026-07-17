@@ -52,6 +52,58 @@ export const MOCK_RECORDS = [
   },
 ]
 
+// 生成某一天内、以固定间隔分布的明细记录（用于未登录预览的统计页/明细页）
+function buildMockTimeline(
+  type: string,
+  hours: number[],
+  makeItem: (hour: number) => Record<string, any>,
+): { id: string; type: string; startTime: string; intervalMinutes: number | null }[] {
+  const today = new Date()
+  let prevHour: number | null = null
+  return hours.map((hour, idx) => {
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, 0, 0)
+    const intervalMinutes = prevHour == null ? null : (hour - prevHour) * 60
+    prevHour = hour
+    return {
+      id: `mock-${type}-${idx}`,
+      babyId: 'mock-baby-001',
+      type,
+      startTime: start.toISOString(),
+      intervalMinutes,
+      ...makeItem(hour),
+    }
+  })
+}
+
+const mockFeedingItems = buildMockTimeline('feeding', [7, 10, 13, 16, 19, 22], hour => {
+  if (hour === 13) return { feedingMethod: 'mixed', breastAmount: 80, formulaAmount: 60, amount: 140 }
+  if (hour === 22) return { feedingMethod: 'breast', amount: 0 }
+  return { feedingMethod: 'formula', amount: 150 }
+})
+
+const mockDiaperItems = buildMockTimeline('diaper', [8, 12, 15, 20], hour => ({
+  diaperStatus: hour === 12 ? 'both' : hour % 2 === 0 ? 'wet' : 'dirty',
+}))
+
+const mockSleepItems = buildMockTimeline('sleep', [9, 13, 20], hour => ({
+  duration: hour === 20 ? 600 : 90,
+}))
+
+export const MOCK_DETAIL: Record<string, { items: any[]; summary: any }> = {
+  feeding: {
+    items: mockFeedingItems,
+    summary: { count: mockFeedingItems.length, totalAmount: 440, avgIntervalMinutes: 180 },
+  },
+  diaper: {
+    items: mockDiaperItems,
+    summary: { count: mockDiaperItems.length, avgIntervalMinutes: 240 },
+  },
+  sleep: {
+    items: mockSleepItems,
+    summary: { count: mockSleepItems.length, totalDuration: 780, avgIntervalMinutes: 210 },
+  },
+}
+
 function getDateStr(daysAgo: number): string {
   const d = new Date()
   d.setDate(d.getDate() - daysAgo)

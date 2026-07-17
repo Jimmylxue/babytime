@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { RecordService } from './record.service';
 import { CreateRecordDto } from './dto/create-record.dto';
+import { RecordType } from './entities/record.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @Controller('record')
@@ -69,6 +70,25 @@ export class RecordController {
       code: 0,
       message: 'success',
       data: stats,
+    };
+  }
+
+  @Get('detail/:babyId')
+  async getRecordDetail(
+    @Param('babyId') babyId: string,
+    @Query('type') type: RecordType,
+    @Query('date') date: string,
+    @Query('days') days: string,
+    @Request() req,
+  ) {
+    const detail = await this.recordService.getRecordDetail(req.user.id, babyId, type, {
+      date,
+      days: days ? parseInt(days) : undefined,
+    });
+    return {
+      code: 0,
+      message: 'success',
+      data: detail,
     };
   }
 

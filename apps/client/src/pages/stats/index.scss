@@ -18,10 +18,9 @@
   background: #fff;
   border-radius: 24px;
   padding: 8px;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
   box-shadow: 0 4px 16px rgba(130, 110, 90, 0.03);
   border: 1px solid #F0EDE6;
-  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .range-item {
@@ -99,6 +98,247 @@
 }
 
 .latest-empty-text {
+  font-size: 26px;
+  color: #A8A59E;
+}
+
+// 类型切换 Tab
+.type-tabs {
+  display: flex;
+  background: #fff;
+  border-radius: 28px;
+  padding: 10px;
+  margin-bottom: 24px;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.type-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 76px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+
+  &.active {
+    background: linear-gradient(135deg, #FFA5B4, #FFC4D0);
+    box-shadow: 0 4px 12px rgba(255, 165, 180, 0.3);
+
+    .type-tab-label {
+      color: #fff;
+      font-weight: 700;
+    }
+  }
+}
+
+.type-tab-icon {
+  font-size: 32px;
+}
+
+.type-tab-label {
+  font-size: 26px;
+  color: #8E8B82;
+  font-weight: 600;
+}
+
+// 日期切换
+.date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+.date-arrow {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 50%;
+  font-size: 32px;
+  color: #FFA5B4;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(130, 110, 90, 0.05);
+  border: 1px solid #F0EDE6;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.9);
+  }
+
+  &.disabled {
+    color: #D1D5DB;
+    opacity: 0.5;
+  }
+}
+
+.date-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: #fff;
+  border-radius: 24px;
+  border: 1px solid #F0EDE6;
+  box-shadow: 0 4px 12px rgba(130, 110, 90, 0.03);
+}
+
+.date-label {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2D2A2E;
+}
+
+.date-icon {
+  font-size: 22px;
+}
+
+// 明细卡
+.detail-card {
+  background: #fff;
+  border-radius: 36px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+.detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+
+  .section-title {
+    margin-bottom: 0;
+  }
+}
+
+.detail-link {
+  font-size: 24px;
+  color: #FFA5B4;
+  font-weight: 600;
+  padding: 8px 20px;
+  background: #FFF0ED;
+  border-radius: 16px;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// 今日总结 tile
+.summary-tiles {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px dashed #F0EDE6;
+}
+
+.summary-tile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFFDF9;
+  border-radius: 20px;
+  padding: 20px 12px;
+}
+
+.summary-tile-value {
+  font-size: 30px;
+  font-weight: 700;
+  color: #FFA5B4;
+  display: block;
+}
+
+.summary-tile-label {
+  font-size: 22px;
+  color: #A8A59E;
+  margin-top: 6px;
+  display: block;
+}
+
+// 时间轴
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 20px;
+}
+
+.timeline-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.timeline-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FFA5B4, #FFC4D0);
+  box-shadow: 0 0 0 6px #FFF0ED;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.timeline-line {
+  flex: 1;
+  width: 2px;
+  background: #F0EDE6;
+  margin: 4px 0;
+}
+
+.timeline-content {
+  flex: 1;
+  padding-bottom: 32px;
+}
+
+.timeline-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.timeline-time {
+  font-size: 30px;
+  font-weight: 700;
+  color: #2D2A2E;
+}
+
+.timeline-interval {
+  font-size: 22px;
+  color: #A8A59E;
+}
+
+.timeline-text {
+  font-size: 26px;
+  color: #6D6A6E;
+  display: block;
+}
+
+.timeline-empty {
+  padding: 60px 0;
+  text-align: center;
   font-size: 26px;
   color: #A8A59E;
 }

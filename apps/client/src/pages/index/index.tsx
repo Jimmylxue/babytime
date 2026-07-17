@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useBabyStore } from '../../stores/babyStore';
 import { useRecordStore } from '../../stores/recordStore';
-import { calculateAge } from '../../utils/date';
+import { calculateAge, formatDurationLong } from '../../utils/date';
 import { takePhotoAndSave } from '../../utils/upload';
 import { needLogin } from '../../utils/needLogin';
 import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock';
@@ -30,10 +30,9 @@ const moreActions = [
 ];
 
 const feedingMethodLabel: Record<string, string> = {
-  breast_left: '左侧母乳',
-  breast_right: '右侧母乳',
-  breast_both: '双侧母乳',
+  breast: '母乳',
   formula: '奶粉',
+  mixed: '混合',
 };
 
 export default function Index() {
@@ -54,13 +53,6 @@ export default function Index() {
     }
   });
 
-  const formatSleepTime = (minutes: number) => {
-    if (minutes < 60) return `${minutes}分钟`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}小时${mins}分` : `${hours}小时`;
-  };
-
   // 从记录中提取辅助信息
   const todayRecords = records || [];
   const feedingRecords = todayRecords.filter((r) => r.type === 'feeding');
@@ -69,7 +61,8 @@ export default function Index() {
   const foodRecords = todayRecords.filter((r) => r.type === 'food');
 
   // 最近一次喂奶方式
-  const lastFeedingMethod = feedingRecords.length > 0 ? feedingRecords[0].feedingMethod : null;
+  const lastFeeding = feedingRecords.length > 0 ? feedingRecords[0] : null;
+  const lastFeedingMethod = lastFeeding?.feedingMethod || null;
 
   // 尿布类型统计
   const diaperBreakdown = diaperRecords.reduce(
@@ -157,7 +150,12 @@ export default function Index() {
                 <Text className="stat-detail">共{displaySummary.totalMilk}ml</Text>
               )}
               {lastFeedingMethod && (
-                <Text className="stat-sub">{feedingMethodLabel[lastFeedingMethod] || lastFeedingMethod}</Text>
+                <Text className="stat-sub">
+                  {feedingMethodLabel[lastFeedingMethod] || lastFeedingMethod}
+                  {lastFeedingMethod === 'mixed' && (lastFeeding?.breastAmount || lastFeeding?.formulaAmount)
+                    ? ` 母乳${lastFeeding?.breastAmount || 0}ml+奶粉${lastFeeding?.formulaAmount || 0}ml`
+                    : ''}
+                </Text>
               )}
             </View>
             <View className="stat-card">
@@ -173,10 +171,10 @@ export default function Index() {
               <Text className="stat-value">{displaySummary.sleepCount}<Text className="stat-unit">次</Text></Text>
               <Text className="stat-label">睡觉</Text>
               {displaySummary.sleepTotal > 0 && (
-                <Text className="stat-detail">共{formatSleepTime(displaySummary.sleepTotal)}</Text>
+                <Text className="stat-detail">共{formatDurationLong(displaySummary.sleepTotal)}</Text>
               )}
               {lastSleepDuration != null && lastSleepDuration > 0 && (
-                <Text className="stat-sub">最近{formatSleepTime(lastSleepDuration)}</Text>
+                <Text className="stat-sub">最近{formatDurationLong(lastSleepDuration)}</Text>
               )}
             </View>
             <View className="stat-card">

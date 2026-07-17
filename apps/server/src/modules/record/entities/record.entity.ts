@@ -27,10 +27,9 @@ export enum RecordType {
 
 // 喂奶方式
 export enum FeedingMethod {
-  BREAST_LEFT = 'breast_left',    // 左侧母乳
-  BREAST_RIGHT = 'breast_right',  // 右侧母乳
-  BREAST_BOTH = 'breast_both',    // 双侧母乳
+  BREAST = 'breast',              // 母乳
   FORMULA = 'formula',            // 奶粉
+  MIXED = 'mixed',                // 混合
 }
 
 // 尿布状态
@@ -71,6 +70,12 @@ export class Record {
 
   @Column({ name: 'amount', type: 'int', nullable: true, comment: '奶量(ml)' })
   amount: number;
+
+  @Column({ name: 'breast_amount', type: 'int', nullable: true, comment: '母乳量(ml)，混合喂养时使用' })
+  breastAmount: number;
+
+  @Column({ name: 'formula_amount', type: 'int', nullable: true, comment: '奶粉量(ml)，混合喂养时使用' })
+  formulaAmount: number;
 
   @Column({ name: 'duration', type: 'int', nullable: true, comment: '时长(分钟)' })
   duration: number;

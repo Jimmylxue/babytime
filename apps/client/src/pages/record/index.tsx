@@ -2,6 +2,7 @@ import { View, Text, Input, Picker } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { useState } from 'react';
 import { useRecordStore } from '../../stores/recordStore';
+import { formatHM, formatDurationLong } from '../../utils/date';
 import './index.scss';
 
 const recordTypes = {
@@ -19,10 +20,9 @@ const recordTypes = {
 };
 
 const feedingMethods = [
-  { value: 'breast_left', label: '左侧母乳' },
-  { value: 'breast_right', label: '右侧母乳' },
-  { value: 'breast_both', label: '双侧母乳' },
+  { value: 'breast', label: '母乳' },
   { value: 'formula', label: '奶粉' },
+  { value: 'mixed', label: '混合' },
 ];
 
 const diaperStatuses = [
@@ -39,7 +39,10 @@ export default function RecordPage() {
   const [loading, setLoading] = useState(false);
   const [feedingMethod, setFeedingMethod] = useState('formula');
   const [amount, setAmount] = useState('');
+  const [breastAmount, setBreastAmount] = useState('');
+  const [formulaAmount, setFormulaAmount] = useState('');
   const [duration, setDuration] = useState('');
+  const [sleepEndTime, setSleepEndTime] = useState(formatHM(new Date()));
   const [diaperStatus, setDiaperStatus] = useState('wet');
   const [foodName, setFoodName] = useState('');
   const [temperature, setTemperature] = useState('');
@@ -51,19 +54,38 @@ export default function RecordPage() {
   const [vaccineHospital, setVaccineHospital] = useState('');
   const [outdoorLocation, setOutdoorLocation] = useState('');
   const [note, setNote] = useState('');
-  const [startTime, setStartTime] = useState(formatTime(new Date()));
+  const [startTime, setStartTime] = useState(formatHM(new Date()));
 
   const typeInfo = recordTypes[type] || recordTypes.feeding;
-
-  function formatTime(date: Date) {
-    const h = String(date.getHours()).padStart(2, '0');
-    const m = String(date.getMinutes()).padStart(2, '0');
-    return `${h}:${m}`;
-  }
 
   const handleTimeChange = (e) => {
     setStartTime(e.detail.value);
   };
+
+  const handleSleepEndTimeChange = (e) => {
+    setSleepEndTime(e.detail.value);
+  };
+
+  // 根据入睡/起床时间自动推算睡眠时长（分钟），跨天入睡则按次日起床计算
+  const buildTimeOnDate = (baseDate: Date, time: string) => {
+    const [hours, minutes] = time.split(':');
+    const d = new Date(baseDate);
+    d.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    return d;
+  };
+
+  const getSleepRange = () => {
+    const today = new Date();
+    const start = buildTimeOnDate(today, startTime);
+    let end = buildTimeOnDate(today, sleepEndTime);
+    if (end <= start) {
+      end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    }
+    const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+    return { start, end, durationMinutes };
+  };
+
+  const sleepDurationMinutes = type === 'sleep' ? getSleepRange().durationMinutes : 0;
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -81,15 +103,24 @@ export default function RecordPage() {
       switch (type) {
         case 'feeding':
           data.feedingMethod = feedingMethod;
-          if (amount) data.amount = parseInt(amount);
+          if (feedingMethod === 'mixed') {
+            if (breastAmount) data.breastAmount = parseInt(breastAmount);
+            if (formulaAmount) data.formulaAmount = parseInt(formulaAmount);
+          } else if (amount) {
+            data.amount = parseInt(amount);
+          }
           if (duration) data.duration = parseInt(duration);
           break;
         case 'diaper':
           data.diaperStatus = diaperStatus;
           break;
-        case 'sleep':
-          if (duration) data.duration = parseInt(duration);
+        case 'sleep': {
+          const { start, end, durationMinutes } = getSleepRange();
+          data.startTime = start.toISOString();
+          data.endTime = end.toISOString();
+          data.duration = durationMinutes;
           break;
+        }
         case 'food':
           data.foodName = foodName;
           break;
@@ -139,7 +170,7 @@ export default function RecordPage() {
       <View className="record-form">
         {/* 时间选择 */}
         <View className="form-group">
-          <Text className="form-label">时间</Text>
+          <Text className="form-label">{type === 'sleep' ? '入睡时间' : '时间'}</Text>
           <Picker mode="time" value={startTime} onChange={handleTimeChange}>
             <View className="form-input time-input">
               <Text>{startTime}</Text>
@@ -164,9 +195,9 @@ export default function RecordPage() {
                 ))}
               </View>
             </View>
-            {feedingMethod === 'formula' && (
+            {(feedingMethod === 'formula' || feedingMethod === 'breast') && (
               <View className="form-group">
-                <Text className="form-label">奶量 (ml)</Text>
+                <Text className="form-label">{feedingMethod === 'breast' ? '母乳量 (ml，可选)' : '奶量 (ml)'}</Text>
                 <Input
                   className="form-input"
                   type="number"
@@ -175,6 +206,30 @@ export default function RecordPage() {
                   onInput={(e) => setAmount(e.detail.value)}
                 />
               </View>
+            )}
+            {feedingMethod === 'mixed' && (
+              <>
+                <View className="form-group">
+                  <Text className="form-label">母乳量 (ml)</Text>
+                  <Input
+                    className="form-input"
+                    type="number"
+                    placeholder="请输入母乳量"
+                    value={breastAmount}
+                    onInput={(e) => setBreastAmount(e.detail.value)}
+                  />
+                </View>
+                <View className="form-group">
+                  <Text className="form-label">奶粉量 (ml)</Text>
+                  <Input
+                    className="form-input"
+                    type="number"
+                    placeholder="请输入奶粉量"
+                    value={formulaAmount}
+                    onInput={(e) => setFormulaAmount(e.detail.value)}
+                  />
+                </View>
+              </>
             )}
             <View className="form-group">
               <Text className="form-label">时长 (分钟)</Text>
@@ -207,18 +262,24 @@ export default function RecordPage() {
           </View>
         )}
 
-        {/* 睡眠相关 */}
+        {/* 睡眠相关：入睡/起床时间，自动推算时长 */}
         {type === 'sleep' && (
-          <View className="form-group">
-            <Text className="form-label">时长 (分钟)</Text>
-            <Input
-              className="form-input"
-              type="number"
-              placeholder="请输入睡眠时长"
-              value={duration}
-              onInput={(e) => setDuration(e.detail.value)}
-            />
-          </View>
+          <>
+            <View className="form-group">
+              <Text className="form-label">起床时间</Text>
+              <Picker mode="time" value={sleepEndTime} onChange={handleSleepEndTimeChange}>
+                <View className="form-input time-input">
+                  <Text>{sleepEndTime}</Text>
+                </View>
+              </Picker>
+            </View>
+            <View className="form-group">
+              <Text className="form-label">睡眠时长</Text>
+              <View className="form-input sleep-duration-display">
+                <Text>{formatDurationLong(sleepDurationMinutes)}</Text>
+              </View>
+            </View>
+          </>
         )}
 
         {/* 辅食相关 */}

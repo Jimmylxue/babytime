@@ -39,3 +39,33 @@ export function formatDate(date: string | Date): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * 格式化时长（分钟）为简短形式 "x时y分" / "x分"，用于图表等空间紧凑的场景
+ */
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}分`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}时${mins}分` : `${hours}时`;
+}
+
+/**
+ * 格式化时长（分钟）为完整形式 "x小时y分" / "x分钟"
+ */
+export function formatDurationLong(minutes: number): string {
+  if (minutes < 60) return `${minutes}分钟`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}小时${mins}分` : `${hours}小时`;
+}
+
+/**
+ * 格式化日期为 "HH:mm"
+ */
+export function formatHM(date: string | Date): string {
+  const d = new Date(date);
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}

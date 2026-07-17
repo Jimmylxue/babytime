@@ -6,6 +6,7 @@ export default defineAppConfig({
     'pages/mine/index',
     'pages/login/index',
     'pages/record/index',
+    'pages/record-detail/index',
     'pages/photo/index',
     'pages/baby-edit/index',
     'pages/family/index',

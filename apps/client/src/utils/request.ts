@@ -114,6 +114,15 @@ export const recordApi = {
 		request<any>({
 			url: `/record/stats/${babyId}${days ? `?days=${days}` : ''}`,
 		}),
+	// 明细查询：传 date 取当天明细，传 days 取最近 N 天明细，均含与上一条的间隔
+	getDetail: (babyId: string, type: string, params: { date?: string; days?: number }) => {
+		const query = new URLSearchParams({ type })
+		if (params.date) query.set('date', params.date)
+		if (params.days) query.set('days', String(params.days))
+		return request<{ items: any[]; summary: any }>({
+			url: `/record/detail/${babyId}?${query.toString()}`,
+		})
+	},
 	delete: (id: string) =>
 		request<any>({ url: `/record/${id}`, method: 'DELETE' }),
 }
