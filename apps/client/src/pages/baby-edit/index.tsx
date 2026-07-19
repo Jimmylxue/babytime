@@ -1,6 +1,6 @@
 import { View, Text, Input, Picker, Image } from '@tarojs/components';
 import Taro, { useRouter, useDidShow } from '@tarojs/taro';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useBabyStore } from '../../stores/babyStore';
 import { babyApi } from '../../utils/request';
 import { chooseAndUploadImage } from '../../utils/upload';
@@ -17,6 +17,7 @@ export default function BabyEditPage() {
   const [birthday, setBirthday] = useState('');
   const [avatar, setAvatar] = useState('');
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false); // 同步锁，避免 state 异步更新导致连点漏拦截
   const today = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -65,6 +66,8 @@ export default function BabyEditPage() {
       Taro.showToast({ title: '请选择出生日期', icon: 'none' });
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
 
     setLoading(true);
     try {
@@ -87,6 +90,7 @@ export default function BabyEditPage() {
     } catch (error) {
       Taro.showToast({ title: isEdit ? '更新失败' : '添加失败', icon: 'none' });
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };

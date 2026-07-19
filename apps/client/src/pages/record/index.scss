@@ -179,6 +179,11 @@
   &:active {
     transform: scale(0.96);
   }
+
+  &.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
 }
 
 .submit-text {

@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { useEffect, useState } from 'react';
-import { useRecordStore } from '../../stores/recordStore';
+import { useRecordStore, DetailRecord } from '../../stores/recordStore';
 import { formatDate, formatDurationLong, formatHM } from '../../utils/date';
 import { detailTypeTabs, getRecordMainText, getIntervalShortText } from '../../utils/recordDisplay';
 import { MOCK_DETAIL } from '../../utils/mock';
@@ -10,7 +10,7 @@ import './index.scss';
 export default function RecordDetailPage() {
   const router = useRouter();
   const { babyId, type = 'feeding' } = router.params;
-  const { detailItems, detailSummary, fetchDetail } = useRecordStore();
+  const { detailItems, detailSummary, fetchDetail, deleteRecord } = useRecordStore();
   const [days, setDays] = useState(7);
 
   const typeInfo = detailTypeTabs.find((t) => t.type === type) || detailTypeTabs[0];
@@ -20,6 +20,32 @@ export default function RecordDetailPage() {
       fetchDetail(babyId, type, { days });
     }
   }, [babyId, type, days]);
+
+  // 点击一行记录，弹出编辑/删除操作面板
+  const handleRowClick = (item: DetailRecord) => {
+    Taro.showActionSheet({ itemList: ['编辑', '删除'] }).then((res) => {
+      if (res.tapIndex === 0) {
+        Taro.navigateTo({ url: `/pages/record/index?type=${type}&babyId=${babyId}&id=${item.id}` });
+      } else if (res.tapIndex === 1) {
+        handleDelete(item.id);
+      }
+    });
+  };
+
+  const handleDelete = async (recordId: string) => {
+    const res = await Taro.showModal({
+      title: '删除记录',
+      content: '确定要删除这条记录吗？',
+    });
+    if (!res.confirm) return;
+    try {
+      await deleteRecord(recordId);
+      Taro.showToast({ title: '已删除', icon: 'success' });
+      if (babyId) fetchDetail(babyId, type, { days });
+    } catch (error) {
+      Taro.showToast({ title: '删除失败', icon: 'none' });
+    }
+  };
 
   // 无 babyId 时（例如直接预览）展示 mock 数据兜底
   const items = babyId ? detailItems : MOCK_DETAIL[type]?.items || [];
@@ -77,7 +103,7 @@ export default function RecordDetailPage() {
               .slice()
               .reverse()
               .map((item) => (
-                <View key={item.id} className="table-row">
+                <View key={item.id} className="table-row" onClick={() => handleRowClick(item)}>
                   <View className="table-cell cell-time">
                     <Text className="cell-date">{formatDate(item.startTime).slice(5)}</Text>
                     <Text className="cell-hm">{formatHM(item.startTime)}</Text>
@@ -89,7 +115,10 @@ export default function RecordDetailPage() {
                         className="cell-thumb"
                         src={item.diaperImage}
                         mode="aspectFill"
-                        onClick={() => Taro.previewImage({ current: item.diaperImage, urls: [item.diaperImage] })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          Taro.previewImage({ current: item.diaperImage, urls: [item.diaperImage] });
+                        }}
                       />
                     )}
                   </View>

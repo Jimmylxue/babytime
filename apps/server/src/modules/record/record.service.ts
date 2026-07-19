@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThan } from 'typeorm';
 import { Record, RecordType } from './entities/record.entity';
 import { CreateRecordDto } from './dto/create-record.dto';
+import { UpdateRecordDto } from './dto/update-record.dto';
 import { BabyService } from '../baby/baby.service';
 
 // 支持"明细+间隔"展示的记录类型
@@ -73,6 +74,26 @@ export class RecordService {
     const record = await this.findOne(id, userId);
     await this.recordRepository.remove(record);
     return { success: true };
+  }
+
+  async update(id: string, userId: string, updateRecordDto: UpdateRecordDto) {
+    const record = await this.findOne(id, userId);
+
+    // 混合喂养时，若未显式传入总奶量，用母乳量+奶粉量归一化，保持 amount 语义为"总奶量"
+    const feedingMethod = updateRecordDto.feedingMethod ?? record.feedingMethod;
+    if (
+      record.type === RecordType.FEEDING &&
+      feedingMethod === 'mixed' &&
+      updateRecordDto.amount == null &&
+      (updateRecordDto.breastAmount != null || updateRecordDto.formulaAmount != null)
+    ) {
+      const breast = updateRecordDto.breastAmount ?? record.breastAmount ?? 0;
+      const formula = updateRecordDto.formulaAmount ?? record.formulaAmount ?? 0;
+      updateRecordDto.amount = breast + formula;
+    }
+
+    Object.assign(record, updateRecordDto);
+    return this.recordRepository.save(record);
   }
 
   async getTodaySummary(userId: string, babyId: string) {

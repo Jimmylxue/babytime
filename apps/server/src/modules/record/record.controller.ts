@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -12,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { RecordService } from './record.service';
 import { CreateRecordDto } from './dto/create-record.dto';
+import { UpdateRecordDto } from './dto/update-record.dto';
 import { RecordType } from './entities/record.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -109,6 +111,21 @@ export class RecordController {
     return {
       code: 0,
       message: '删除成功',
+    };
+  }
+
+  @Put(':id')
+  @HttpCode(200)
+  async update(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() updateRecordDto: UpdateRecordDto,
+  ) {
+    const record = await this.recordService.update(id, req.user.id, updateRecordDto);
+    return {
+      code: 0,
+      message: '更新成功',
+      data: record,
     };
   }
 }

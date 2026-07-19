@@ -76,6 +76,7 @@ interface RecordState {
   fetchStats: (babyId: string, days?: number) => Promise<void>;
   fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number }) => Promise<void>;
   addRecord: (data: any) => Promise<void>;
+  updateRecord: (id: string, data: any) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
 }
 
@@ -141,6 +142,15 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     const { fetchSummary, fetchStats } = get();
     await fetchSummary(data.babyId);
     await fetchStats(data.babyId);
+  },
+
+  updateRecord: async (id: string, data: any) => {
+    await recordApi.update(id, data);
+    const { fetchSummary, fetchStats } = get();
+    if (data.babyId) {
+      await fetchSummary(data.babyId);
+      await fetchStats(data.babyId);
+    }
   },
 
   deleteRecord: async (id: string) => {

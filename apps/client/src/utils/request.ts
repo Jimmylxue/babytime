@@ -104,6 +104,9 @@ export const babyApi = {
 // 记录相关 API
 export const recordApi = {
 	create: (data: any) => request<any>({ url: '/record', method: 'POST', data }),
+	update: (id: string, data: any) =>
+		request<any>({ url: `/record/${id}`, method: 'PUT', data }),
+	getOne: (id: string) => request<any>({ url: `/record/${id}` }),
 	getByBaby: (babyId: string, date?: string) =>
 		request<any[]>({
 			url: `/record/baby/${babyId}${date ? `?date=${date}` : ''}`,

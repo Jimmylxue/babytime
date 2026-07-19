@@ -104,6 +104,21 @@ export default function Index() {
     setShowMore(false);
   };
 
+  // 查看喂奶明细
+  const goToFeedingDetail = () => {
+    if (!isLoggedIn) {
+      needLogin();
+      return;
+    }
+    if (!currentBaby) {
+      Taro.showToast({ title: '请先添加宝贝', icon: 'none' });
+      return;
+    }
+    Taro.navigateTo({
+      url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=feeding`,
+    });
+  };
+
   // 查看换尿布明细（含上传的尿布照片）
   const goToDiaperDetail = () => {
     if (!isLoggedIn) {
@@ -157,7 +172,7 @@ export default function Index() {
         <View className="stats-section">
           <Text className="section-title">今日记录</Text>
           <View className="stats-grid">
-            <View className="stat-card">
+            <View className="stat-card" onClick={() => goToFeedingDetail()}>
               <Text className="stat-icon">🍼</Text>
               <Text className="stat-value">{displaySummary.feedingCount}<Text className="stat-unit">次</Text></Text>
               <Text className="stat-label">喂奶</Text>
