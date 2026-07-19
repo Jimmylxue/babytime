@@ -5,6 +5,8 @@ export const detailTypeTabs = [
   { type: 'feeding', label: '喂奶', icon: '🍼' },
   { type: 'diaper', label: '换尿布', icon: '💩' },
   { type: 'sleep', label: '睡觉', icon: '😴' },
+  { type: 'height_weight', label: '身高体重', icon: '📏' },
+  { type: 'temperature', label: '体温', icon: '🌡️' },
 ]
 
 export const feedingMethodLabel: Record<string, string> = { breast: '母乳', formula: '奶粉', mixed: '混合' }
@@ -25,13 +27,23 @@ export function getRecordMainText(type: string, item: any): string {
   if (type === 'sleep') {
     return `睡了 ${formatDurationLong(item.duration || 0)}`
   }
+  if (type === 'height_weight') {
+    const parts: string[] = []
+    if (item.height != null) parts.push(`${item.height}cm`)
+    if (item.weight != null) parts.push(`${item.weight}kg`)
+    return parts.join(' / ') || '-'
+  }
+  if (type === 'temperature') {
+    return item.temperature != null ? `${item.temperature}°C` : '-'
+  }
   return ''
 }
 
 /** 间隔展示文案，睡眠类型展示的是"清醒"时长，其余是"距上次" */
 export function getIntervalText(type: string, intervalMinutes: number | null): string {
   if (intervalMinutes == null) return '首次记录'
-  const label = type === 'sleep' ? '清醒' : '距上次'
+  const labelMap: Record<string, string> = { sleep: '清醒', height_weight: '距上次', temperature: '距上次' }
+  const label = labelMap[type] || '距上次'
   return `${label} ${formatDuration(intervalMinutes)}`
 }
 

@@ -85,6 +85,24 @@ export default function RecordDetailPage() {
             <Text className="summary-bar-label">总时长</Text>
           </View>
         )}
+        {type === 'height_weight' && summary?.latestHeight != null && (
+          <>
+            <View className="summary-bar-item">
+              <Text className="summary-bar-value">{summary.latestHeight}cm</Text>
+              <Text className="summary-bar-label">最新身高</Text>
+            </View>
+            <View className="summary-bar-item">
+              <Text className="summary-bar-value">{summary.latestWeight ?? '-'}kg</Text>
+              <Text className="summary-bar-label">最新体重</Text>
+            </View>
+          </>
+        )}
+        {type === 'temperature' && summary?.latestTemperature != null && (
+          <View className="summary-bar-item">
+            <Text className="summary-bar-value">{summary.latestTemperature}°C</Text>
+            <Text className="summary-bar-label">最新体温</Text>
+          </View>
+        )}
         <View className="summary-bar-item">
           <Text className="summary-bar-value">{avgIntervalText}</Text>
           <Text className="summary-bar-label">平均间隔</Text>

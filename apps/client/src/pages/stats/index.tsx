@@ -76,7 +76,7 @@ export default function StatsPage() {
 		setSelectedDate(newDate)
 	}
 
-	const goToFullDetail = () => {
+	const goToFullDetail = (overrideType?: string) => {
 		if (!isLoggedIn) {
 			needLogin()
 			return
@@ -85,7 +85,8 @@ export default function StatsPage() {
 			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
 			return
 		}
-		Taro.navigateTo({ url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${activeType}` })
+		const t = overrideType || activeType
+		Taro.navigateTo({ url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}` })
 	}
 
 	const getMaxValue = (stats: DailyStat[], key: keyof DailyStat) => {
@@ -170,6 +171,18 @@ export default function StatsPage() {
 			{ label: '类型分布', value: breakdownParts.join(' ') || '-' },
 			{ label: '平均间隔', value: avgIntervalText },
 		]
+	} else if (activeType === 'height_weight') {
+		summaryTiles = [
+			{ label: '总次数', value: `${summary?.count ?? 0}次` },
+			{ label: '最新身高', value: summary?.latestHeight != null ? `${summary.latestHeight}cm` : '-' },
+			{ label: '最新体重', value: summary?.latestWeight != null ? `${summary.latestWeight}kg` : '-' },
+		]
+	} else if (activeType === 'temperature') {
+		summaryTiles = [
+			{ label: '总次数', value: `${summary?.count ?? 0}次` },
+			{ label: '最新体温', value: summary?.latestTemperature != null ? `${summary.latestTemperature}°C` : '-' },
+			{ label: '平均间隔', value: avgIntervalText },
+		]
 	} else {
 		summaryTiles = [
 			{ label: '总次数', value: `${summary?.count ?? 0}次` },
@@ -185,7 +198,7 @@ export default function StatsPage() {
 				<Text className="section-title">最新数据</Text>
 				<View className="latest-grid">
 					{displayHeightWeight && (
-						<View className="latest-card">
+						<View className="latest-card" onClick={goToFullDetail.bind(null, 'height_weight')}>
 							<Text className="latest-icon">📏</Text>
 							<View className="latest-info">
 								<Text className="latest-value">
@@ -198,7 +211,7 @@ export default function StatsPage() {
 						</View>
 					)}
 					{displayTemperature && (
-						<View className="latest-card">
+						<View className="latest-card" onClick={goToFullDetail.bind(null, 'temperature')}>
 							<Text className="latest-icon">🌡️</Text>
 							<View className="latest-info">
 								<Text className="latest-value">
@@ -260,7 +273,7 @@ export default function StatsPage() {
 			<View className="detail-card">
 				<View className="detail-card-header">
 					<Text className="section-title">{isToday(selectedDate) ? '今日总结' : `${getDateLabel(selectedDate)}总结`}</Text>
-					<View className="detail-link" onClick={goToFullDetail}>
+					<View className="detail-link" onClick={() => goToFullDetail()}>
 						<Text>完整明细 ›</Text>
 					</View>
 				</View>

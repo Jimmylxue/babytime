@@ -7,7 +7,13 @@ import { UpdateRecordDto } from './dto/update-record.dto';
 import { BabyService } from '../baby/baby.service';
 
 // 支持"明细+间隔"展示的记录类型
-const DETAIL_SUPPORTED_TYPES = [RecordType.FEEDING, RecordType.DIAPER, RecordType.SLEEP];
+const DETAIL_SUPPORTED_TYPES = [
+  RecordType.FEEDING,
+  RecordType.DIAPER,
+  RecordType.SLEEP,
+  RecordType.HEIGHT_WEIGHT,
+  RecordType.TEMPERATURE,
+];
 
 @Injectable()
 export class RecordService {
@@ -332,6 +338,17 @@ export class RecordService {
       summary.totalAmount = items.reduce((sum, r) => sum + (r.amount || 0), 0);
     } else if (type === RecordType.SLEEP) {
       summary.totalDuration = items.reduce((sum, r) => sum + (r.duration || 0), 0);
+    } else if (type === RecordType.HEIGHT_WEIGHT) {
+      const latest = items[items.length - 1];
+      if (latest) {
+        summary.latestHeight = latest.height ?? null;
+        summary.latestWeight = latest.weight ?? null;
+      }
+    } else if (type === RecordType.TEMPERATURE) {
+      const latest = items[items.length - 1];
+      if (latest) {
+        summary.latestTemperature = latest.temperature ?? null;
+      }
     }
     const intervals = items.map((r) => r.intervalMinutes).filter((v): v is number => v != null);
     summary.avgIntervalMinutes = intervals.length

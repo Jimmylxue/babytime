@@ -89,6 +89,15 @@ const mockSleepItems = buildMockTimeline('sleep', [9, 13, 20], hour => ({
   duration: hour === 20 ? 600 : 90,
 }))
 
+const mockHeightWeightItems = buildMockTimeline('height_weight', [10], () => ({
+  height: 68,
+  weight: 8.2,
+}))
+
+const mockTemperatureItems = buildMockTimeline('temperature', [8, 14, 20], hour => ({
+  temperature: hour === 14 ? 37.2 : 36.5,
+}))
+
 export const MOCK_DETAIL: Record<string, { items: any[]; summary: any }> = {
   feeding: {
     items: mockFeedingItems,
@@ -101,6 +110,14 @@ export const MOCK_DETAIL: Record<string, { items: any[]; summary: any }> = {
   sleep: {
     items: mockSleepItems,
     summary: { count: mockSleepItems.length, totalDuration: 780, avgIntervalMinutes: 210 },
+  },
+  height_weight: {
+    items: mockHeightWeightItems,
+    summary: { count: mockHeightWeightItems.length, latestHeight: 68, latestWeight: 8.2, avgIntervalMinutes: null },
+  },
+  temperature: {
+    items: mockTemperatureItems,
+    summary: { count: mockTemperatureItems.length, latestTemperature: 36.5, avgIntervalMinutes: 360 },
   },
 }
 
