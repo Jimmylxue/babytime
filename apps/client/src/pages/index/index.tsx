@@ -167,6 +167,36 @@ export default function Index() {
         )}
       </View>
 
+      {/* 快速记录 */}
+      {displayBaby && (
+        <View className="quick-section">
+          <Text className="section-title">快速记录</Text>
+          <View className="action-grid">
+            {quickActions.map((action) => (
+              <View
+                key={action.type}
+                className="action-item"
+                onClick={() => navigateToRecord(action.type)}
+              >
+                <View className={`action-icon ${action.type}`}>
+                  <Text>{action.icon}</Text>
+                </View>
+                <Text className="action-text">{action.label}</Text>
+              </View>
+            ))}
+            <View
+              className="action-item"
+              onClick={() => setShowMore(true)}
+            >
+              <View className="action-icon more">
+                <Text>···</Text>
+              </View>
+              <Text className="action-text">更多</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* 今日统计 */}
       {displaySummary && (
         <View className="stats-section">
@@ -234,36 +264,6 @@ export default function Index() {
               )}
             </View>
           )}
-        </View>
-      )}
-
-      {/* 快速记录 */}
-      {displayBaby && (
-        <View className="quick-section">
-          <Text className="section-title">快速记录</Text>
-          <View className="action-grid">
-            {quickActions.map((action) => (
-              <View
-                key={action.type}
-                className="action-item"
-                onClick={() => navigateToRecord(action.type)}
-              >
-                <View className={`action-icon ${action.type}`}>
-                  <Text>{action.icon}</Text>
-                </View>
-                <Text className="action-text">{action.label}</Text>
-              </View>
-            ))}
-            <View
-              className="action-item"
-              onClick={() => setShowMore(true)}
-            >
-              <View className="action-icon more">
-                <Text>···</Text>
-              </View>
-              <Text className="action-text">更多</Text>
-            </View>
-          </View>
         </View>
       )}
 

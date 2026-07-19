@@ -338,14 +338,28 @@
 
 .timeline-text-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+}
+
+.timeline-text-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .timeline-text {
   font-size: 26px;
   color: #6D6A6E;
   display: block;
+}
+
+.timeline-note {
+  font-size: 22px;
+  line-height: 1.5;
+  color: #A8A59E;
+  margin-top: 6px;
+  display: block;
+  word-break: break-all;
 }
 
 .timeline-thumb {

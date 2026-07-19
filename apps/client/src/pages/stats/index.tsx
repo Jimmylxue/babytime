@@ -300,9 +300,12 @@ export default function StatsPage() {
 										<Text className="timeline-time">{formatHM(item.startTime)}</Text>
 										<Text className="timeline-interval">{getIntervalText(activeType, item.intervalMinutes)}</Text>
 									</View>
-									<View className="timeline-text-row">
+								<View className="timeline-text-row">
+									<View className="timeline-text-content">
 										<Text className="timeline-text">{getRecordMainText(activeType, item)}</Text>
-										{activeType === 'diaper' && item.diaperImage && (
+										{item.note && <Text className="timeline-note">备注：{item.note}</Text>}
+									</View>
+									{activeType === 'diaper' && item.diaperImage && (
 											<Image
 												className="timeline-thumb"
 												src={item.diaperImage}

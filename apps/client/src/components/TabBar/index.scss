@@ -29,6 +29,7 @@
     .tab-icon {
       transform: scale(1.15) translateY(-4px);
       opacity: 1;
+      color: #FFA5B4;
     }
 
     .tab-text {
@@ -39,11 +40,64 @@
 }
 
 .tab-icon {
-  font-size: 48px;
-  margin-bottom: 6px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  position: relative;
+  color: #A8A59E;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  opacity: 0.45;
+  opacity: 0.75;
   transform: scale(0.95);
+}
+
+.tab-icon-image {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+
+.stats-bars {
+  position: absolute;
+  top: 7px;
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  border-bottom: 4px solid currentColor;
+  border-radius: 0 0 3px 3px;
+}
+
+.stats-bar {
+  width: 7px;
+  border-radius: 5px 5px 2px 2px;
+  background: currentColor;
+}
+
+.stats-bar-short { height: 13px; }
+.stats-bar-medium { height: 22px; }
+.stats-bar-tall { height: 31px; }
+
+.profile-head {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  top: 5px;
+  left: 17px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.profile-shoulders {
+  position: absolute;
+  width: 29px;
+  height: 16px;
+  left: 9px;
+  bottom: 6px;
+  background: currentColor;
+  border-radius: 16px 16px 5px 5px;
 }
 
 .tab-text {

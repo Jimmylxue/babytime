@@ -150,6 +150,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+}
+
+.cell-detail-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cell-note {
+  display: block;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #A8A59E;
+  margin-top: 4px;
+  word-break: break-all;
 }
 
 .cell-thumb {

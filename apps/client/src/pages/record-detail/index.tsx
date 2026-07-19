@@ -127,7 +127,10 @@ export default function RecordDetailPage() {
                     <Text className="cell-hm">{formatHM(item.startTime)}</Text>
                   </View>
                   <View className="table-cell cell-detail">
-                    <Text>{getRecordMainText(type, item)}</Text>
+                    <View className="cell-detail-content">
+                      <Text>{getRecordMainText(type, item)}</Text>
+                      {item.note && <Text className="cell-note">备注：{item.note}</Text>}
+                    </View>
                     {type === 'diaper' && item.diaperImage && (
                       <Image
                         className="cell-thumb"
