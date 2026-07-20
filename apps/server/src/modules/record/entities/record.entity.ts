@@ -2,6 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  Index,
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
@@ -40,6 +41,7 @@ export enum DiaperStatus {
 }
 
 @Entity('records')
+@Index('idx_records_baby_type_start_time', ['babyId', 'type', 'startTime'])
 export class Record {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -146,6 +146,18 @@ export function generateMockDailyStats(days: number): DailyStat[] {
 
 export const MOCK_STATS = {
   dailyStats: generateMockDailyStats(7),
+  heightWeightTrend: [
+    { date: getDateStr(6), height: 67.2, weight: 7.9 },
+    { date: getDateStr(4), height: 67.5, weight: 8.0 },
+    { date: getDateStr(2), height: 67.8, weight: 8.1 },
+    { date: getDateStr(0), height: 68, weight: 8.2 },
+  ],
+  temperatureTrend: [
+    { date: `${getDateStr(2)}T08:20:00`, temperature: 36.5 },
+    { date: `${getDateStr(1)}T14:10:00`, temperature: 37.1 },
+    { date: `${getDateStr(1)}T20:40:00`, temperature: 36.8 },
+    { date: `${getDateStr(0)}T08:00:00`, temperature: 36.6 },
+  ],
   latestHeightWeight: { height: 68, weight: 8.2, date: getDateStr(0) },
   latestTemperature: { temperature: 36.5, date: getDateStr(0) },
 }

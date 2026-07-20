@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components';
-import Taro, { useRouter } from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import Taro, { useDidShow, useRouter } from '@tarojs/taro';
+import { useState } from 'react';
 import { useRecordStore, DetailRecord } from '../../stores/recordStore';
 import { formatDate, formatDurationLong, formatHM } from '../../utils/date';
 import { detailTypeTabs, getRecordMainText, getIntervalShortText } from '../../utils/recordDisplay';
@@ -10,16 +10,32 @@ import './index.scss';
 export default function RecordDetailPage() {
   const router = useRouter();
   const { babyId, type = 'feeding' } = router.params;
-  const { detailItems, detailSummary, fetchDetail, deleteRecord } = useRecordStore();
+  const { detailItems, detailSummary, detailPagination, detailLoading, fetchDetail, fetchDetailSummary, deleteRecord } = useRecordStore();
   const [days, setDays] = useState(7);
 
   const typeInfo = detailTypeTabs.find((t) => t.type === type) || detailTypeTabs[0];
 
-  useEffect(() => {
+  const loadFirstPage = (selectedDays = days) => {
     if (babyId) {
-      fetchDetail(babyId, type, { days });
+      fetchDetail(babyId, type, { days: selectedDays, page: 1, pageSize: 20 });
+      fetchDetailSummary(babyId, type, { days: selectedDays });
     }
-  }, [babyId, type, days]);
+  };
+
+  // 从编辑页返回时重新加载，确保明细立即反映最新内容。
+  useDidShow(() => {
+    loadFirstPage();
+  });
+
+  const handleDaysChange = (selectedDays: number) => {
+    setDays(selectedDays);
+    loadFirstPage(selectedDays);
+  };
+
+  const loadMore = () => {
+    if (!babyId || detailLoading || !detailPagination || detailPagination.page >= detailPagination.totalPages) return;
+    fetchDetail(babyId, type, { days, page: detailPagination.page + 1, pageSize: detailPagination.pageSize });
+  };
 
   // 点击一行记录，弹出编辑/删除操作面板
   const handleRowClick = (item: DetailRecord) => {
@@ -41,7 +57,7 @@ export default function RecordDetailPage() {
     try {
       await deleteRecord(recordId);
       Taro.showToast({ title: '已删除', icon: 'success' });
-      if (babyId) fetchDetail(babyId, type, { days });
+      loadFirstPage();
     } catch (error) {
       Taro.showToast({ title: '删除失败', icon: 'none' });
     }
@@ -62,7 +78,7 @@ export default function RecordDetailPage() {
 
       <View className="time-range">
         {[7, 14, 30].map((d) => (
-          <View key={d} className={`range-item ${days === d ? 'active' : ''}`} onClick={() => setDays(d)}>
+          <View key={d} className={`range-item ${days === d ? 'active' : ''}`} onClick={() => handleDaysChange(d)}>
             <Text>{d}天</Text>
           </View>
         ))}
@@ -116,11 +132,8 @@ export default function RecordDetailPage() {
             <Text className="table-cell cell-detail">明细</Text>
             <Text className="table-cell cell-interval">间隔</Text>
           </View>
-          <ScrollView scrollY className="table-body">
-            {items
-              .slice()
-              .reverse()
-              .map((item) => (
+          <ScrollView scrollY className="table-body" lowerThreshold={80} onScrollToLower={loadMore}>
+            {items.map((item) => (
                 <View key={item.id} className="table-row" onClick={() => handleRowClick(item)}>
                   <View className="table-cell cell-time">
                     <Text className="cell-date">{formatDate(item.startTime).slice(5)}</Text>
@@ -146,6 +159,9 @@ export default function RecordDetailPage() {
                   <Text className="table-cell cell-interval">{getIntervalShortText(item.intervalMinutes)}</Text>
                 </View>
               ))}
+            {babyId && detailPagination && detailPagination.page < detailPagination.totalPages && (
+              <View className="table-load-more"><Text>{detailLoading ? '加载中...' : '上拉加载更多'}</Text></View>
+            )}
           </ScrollView>
         </View>
       ) : (

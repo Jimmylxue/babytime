@@ -81,16 +81,39 @@ export class RecordController {
     @Query('type') type: RecordType,
     @Query('date') date: string,
     @Query('days') days: string,
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
     @Request() req,
   ) {
     const detail = await this.recordService.getRecordDetail(req.user.id, babyId, type, {
+      date,
+      days: days ? parseInt(days) : undefined,
+      page: page ? parseInt(page) : undefined,
+      pageSize: pageSize ? parseInt(pageSize) : undefined,
+    });
+    return {
+      code: 0,
+      message: 'success',
+      data: detail,
+    };
+  }
+
+  @Get('detail-summary/:babyId')
+  async getRecordDetailSummary(
+    @Param('babyId') babyId: string,
+    @Query('type') type: RecordType,
+    @Query('date') date: string,
+    @Query('days') days: string,
+    @Request() req,
+  ) {
+    const summary = await this.recordService.getRecordDetailSummary(req.user.id, babyId, type, {
       date,
       days: days ? parseInt(days) : undefined,
     });
     return {
       code: 0,
       message: 'success',
-      data: detail,
+      data: summary,
     };
   }
 

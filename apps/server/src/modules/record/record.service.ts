@@ -25,6 +25,7 @@ export class RecordService {
 
   async create(userId: string, createRecordDto: CreateRecordDto) {
     await this.babyService.findOne(createRecordDto.babyId, userId);
+    this.validateHeightWeightDate(createRecordDto.type, createRecordDto.startTime);
 
     // 混合喂养时，若未显式传入总奶量，用母乳量+奶粉量归一化，保持 amount 语义为"总奶量"
     if (
@@ -84,6 +85,9 @@ export class RecordService {
 
   async update(id: string, userId: string, updateRecordDto: UpdateRecordDto) {
     const record = await this.findOne(id, userId);
+    if (updateRecordDto.startTime) {
+      this.validateHeightWeightDate(record.type, updateRecordDto.startTime);
+    }
 
     // 混合喂养时，若未显式传入总奶量，用母乳量+奶粉量归一化，保持 amount 语义为"总奶量"
     const feedingMethod = updateRecordDto.feedingMethod ?? record.feedingMethod;
@@ -100,6 +104,17 @@ export class RecordService {
 
     Object.assign(record, updateRecordDto);
     return this.recordRepository.save(record);
+  }
+
+  private validateHeightWeightDate(type: RecordType, startTime: string) {
+    if (type !== RecordType.HEIGHT_WEIGHT) return;
+
+    const selectedDate = new Date(startTime);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    if (selectedDate > endOfToday) {
+      throw new BadRequestException('测量日期不能晚于今天');
+    }
   }
 
   async getTodaySummary(userId: string, babyId: string) {
@@ -239,8 +254,35 @@ export class RecordService {
       order: { startTime: 'DESC' },
     });
 
+    // 带上区间前最后一次测量，供前端从区间首日开始补齐趋势值。
+    const heightWeightBaseline = await this.recordRepository.findOne({
+      where: {
+        babyId,
+        type: RecordType.HEIGHT_WEIGHT,
+        startTime: LessThan(startDate),
+      },
+      order: { startTime: 'DESC' },
+    });
+    const heightWeightTrend = [
+      ...(heightWeightBaseline ? [heightWeightBaseline] : []),
+      ...records.filter((record) => record.type === RecordType.HEIGHT_WEIGHT),
+    ]
+      .map((record) => ({
+        date: record.startTime,
+        height: record.height == null ? null : Number(record.height),
+        weight: record.weight == null ? null : Number(record.weight),
+      }));
+    const temperatureTrend = records
+      .filter((record) => record.type === RecordType.TEMPERATURE && record.temperature != null)
+      .map((record) => ({
+        date: record.startTime,
+        temperature: Number(record.temperature),
+      }));
+
     return {
       dailyStats: Object.values(dailyStats),
+      heightWeightTrend,
+      temperatureTrend,
       latestHeightWeight: latestHeightWeight
         ? { height: latestHeightWeight.height, weight: latestHeightWeight.weight, date: latestHeightWeight.startTime }
         : null,
@@ -277,13 +319,13 @@ export class RecordService {
   }
 
   // 获取某一类型记录的明细（含与上一条的间隔）。
-  // - 传 date：返回当天该类型的所有记录
-  // - 传 days：返回最近 N 天（含今天）该类型的所有记录
+  // - 传 date：返回当天该类型的分页记录
+  // - 传 days：返回最近 N 天（含今天）的分页记录
   async getRecordDetail(
     userId: string,
     babyId: string,
     type: RecordType,
-    options: { date?: string; days?: number },
+    options: { date?: string; days?: number; page?: number; pageSize?: number },
   ) {
     await this.babyService.findOne(babyId, userId);
 
@@ -306,55 +348,151 @@ export class RecordService {
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days + 1, 0, 0, 0, 0);
     }
 
-    const records = await this.recordRepository.find({
-      where: {
-        babyId,
-        type,
-        startTime: Between(startDate, endDate),
-      },
-      order: { startTime: 'ASC' },
+    const page = Math.max(1, options.page || 1);
+    const pageSize = Math.min(50, Math.max(1, options.pageSize || 20));
+    const where = {
+      babyId,
+      type,
+      startTime: Between(startDate, endDate),
+    };
+    const [records, total] = await this.recordRepository.findAndCount({
+      where,
+      order: { startTime: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    // 查一条范围之前的最后一条同类型记录，用于计算列表第一条的间隔
+    // 列表按倒序显示；计算间隔时转换回时间正序，并查找当前页最早记录的前一条。
+    const chronologicalRecords = records.slice().reverse();
+    const oldestRecord = chronologicalRecords[0];
     const previousRecord = await this.recordRepository.findOne({
       where: {
         babyId,
         type,
-        startTime: LessThan(startDate),
+        startTime: LessThan(oldestRecord ? oldestRecord.startTime : startDate),
       },
       order: { startTime: 'DESC' },
     });
 
     let prev: Record | null = previousRecord || null;
-    const items = records.map((record) => {
+    const items = chronologicalRecords.map((record) => {
       const intervalMinutes = this.calcIntervalMinutes(type, record, prev);
       prev = record;
       return { ...record, intervalMinutes };
-    });
+    }).reverse();
 
-    // 汇总
-    const summary: any = { count: items.length };
+    return { items, page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  // 获取某一类型记录的全区间汇总。聚合及平均间隔均在数据库内完成，不传输全量记录。
+  async getRecordDetailSummary(
+    userId: string,
+    babyId: string,
+    type: RecordType,
+    options: { date?: string; days?: number },
+  ) {
+    await this.babyService.findOne(babyId, userId);
+
+    if (!DETAIL_SUPPORTED_TYPES.includes(type)) {
+      throw new BadRequestException('该记录类型暂不支持明细查询');
+    }
+
+    let startDate: Date;
+    let endDate: Date;
+    if (options.date) {
+      startDate = new Date(options.date);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(options.date);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      const days = options.days || 7;
+      const now = new Date();
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days + 1, 0, 0, 0, 0);
+    }
+
+    const where = {
+      babyId,
+      type,
+      startTime: Between(startDate, endDate),
+    };
+    const aggregate = await this.recordRepository
+      .createQueryBuilder('record')
+      .select('COUNT(record.id)', 'count')
+      .addSelect('COALESCE(SUM(record.amount), 0)', 'totalAmount')
+      .addSelect('COALESCE(SUM(record.duration), 0)', 'totalDuration')
+      .where('record.baby_id = :babyId', { babyId })
+      .andWhere('record.type = :type', { type })
+      .andWhere('record.start_time BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .getRawOne();
+
+    const summary: any = { count: Number(aggregate.count) };
     if (type === RecordType.FEEDING) {
-      summary.totalAmount = items.reduce((sum, r) => sum + (r.amount || 0), 0);
+      summary.totalAmount = Number(aggregate.totalAmount);
     } else if (type === RecordType.SLEEP) {
-      summary.totalDuration = items.reduce((sum, r) => sum + (r.duration || 0), 0);
+      summary.totalDuration = Number(aggregate.totalDuration);
     } else if (type === RecordType.HEIGHT_WEIGHT) {
-      const latest = items[items.length - 1];
+      const latest = await this.recordRepository.findOne({ where, order: { startTime: 'DESC' } });
       if (latest) {
         summary.latestHeight = latest.height ?? null;
         summary.latestWeight = latest.weight ?? null;
       }
     } else if (type === RecordType.TEMPERATURE) {
-      const latest = items[items.length - 1];
+      const latest = await this.recordRepository.findOne({ where, order: { startTime: 'DESC' } });
       if (latest) {
         summary.latestTemperature = latest.temperature ?? null;
       }
     }
-    const intervals = items.map((r) => r.intervalMinutes).filter((v): v is number => v != null);
-    summary.avgIntervalMinutes = intervals.length
-      ? Math.round(intervals.reduce((sum, v) => sum + v, 0) / intervals.length)
-      : null;
 
-    return { items, summary };
+    // 对每条记录关联其上一条同类型记录，仅由数据库返回平均值。
+    // 睡眠按上次醒来时间计算；跨天或时间倒流的记录不纳入平均值，规则与列表一致。
+    const [intervalAggregate] = await this.recordRepository.query(
+      `SELECT AVG(
+        CASE
+          WHEN previous_record.id IS NULL THEN NULL
+          WHEN DATE(current_record.start_time) != DATE(
+            CASE
+              WHEN ? = 'sleep' AND previous_record.duration IS NOT NULL
+                THEN DATE_ADD(previous_record.start_time, INTERVAL previous_record.duration MINUTE)
+              ELSE previous_record.start_time
+            END
+          ) THEN NULL
+          WHEN current_record.start_time <
+            CASE
+              WHEN ? = 'sleep' AND previous_record.duration IS NOT NULL
+                THEN DATE_ADD(previous_record.start_time, INTERVAL previous_record.duration MINUTE)
+              ELSE previous_record.start_time
+            END THEN NULL
+          ELSE ROUND(TIMESTAMPDIFF(
+            SECOND,
+            CASE
+              WHEN ? = 'sleep' AND previous_record.duration IS NOT NULL
+                THEN DATE_ADD(previous_record.start_time, INTERVAL previous_record.duration MINUTE)
+              ELSE previous_record.start_time
+            END,
+            current_record.start_time
+          ) / 60)
+        END
+      ) AS avgIntervalMinutes
+      FROM records current_record
+      LEFT JOIN records previous_record ON previous_record.id = (
+        SELECT candidate.id
+        FROM records candidate
+        WHERE candidate.baby_id = current_record.baby_id
+          AND candidate.type = current_record.type
+          AND candidate.start_time < current_record.start_time
+        ORDER BY candidate.start_time DESC
+        LIMIT 1
+      )
+      WHERE current_record.baby_id = ?
+        AND current_record.type = ?
+        AND current_record.start_time BETWEEN ? AND ?`,
+      [type, type, type, babyId, type, startDate, endDate],
+    );
+    summary.avgIntervalMinutes = intervalAggregate.avgIntervalMinutes == null
+      ? null
+      : Math.round(Number(intervalAggregate.avgIntervalMinutes));
+
+    return summary;
   }
 }

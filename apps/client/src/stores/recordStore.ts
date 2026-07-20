@@ -50,6 +50,17 @@ export interface DailyStat {
   waterTotal: number;
 }
 
+export interface HeightWeightTrendPoint {
+  date: string;
+  height: number | null;
+  weight: number | null;
+}
+
+export interface TemperatureTrendPoint {
+  date: string;
+  temperature: number;
+}
+
 // 明细记录：在 Record 基础上附带与上一条同类型记录的间隔分钟数
 export interface DetailRecord extends Record {
   intervalMinutes: number | null;
@@ -62,19 +73,31 @@ export interface DetailSummary {
   avgIntervalMinutes: number | null;
 }
 
+export interface DetailPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 interface RecordState {
   records: Record[];
   summary: TodaySummary | null;
   dailyStats: DailyStat[];
+  heightWeightTrend: HeightWeightTrendPoint[];
+  temperatureTrend: TemperatureTrendPoint[];
   latestHeightWeight: { height: number; weight: number; date: string } | null;
   latestTemperature: { temperature: number; date: string } | null;
   detailItems: DetailRecord[];
   detailSummary: DetailSummary | null;
+  detailPagination: DetailPagination | null;
+  detailLoading: boolean;
   loading: boolean;
   fetchRecords: (babyId: string, date?: string) => Promise<void>;
   fetchSummary: (babyId: string) => Promise<void>;
   fetchStats: (babyId: string, days?: number) => Promise<void>;
-  fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number }) => Promise<void>;
+  fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number }) => Promise<void>;
+  fetchDetailSummary: (babyId: string, type: string, params: { date?: string; days?: number }) => Promise<void>;
   addRecord: (data: any) => Promise<void>;
   updateRecord: (id: string, data: any) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
@@ -84,10 +107,14 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   records: [],
   summary: null,
   dailyStats: [],
+  heightWeightTrend: [],
+  temperatureTrend: [],
   latestHeightWeight: null,
   latestTemperature: null,
   detailItems: [],
   detailSummary: null,
+  detailPagination: null,
+  detailLoading: false,
   loading: false,
 
   fetchRecords: async (babyId: string, date?: string) => {
@@ -117,6 +144,8 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       const res = await recordApi.getStats(babyId, days);
       set({
         dailyStats: res.data?.dailyStats || [],
+        heightWeightTrend: res.data?.heightWeightTrend || [],
+        temperatureTrend: res.data?.temperatureTrend || [],
         latestHeightWeight: res.data?.latestHeightWeight || null,
         latestTemperature: res.data?.latestTemperature || null,
       });
@@ -125,15 +154,33 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     }
   },
 
-  fetchDetail: async (babyId: string, type: string, params: { date?: string; days?: number }) => {
+  fetchDetail: async (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number }) => {
+    const page = params.page || 1;
+    set({ detailLoading: true });
     try {
       const res = await recordApi.getDetail(babyId, type, params);
       set({
-        detailItems: res.data?.items || [],
-        detailSummary: res.data?.summary || null,
+        detailItems: page > 1 ? [...get().detailItems, ...(res.data?.items || [])] : (res.data?.items || []),
+        detailPagination: res.data ? {
+          page: res.data.page,
+          pageSize: res.data.pageSize,
+          total: res.data.total,
+          totalPages: res.data.totalPages,
+        } : null,
+        detailLoading: false,
       });
     } catch (error) {
+      set({ detailLoading: false });
       console.error('获取明细数据失败', error);
+    }
+  },
+
+  fetchDetailSummary: async (babyId: string, type: string, params: { date?: string; days?: number }) => {
+    try {
+      const res = await recordApi.getDetailSummary(babyId, type, params);
+      set({ detailSummary: res.data || null });
+    } catch (error) {
+      console.error('获取明细汇总失败', error);
     }
   },
 
@@ -145,11 +192,12 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   },
 
   updateRecord: async (id: string, data: any) => {
-    await recordApi.update(id, data);
+    const res = await recordApi.update(id, data);
     const { fetchSummary, fetchStats } = get();
-    if (data.babyId) {
-      await fetchSummary(data.babyId);
-      await fetchStats(data.babyId);
+    const babyId = res.data?.babyId;
+    if (babyId) {
+      await fetchSummary(babyId);
+      await fetchStats(babyId);
     }
   },
 

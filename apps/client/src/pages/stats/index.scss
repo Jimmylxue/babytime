@@ -457,6 +457,164 @@
   white-space: nowrap;
 }
 
+.growth-chart-card {
+  overflow: hidden;
+}
+
+.growth-chart-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  .chart-title {
+    margin-bottom: 24px;
+  }
+}
+
+.growth-chart-range {
+  font-size: 20px;
+  color: #A8A59E;
+}
+
+.growth-chart {
+  height: 280px;
+  position: relative;
+  margin: 16px 20px 42px;
+  border-left: 2px solid #F0EDE6;
+  border-bottom: 2px solid #F0EDE6;
+}
+
+.growth-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed #F0EDE6;
+}
+
+.growth-grid-line-top { top: 0; }
+.growth-grid-line-middle { top: 50%; }
+.growth-grid-line-bottom { bottom: 0; }
+
+.growth-line {
+  position: absolute;
+  height: 4px;
+  transform-origin: left center;
+  z-index: 1;
+
+  &.growth-height { background: #FF8FA3; }
+  &.growth-weight { background: #54B6A7; }
+  &.temperature-line { background: #F37C8D; }
+}
+
+.growth-point {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  transform: translate(-50%, 50%);
+  z-index: 2;
+
+  &.growth-height { background: #FF8FA3; box-shadow: 0 0 0 4px #FFE1E7; }
+  &.growth-weight { background: #54B6A7; box-shadow: 0 0 0 4px #DDF5EE; }
+  &.temperature-point { background: #F37C8D; box-shadow: 0 0 0 4px #FDE2E6; }
+}
+
+.temperature-chart {
+  margin-left: 52px;
+}
+
+.temperature-scroll {
+  width: 100%;
+  height: 280px;
+}
+
+.temperature-chart-wide {
+  margin: 0 20px 0 52px;
+}
+
+.temperature-chart .growth-date {
+  bottom: 8px;
+}
+
+.temperature-day-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed #F0EDE6;
+}
+
+.temperature-range-bar {
+  position: absolute;
+  width: 6px;
+  background: #F7B7C0;
+  border-radius: 4px;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.temperature-low-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #F7B7C0;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #FDE2E6;
+  transform: translate(-50%, 50%);
+  z-index: 2;
+}
+
+.temperature-low-value {
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  transform: translateX(-50%);
+  color: #6D6A6E;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.temperature-axis-label {
+  position: absolute;
+  left: -46px;
+  color: #A8A59E;
+  font-size: 18px;
+  transform: translateY(50%);
+}
+
+.temperature-axis-top { top: -10px; }
+.temperature-axis-middle { top: 50%; }
+.temperature-axis-bottom { bottom: -10px; }
+
+.growth-value {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  color: #2D2A2E;
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.growth-date {
+  position: absolute;
+  bottom: -34px;
+  transform: translateX(-50%);
+  color: #A8A59E;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.growth-empty {
+  padding: 56px 0;
+  text-align: center;
+  color: #A8A59E;
+  font-size: 24px;
+}
+
 // 空状态
 .empty-state {
   display: flex;

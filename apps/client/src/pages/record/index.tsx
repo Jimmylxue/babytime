@@ -3,7 +3,7 @@ import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState, useRef } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
 import { recordApi } from '../../utils/request'
-import { formatHM, formatDurationLong } from '../../utils/date'
+import { formatDate, formatHM, formatDurationLong } from '../../utils/date'
 import { chooseAndUploadImage } from '../../utils/upload'
 import './index.scss'
 
@@ -60,6 +60,8 @@ export default function RecordPage() {
 	const [outdoorLocation, setOutdoorLocation] = useState('')
 	const [note, setNote] = useState('')
 	const [startTime, setStartTime] = useState(formatHM(new Date()))
+	const [measurementDate, setMeasurementDate] = useState(formatDate(new Date()))
+	const today = formatDate(new Date())
 
 	const typeInfo = recordTypes[type] || recordTypes.feeding
 
@@ -76,7 +78,11 @@ export default function RecordPage() {
 			const record = res.data
 			if (!record) return
 
-			setStartTime(formatHM(record.startTime))
+			if (type === 'height_weight') {
+				setMeasurementDate(formatDate(record.startTime))
+			} else {
+				setStartTime(formatHM(record.startTime))
+			}
 
 			switch (type) {
 				case 'feeding':
@@ -133,6 +139,10 @@ export default function RecordPage() {
 		setStartTime(e.detail.value)
 	}
 
+	const handleMeasurementDateChange = e => {
+		setMeasurementDate(e.detail.value)
+	}
+
 	const handleSleepEndTimeChange = e => {
 		setSleepEndTime(e.detail.value)
 	}
@@ -143,6 +153,11 @@ export default function RecordPage() {
 		const d = new Date(baseDate)
 		d.setHours(parseInt(hours), parseInt(minutes), 0, 0)
 		return d
+	}
+
+	const buildMeasurementDate = (date: string) => {
+		const [year, month, day] = date.split('-').map(Number)
+		return new Date(year, month - 1, day, 12, 0, 0, 0)
 	}
 
 	const getSleepRange = () => {
@@ -174,6 +189,9 @@ export default function RecordPage() {
 				babyId,
 				type,
 				startTime: now.toISOString(),
+			}
+			if (type === 'height_weight') {
+				data.startTime = buildMeasurementDate(measurementDate > today ? today : measurementDate).toISOString()
 			}
 
 			switch (type) {
@@ -228,7 +246,9 @@ export default function RecordPage() {
 			if (note) data.note = note
 
 			if (isEdit) {
-				await updateRecord(id, data)
+				// 更新接口由记录 ID 确定所属宝宝和记录类型，不能重复提交创建专用字段。
+				const { babyId: _babyId, type: _type, ...updateData } = data
+				await updateRecord(id, updateData)
 				Taro.showToast({ title: '更新成功', icon: 'success' })
 			} else {
 				await addRecord(data)
@@ -250,16 +270,24 @@ export default function RecordPage() {
 			</View>
 
 			<View className="record-form">
-				{/* 时间选择 */}
+				{/* 身高体重按测量日期记录，其余记录按具体时间记录 */}
 				<View className="form-group">
 					<Text className="form-label">
-						{type === 'sleep' ? '入睡时间' : '时间'}
+						{type === 'height_weight' ? '测量日期' : type === 'sleep' ? '入睡时间' : '时间'}
 					</Text>
-					<Picker mode="time" value={startTime} onChange={handleTimeChange}>
-						<View className="form-input time-input">
-							<Text>{startTime}</Text>
-						</View>
-					</Picker>
+					{type === 'height_weight' ? (
+						<Picker mode="date" value={measurementDate} end={today} onChange={handleMeasurementDateChange}>
+							<View className="form-input time-input">
+								<Text>{measurementDate}</Text>
+							</View>
+						</Picker>
+					) : (
+						<Picker mode="time" value={startTime} onChange={handleTimeChange}>
+							<View className="form-input time-input">
+								<Text>{startTime}</Text>
+							</View>
+						</Picker>
+					)}
 				</View>
 
 				{/* 喂奶相关 */}

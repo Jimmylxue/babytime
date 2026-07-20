@@ -118,13 +118,21 @@ export const recordApi = {
 			url: `/record/stats/${babyId}${days ? `?days=${days}` : ''}`,
 		}),
 	// 明细查询：传 date 取当天明细，传 days 取最近 N 天明细，均含与上一条的间隔
-	getDetail: (babyId: string, type: string, params: { date?: string; days?: number }) => {
+	getDetail: (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number }) => {
 		const query = new URLSearchParams({ type })
 		if (params.date) query.set('date', params.date)
 		if (params.days) query.set('days', String(params.days))
-		return request<{ items: any[]; summary: any }>({
+		if (params.page) query.set('page', String(params.page))
+		if (params.pageSize) query.set('pageSize', String(params.pageSize))
+		return request<{ items: any[]; page: number; pageSize: number; total: number; totalPages: number }>({
 			url: `/record/detail/${babyId}?${query.toString()}`,
 		})
+	},
+	getDetailSummary: (babyId: string, type: string, params: { date?: string; days?: number }) => {
+		const query = new URLSearchParams({ type })
+		if (params.date) query.set('date', params.date)
+		if (params.days) query.set('days', String(params.days))
+		return request<any>({ url: `/record/detail-summary/${babyId}?${query.toString()}` })
 	},
 	delete: (id: string) =>
 		request<any>({ url: `/record/${id}`, method: 'DELETE' }),
