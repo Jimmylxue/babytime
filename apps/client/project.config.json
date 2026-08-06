@@ -1,7 +1,7 @@
 {
 	"miniprogramRoot": "dist/",
 	"projectname": "baby-time",
-	"description": "小宝贝日记 - 婴儿日常记录工具",
+	"description": "育娃手记 - 婴儿日常记录工具",
 	"appid": "wxe4d4f99f8e1df054",
 	"setting": {
 		"urlCheck": true,

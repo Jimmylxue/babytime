@@ -37,7 +37,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#FFFDF9',
-    navigationBarTitleText: '小宝贝日记',
+    navigationBarTitleText: '育娃手记',
     navigationBarTextStyle: 'black',
   },
 })

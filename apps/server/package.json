@@ -2,7 +2,7 @@
   "name": "@baby-time/server",
   "version": "1.0.0",
   "private": true,
-  "description": "小宝贝日记 - NestJS 后端服务",
+  "description": "育娃手记 - NestJS 后端服务",
   "scripts": {
     "build": "nest build",
     "start": "nest start",

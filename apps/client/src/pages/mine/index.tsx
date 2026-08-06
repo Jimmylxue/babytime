@@ -125,7 +125,7 @@ export default function MinePage() {
 				</View>
 
 				<View className="mine-footer">
-					<Text className="mine-footer-text">小宝贝日记 v1.0</Text>
+					<Text className="mine-footer-text">育娃手记 v1.0</Text>
 					<Text className="mine-footer-text">用爱记录，用心陪伴</Text>
 				</View>
 
@@ -206,7 +206,7 @@ export default function MinePage() {
 
 			{/* 页脚 */}
 			<View className="mine-footer">
-				<Text className="mine-footer-text">小宝贝日记 v1.0</Text>
+				<Text className="mine-footer-text">育娃手记 v1.0</Text>
 				<Text className="mine-footer-text">用爱记录，用心陪伴</Text>
 			</View>
 

@@ -5,13 +5,13 @@ export default function PrivacyPage() {
   return (
     <View className="privacy-page">
       <View className="privacy-header">
-        <Text className="privacy-title">《小宝贝日记》隐私政策</Text>
+        <Text className="privacy-title">《育娃手记》隐私政策</Text>
         <Text className="privacy-update">更新日期：2026年5月1日</Text>
       </View>
 
       <View className="privacy-body">
         <Text className="section-text">
-          "小宝贝日记"小程序（以下简称"本应用"）非常重视用户的隐私保护。本隐私政策旨在向您说明我们如何收集、使用、存储和保护您的个人信息。请您在使用本应用前仔细阅读本隐私政策。
+          "育娃手记"小程序（以下简称"本应用"）非常重视用户的隐私保护。本隐私政策旨在向您说明我们如何收集、使用、存储和保护您的个人信息。请您在使用本应用前仔细阅读本隐私政策。
         </Text>
 
         <Text className="section-title">一、我们收集的信息</Text>

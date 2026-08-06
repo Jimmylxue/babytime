@@ -5,13 +5,13 @@ export default function AgreementPage() {
   return (
     <View className="agreement-page">
       <View className="agreement-header">
-        <Text className="agreement-title">《小宝贝日记》用户协议</Text>
+        <Text className="agreement-title">《育娃手记》用户协议</Text>
         <Text className="agreement-update">更新日期：2026年5月1日</Text>
       </View>
 
       <View className="agreement-body">
         <Text className="section-text">
-          欢迎您使用"小宝贝日记"小程序（以下简称"本应用"）。请您在使用本应用前仔细阅读并充分理解本协议的全部内容。如果您不同意本协议的任何条款，请您停止使用本应用。您使用本应用即视为您已阅读并同意本协议的约束。
+          欢迎您使用"育娃手记"小程序（以下简称"本应用"）。请您在使用本应用前仔细阅读并充分理解本协议的全部内容。如果您不同意本协议的任何条款，请您停止使用本应用。您使用本应用即视为您已阅读并同意本协议的约束。
         </Text>
 
         <Text className="section-title">一、服务内容</Text>

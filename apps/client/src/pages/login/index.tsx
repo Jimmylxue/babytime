@@ -58,7 +58,7 @@ export default function LoginPage() {
 					<View className="logo-circle">
 						<Text className="logo-icon">👶</Text>
 					</View>
-					<Text className="app-title">小宝贝日记</Text>
+					<Text className="app-title">育娃手记</Text>
 					<Text className="app-subtitle">记录宝宝成长的每一天</Text>
 				</View>
 

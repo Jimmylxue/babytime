@@ -42,12 +42,12 @@ export default function Index() {
   const [showMore, setShowMore] = useState(false);
 
   useShareAppMessage(() => ({
-    title: '小宝贝日记 - 记录宝宝成长的每一天',
+    title: '育娃手记 - 记录宝宝成长的每一天',
     path: '/pages/index/index',
   }));
 
   useShareTimeline(() => ({
-    title: '小宝贝日记 - 记录宝宝成长的每一天',
+    title: '育娃手记 - 记录宝宝成长的每一天',
     query: '',
   }));
 
