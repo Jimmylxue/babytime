@@ -1,5 +1,5 @@
 import { View, Text, Image } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro';
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useBabyStore } from '../../stores/babyStore';
@@ -40,6 +40,16 @@ export default function Index() {
   const { currentBaby, fetchBabies } = useBabyStore();
   const { summary, records, fetchSummary, fetchStats, latestHeightWeight, latestTemperature } = useRecordStore();
   const [showMore, setShowMore] = useState(false);
+
+  useShareAppMessage(() => ({
+    title: '小宝贝日记 - 记录宝宝成长的每一天',
+    path: '/pages/index/index',
+  }));
+
+  useShareTimeline(() => ({
+    title: '小宝贝日记 - 记录宝宝成长的每一天',
+    query: '',
+  }));
 
   useDidShow(() => {
     if (isLoggedIn) {
