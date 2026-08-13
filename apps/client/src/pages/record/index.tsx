@@ -60,7 +60,7 @@ export default function RecordPage() {
 	const [outdoorLocation, setOutdoorLocation] = useState('')
 	const [note, setNote] = useState('')
 	const [startTime, setStartTime] = useState(formatHM(new Date()))
-	const [measurementDate, setMeasurementDate] = useState(formatDate(new Date()))
+	const [recordDate, setRecordDate] = useState(formatDate(new Date()))
 	const today = formatDate(new Date())
 
 	const typeInfo = recordTypes[type] || recordTypes.feeding
@@ -78,11 +78,8 @@ export default function RecordPage() {
 			const record = res.data
 			if (!record) return
 
-			if (type === 'height_weight') {
-				setMeasurementDate(formatDate(record.startTime))
-			} else {
-				setStartTime(formatHM(record.startTime))
-			}
+			setRecordDate(formatDate(record.startTime))
+			if (type !== 'height_weight') setStartTime(formatHM(record.startTime))
 
 			switch (type) {
 				case 'feeding':
@@ -139,8 +136,8 @@ export default function RecordPage() {
 		setStartTime(e.detail.value)
 	}
 
-	const handleMeasurementDateChange = e => {
-		setMeasurementDate(e.detail.value)
+	const handleRecordDateChange = e => {
+		setRecordDate(e.detail.value)
 	}
 
 	const handleSleepEndTimeChange = e => {
@@ -155,15 +152,14 @@ export default function RecordPage() {
 		return d
 	}
 
-	const buildMeasurementDate = (date: string) => {
+	const buildRecordDate = (date: string) => {
 		const [year, month, day] = date.split('-').map(Number)
 		return new Date(year, month - 1, day, 12, 0, 0, 0)
 	}
 
 	const getSleepRange = () => {
-		const today = new Date()
-		const start = buildTimeOnDate(today, startTime)
-		let end = buildTimeOnDate(today, sleepEndTime)
+		const start = buildTimeOnDate(buildRecordDate(recordDate), startTime)
+		let end = buildTimeOnDate(buildRecordDate(recordDate), sleepEndTime)
 		if (end <= start) {
 			end = new Date(end.getTime() + 24 * 60 * 60 * 1000)
 		}
@@ -181,17 +177,13 @@ export default function RecordPage() {
 		submittingRef.current = true
 		setLoading(true)
 		try {
-			const now = new Date()
-			const [hours, minutes] = startTime.split(':')
-			now.setHours(parseInt(hours), parseInt(minutes), 0, 0)
-
 			const data: any = {
 				babyId,
 				type,
-				startTime: now.toISOString(),
+				startTime: buildTimeOnDate(buildRecordDate(recordDate), startTime).toISOString(),
 			}
 			if (type === 'height_weight') {
-				data.startTime = buildMeasurementDate(measurementDate > today ? today : measurementDate).toISOString()
+				data.startTime = buildRecordDate(recordDate).toISOString()
 			}
 
 			switch (type) {
@@ -270,25 +262,28 @@ export default function RecordPage() {
 			</View>
 
 			<View className="record-form">
-				{/* 身高体重按测量日期记录，其余记录按具体时间记录 */}
+				{/* 所有记录按实际发生日期归档；身高体重只需选择日期。 */}
 				<View className="form-group">
 					<Text className="form-label">
-						{type === 'height_weight' ? '测量日期' : type === 'sleep' ? '入睡时间' : '时间'}
+						{type === 'height_weight' ? '测量日期' : '发生日期'}
 					</Text>
-					{type === 'height_weight' ? (
-						<Picker mode="date" value={measurementDate} end={today} onChange={handleMeasurementDateChange}>
-							<View className="form-input time-input">
-								<Text>{measurementDate}</Text>
-							</View>
-						</Picker>
-					) : (
+					<Picker mode="date" value={recordDate} end={today} onChange={handleRecordDateChange}>
+						<View className="form-input time-input">
+							<Text>{recordDate}</Text>
+						</View>
+					</Picker>
+				</View>
+
+				{type !== 'height_weight' && (
+					<View className="form-group">
+						<Text className="form-label">{type === 'sleep' ? '入睡时间' : '发生时间'}</Text>
 						<Picker mode="time" value={startTime} onChange={handleTimeChange}>
 							<View className="form-input time-input">
 								<Text>{startTime}</Text>
 							</View>
 						</Picker>
-					)}
-				</View>
+					</View>
+				)}
 
 				{/* 喂奶相关 */}
 				{type === 'feeding' && (
