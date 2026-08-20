@@ -174,6 +174,23 @@
   word-break: break-all;
 }
 
+.cell-analysis {
+  display: block;
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #B26A24;
+
+  &.normal {
+    color: #458556;
+  }
+
+  &.medical_attention,
+  &.urgent {
+    color: #C95E51;
+  }
+}
+
 .cell-thumb {
   width: 64px;
   height: 64px;

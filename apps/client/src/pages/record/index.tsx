@@ -2,7 +2,7 @@ import { View, Text, Input, Picker, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState, useRef } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
-import { recordApi } from '../../utils/request'
+import { recordApi, stoolAnalysisApi } from '../../utils/request'
 import { formatDate, formatHM, formatDurationLong } from '../../utils/date'
 import { chooseAndUploadImage } from '../../utils/upload'
 import './index.scss'
@@ -33,6 +33,24 @@ const diaperStatuses = [
 	{ value: 'both', label: '都有' },
 ]
 
+type StoolAnalysis = {
+	riskLevel: 'normal' | 'observe' | 'medical_attention' | 'urgent' | 'unknown'
+	summary: string
+	observedFeatures: { color: string; consistency: string; visibleFindings: string[] }
+	concerns: string[]
+	guidance: string[]
+	redFlags: string[]
+	disclaimer: string
+}
+
+const riskLabels: Record<StoolAnalysis['riskLevel'], string> = {
+	normal: '未见明显风险',
+	observe: '建议留意观察',
+	medical_attention: '建议咨询儿科',
+	urgent: '建议尽快就医',
+	unknown: '暂时无法判断',
+}
+
 export default function RecordPage() {
 	const router = useRouter()
 	const { type = 'feeding', babyId, id } = router.params
@@ -49,6 +67,8 @@ export default function RecordPage() {
 	const [sleepEndTime, setSleepEndTime] = useState(formatHM(new Date()))
 	const [diaperStatus, setDiaperStatus] = useState('wet')
 	const [diaperImage, setDiaperImage] = useState('')
+	const [diaperAnalysis, setDiaperAnalysis] = useState<StoolAnalysis | null>(null)
+	const [analyzingStool, setAnalyzingStool] = useState(false)
 	const [foodName, setFoodName] = useState('')
 	const [temperature, setTemperature] = useState('')
 	const [height, setHeight] = useState('')
@@ -94,6 +114,7 @@ export default function RecordPage() {
 				case 'diaper':
 					if (record.diaperStatus) setDiaperStatus(record.diaperStatus)
 					if (record.diaperImage) setDiaperImage(record.diaperImage)
+					if (record.diaperAnalysis) setDiaperAnalysis(record.diaperAnalysis)
 					break
 				case 'sleep':
 					if (record.endTime) setSleepEndTime(formatHM(record.endTime))
@@ -142,6 +163,29 @@ export default function RecordPage() {
 
 	const handleSleepEndTimeChange = e => {
 		setSleepEndTime(e.detail.value)
+	}
+
+	const handleAnalyzeStool = async () => {
+		if (!diaperImage) {
+			Taro.showToast({ title: '请先上传便便照片', icon: 'none' })
+			return
+		}
+		const consent = await Taro.showModal({
+			title: '发送图片进行观察',
+			content: '图片会发送至智谱视觉模型进行分析，仅供健康记录和就医参考，不能替代医生诊断。',
+			confirmText: '确认',
+		})
+		if (!consent.confirm) return
+
+		setAnalyzingStool(true)
+		try {
+			const res = await stoolAnalysisApi.analyze({ babyId, imageUrl: diaperImage })
+			setDiaperAnalysis(res.data || null)
+		} catch (error) {
+			Taro.showToast({ title: '暂时无法分析，请稍后重试', icon: 'none' })
+		} finally {
+			setAnalyzingStool(false)
+		}
 	}
 
 	// 根据入睡/起床时间自动推算睡眠时长（分钟），跨天入睡则按次日起床计算
@@ -200,6 +244,7 @@ export default function RecordPage() {
 				case 'diaper':
 					data.diaperStatus = diaperStatus
 					if (diaperImage) data.diaperImage = diaperImage
+					if (diaperAnalysis) data.diaperAnalysis = diaperAnalysis
 					break
 				case 'sleep': {
 					const { start, end, durationMinutes } = getSleepRange()
@@ -374,6 +419,10 @@ export default function RecordPage() {
 						</View>
 						<View className="form-group">
 							<Text className="form-label">照片 (可选)</Text>
+							<View className="stool-photo-tips">
+								<Text className="stool-photo-tips-title">用于识别的拍摄建议</Text>
+								<Text className="stool-photo-tips-content">自然光下拍摄，对焦便便区域并尽量完整入镜；避免强滤镜、反光和阴影，不拍入宝宝面部或私密部位。</Text>
+							</View>
 							{diaperImage ? (
 								<View className="image-preview">
 									<Image
@@ -389,7 +438,10 @@ export default function RecordPage() {
 									/>
 									<View
 										className="image-remove-badge"
-										onClick={() => setDiaperImage('')}
+										onClick={() => {
+											setDiaperImage('')
+											setDiaperAnalysis(null)
+										}}
 									>
 										<Text>×</Text>
 									</View>
@@ -399,11 +451,28 @@ export default function RecordPage() {
 									className="image-picker"
 									onClick={async () => {
 										const url = await chooseAndUploadImage()
-										if (url) setDiaperImage(url)
+										if (url) {
+											setDiaperImage(url)
+											setDiaperAnalysis(null)
+										}
 									}}
 								>
 									<Text className="image-picker-icon">📷</Text>
 									<Text className="image-picker-text">上传照片</Text>
+								</View>
+							)}
+							{diaperImage && (
+								<View className={`stool-analyze-btn${analyzingStool ? ' disabled' : ''}`} onClick={analyzingStool ? undefined : handleAnalyzeStool}>
+									<Text>{analyzingStool ? '图片分析中...' : diaperAnalysis ? '重新分析' : '识别便便情况'}</Text>
+								</View>
+							)}
+							{diaperAnalysis && (
+								<View className={`stool-result ${diaperAnalysis.riskLevel}`}>
+									<Text className="stool-result-title">{riskLabels[diaperAnalysis.riskLevel]}</Text>
+									<Text className="stool-result-summary">{diaperAnalysis.summary}</Text>
+									<Text className="stool-result-feature">观察：{diaperAnalysis.observedFeatures.color}；{diaperAnalysis.observedFeatures.consistency}</Text>
+									{diaperAnalysis.guidance?.map((item, index) => <Text key={index} className="stool-result-guidance">{item}</Text>)}
+									<Text className="stool-result-disclaimer">{diaperAnalysis.disclaimer}</Text>
 								</View>
 							)}
 						</View>

@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsString,
   IsUUID,
+  IsObject,
 } from 'class-validator';
 import { RecordType, FeedingMethod, DiaperStatus } from '../entities/record.entity';
 
@@ -51,6 +52,10 @@ export class CreateRecordDto {
   @IsString()
   @IsOptional()
   diaperImage?: string;
+
+  @IsObject()
+  @IsOptional()
+  diaperAnalysis?: Record<string, unknown>;
 
   // 辅食/饮水
   @IsString()

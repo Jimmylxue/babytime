@@ -167,6 +167,25 @@ cp .env.example .env
 
 3. 修改 `.env` 中的数据库配置
 
+## 公告配置
+
+服务启动后会自动创建 `announcements` 表，并写入首条“AI 分析便便”公告。公告没有后台管理页，直接在数据库中维护：`is_active=1` 的最新一条会弹给用户。
+
+发布新公告时请使用一个新的 `id`，小程序会将已读状态按 ID 保存在本地 storage，新的 ID 才会再次弹出。
+
+```sql
+UPDATE announcements SET is_active = 0;
+
+INSERT INTO announcements (id, title, content, is_active, published_at)
+VALUES (
+  'feature-example-v1',
+  '功能更新',
+  '这里填写公告内容。',
+  1,
+  NOW()
+);
+```
+
 ## 核心功能
 
 - 3秒快速记录宝宝日常

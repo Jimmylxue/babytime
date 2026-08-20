@@ -12,6 +12,8 @@ import { RecordModule } from './modules/record/record.module';
 import { PhotoModule } from './modules/photo/photo.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { FamilyModule } from './modules/family/family.module';
+import { StoolAnalysisModule } from './modules/stool-analysis/stool-analysis.module';
+import { AnnouncementModule } from './modules/announcement/announcement.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { FamilyModule } from './modules/family/family.module';
     PhotoModule,
     UploadModule,
     FamilyModule,
+    StoolAnalysisModule,
+    AnnouncementModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,12 +1,13 @@
 import { View, Text, Image } from '@tarojs/components';
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useBabyStore } from '../../stores/babyStore';
 import { useRecordStore } from '../../stores/recordStore';
 import { calculateAge, formatDurationLong } from '../../utils/date';
 import { takePhotoAndSave } from '../../utils/upload';
 import { needLogin } from '../../utils/needLogin';
+import { announcementApi } from '../../utils/request';
 import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock';
 import TabBar from '../../components/TabBar';
 import './index.scss';
@@ -40,6 +41,33 @@ export default function Index() {
   const { currentBaby, fetchBabies } = useBabyStore();
   const { summary, records, fetchSummary, fetchStats, latestHeightWeight, latestTemperature } = useRecordStore();
   const [showMore, setShowMore] = useState(false);
+  const announcementCheckingRef = useRef(false);
+
+  const showAnnouncementIfNeeded = async () => {
+    if (announcementCheckingRef.current) return;
+    announcementCheckingRef.current = true;
+    try {
+      const res = await announcementApi.getCurrent();
+      const announcement = res.data;
+      if (!announcement) return;
+
+      const storageKey = `announcement:seen:${announcement.id}`;
+      if (Taro.getStorageSync(storageKey)) return;
+
+      await Taro.showModal({
+        title: announcement.title,
+        content: announcement.content,
+        showCancel: false,
+        confirmText: '知道了',
+      });
+      Taro.setStorageSync(storageKey, true);
+    } catch (error) {
+      // 公告加载失败不干扰首页的正常使用。
+      console.warn('获取公告失败', error);
+    } finally {
+      announcementCheckingRef.current = false;
+    }
+  };
 
   useShareAppMessage(() => ({
     title: '育娃手记 - 记录宝宝成长的每一天',
@@ -52,6 +80,7 @@ export default function Index() {
   }));
 
   useDidShow(() => {
+    showAnnouncementIfNeeded();
     if (isLoggedIn) {
       fetchBabies().then(() => {
         const baby = useBabyStore.getState().currentBaby;

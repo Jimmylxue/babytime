@@ -14,6 +14,11 @@ export interface Record {
   duration?: number;
   diaperStatus?: string;
   diaperImage?: string;
+  diaperAnalysis?: {
+    riskLevel?: 'normal' | 'observe' | 'medical_attention' | 'urgent' | 'unknown';
+    summary?: string;
+    disclaimer?: string;
+  };
   foodName?: string;
   temperature?: number;
   height?: number;

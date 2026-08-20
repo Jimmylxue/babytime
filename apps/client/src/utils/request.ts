@@ -157,6 +157,19 @@ export const photoApi = {
 		request<any>({ url: `/photo/${id}`, method: 'DELETE' }),
 }
 
+// 便便图片观察：密钥仅在服务端使用，客户端只提交已上传的图片 URL。
+export const stoolAnalysisApi = {
+	analyze: (data: { babyId: string; imageUrl: string; symptoms?: string }) =>
+		request<any>({ url: '/stool-analysis', method: 'POST', data }),
+}
+
+export const announcementApi = {
+	getCurrent: () => request<{ id: string; title: string; content: string } | null>({
+		url: '/announcement/current',
+		needToken: false,
+	}),
+}
+
 // 文件上传
 export const uploadFile = (filePath: string): Promise<{ url: string }> => {
 	const token = Taro.getStorageSync('token')

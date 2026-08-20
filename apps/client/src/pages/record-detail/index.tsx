@@ -142,6 +142,11 @@ export default function RecordDetailPage() {
                   <View className="table-cell cell-detail">
                     <View className="cell-detail-content">
                       <Text>{getRecordMainText(type, item)}</Text>
+                      {type === 'diaper' && item.diaperAnalysis?.summary && (
+                        <Text className={`cell-analysis ${item.diaperAnalysis.riskLevel || 'unknown'}`}>
+                          {item.diaperAnalysis.summary}
+                        </Text>
+                      )}
                       {item.note && <Text className="cell-note">备注：{item.note}</Text>}
                     </View>
                     {type === 'diaper' && item.diaperImage && (
