@@ -18,7 +18,7 @@ import './index.scss'
 
 const quickActions = [
 	{ type: 'feeding', icon: '🍼', label: '喂奶' },
-	{ type: 'diaper', icon: '💩', label: '换尿布' },
+	{ type: 'diaper', icon: '💩', label: '尿布' },
 	{ type: 'sleep', icon: '😴', label: '睡觉' },
 	{ type: 'food', icon: '🍚', label: '辅食' },
 	{ type: 'vaccine', icon: '💉', label: '疫苗' },
@@ -173,7 +173,7 @@ export default function Index() {
 		})
 	}
 
-	// 查看换尿布明细（含上传的尿布照片）
+	// 查看尿布明细（含上传的尿布照片）
 	const goToDiaperDetail = () => {
 		if (!isLoggedIn) {
 			needLogin()
@@ -316,7 +316,7 @@ export default function Index() {
 							</View>
 						</View>
 
-						{/* 换尿布 */}
+						{/* 尿布 */}
 						<View className="stat-list-item" onClick={() => goToDiaperDetail()}>
 							<View className="stat-icon-wrap diaper">
 								<Text className="stat-icon">💩</Text>
@@ -324,7 +324,7 @@ export default function Index() {
 							<View className="stat-main">
 								<View className="stat-info-left">
 									<View className="stat-title-row">
-										<Text className="stat-label">换尿布</Text>
+										<Text className="stat-label">尿布</Text>
 										<Text className="stat-value">
 											{displaySummary.diaperCount}
 											<Text className="stat-unit">次</Text>

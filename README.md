@@ -5,6 +5,7 @@
 ## 技术栈
 
 ### 前端（微信小程序）
+
 - **框架**: Taro 3.x (React)
 - **样式**: TailwindCSS
 - **状态管理**: Zustand
@@ -12,6 +13,7 @@
 - **语言**: TypeScript
 
 ### 后端
+
 - **框架**: NestJS (TypeScript)
 - **数据库**: MySQL 8.x
 - **ORM**: TypeORM
@@ -105,6 +107,7 @@ bash start.sh
 ```
 
 脚本执行流程：
+
 1. 检查并安装缺失的依赖（pnpm、pm2）
 2. `git pull` 拉取最新代码
 3. `pnpm install` 安装依赖
@@ -142,6 +145,7 @@ bash mini.sh
 ```
 
 脚本执行流程：
+
 1. 检查 appid 和密钥文件配置
 2. 检查并安装 `miniprogram-ci`
 3. `git pull` 拉取最新代码
@@ -156,11 +160,13 @@ bash mini.sh
 ## 数据库配置
 
 1. 创建 MySQL 数据库：
+
 ```sql
 CREATE DATABASE baby_time CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 2. 复制环境变量文件：
+
 ```bash
 cp .env.example .env
 ```
@@ -189,7 +195,7 @@ VALUES (
 ## 核心功能
 
 - 3秒快速记录宝宝日常
-- 支持多种记录类型（喂奶、换尿布、睡觉等）
+- 支持多种记录类型（喂奶、尿布、睡觉等）
 - 数据统计和趋势分析
 - 多宝宝管理
 - 微信登录

@@ -1,160 +1,219 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  Index,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
-import { Baby } from '../../baby/entities/baby.entity';
+	Entity,
+	PrimaryGeneratedColumn,
+	Column,
+	Index,
+	CreateDateColumn,
+	UpdateDateColumn,
+	ManyToOne,
+	JoinColumn,
+} from 'typeorm'
+import { Baby } from '../../baby/entities/baby.entity'
 
 // 记录类型
 export enum RecordType {
-  FEEDING = 'feeding',           // 喂奶
-  DIAPER = 'diaper',             // 换尿布
-  SLEEP = 'sleep',               // 睡觉
-  FOOD = 'food',                 // 辅食
-  WATER = 'water',               // 喝水
-  TEMPERATURE = 'temperature',   // 体温
-  HEIGHT_WEIGHT = 'height_weight', // 身高体重
-  MEDICINE = 'medicine',         // 用药
-  VACCINE = 'vaccine',           // 疫苗
-  BATH = 'bath',                 // 洗澡
-  OUTDOOR = 'outdoor',           // 户外活动
-  OTHER = 'other',               // 其他
+	FEEDING = 'feeding', // 喂奶
+	DIAPER = 'diaper', // 尿布
+	SLEEP = 'sleep', // 睡觉
+	FOOD = 'food', // 辅食
+	WATER = 'water', // 喝水
+	TEMPERATURE = 'temperature', // 体温
+	HEIGHT_WEIGHT = 'height_weight', // 身高体重
+	MEDICINE = 'medicine', // 用药
+	VACCINE = 'vaccine', // 疫苗
+	BATH = 'bath', // 洗澡
+	OUTDOOR = 'outdoor', // 户外活动
+	OTHER = 'other', // 其他
 }
 
 // 喂奶方式
 export enum FeedingMethod {
-  BREAST = 'breast',              // 母乳
-  FORMULA = 'formula',            // 奶粉
-  MIXED = 'mixed',                // 混合
+	BREAST = 'breast', // 母乳
+	FORMULA = 'formula', // 奶粉
+	MIXED = 'mixed', // 混合
 }
 
 // 尿布状态
 export enum DiaperStatus {
-  WET = 'wet',        // 尿了
-  DIRTY = 'dirty',    // 拉了
-  BOTH = 'both',      // 都有
+	WET = 'wet', // 尿了
+	DIRTY = 'dirty', // 拉了
+	BOTH = 'both', // 都有
 }
 
 @Entity('records')
 @Index('idx_records_baby_type_start_time', ['babyId', 'type', 'startTime'])
 export class Record {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+	@PrimaryGeneratedColumn('uuid')
+	id: string
 
-  @Column({ name: 'baby_id' })
-  babyId: string;
+	@Column({ name: 'baby_id' })
+	babyId: string
 
-  @Column({
-    type: 'enum',
-    enum: RecordType,
-  })
-  type: RecordType;
+	@Column({
+		type: 'enum',
+		enum: RecordType,
+	})
+	type: RecordType
 
-  @Column({ name: 'start_time', type: 'datetime' })
-  startTime: Date;
+	@Column({ name: 'start_time', type: 'datetime' })
+	startTime: Date
 
-  @Column({ name: 'end_time', type: 'datetime', nullable: true })
-  endTime: Date;
+	@Column({ name: 'end_time', type: 'datetime', nullable: true })
+	endTime: Date
 
-  // 喂奶相关
-  @Column({
-    name: 'feeding_method',
-    type: 'enum',
-    enum: FeedingMethod,
-    nullable: true,
-  })
-  feedingMethod: FeedingMethod;
+	// 喂奶相关
+	@Column({
+		name: 'feeding_method',
+		type: 'enum',
+		enum: FeedingMethod,
+		nullable: true,
+	})
+	feedingMethod: FeedingMethod
 
-  @Column({ name: 'amount', type: 'int', nullable: true, comment: '奶量(ml)' })
-  amount: number;
+	@Column({ name: 'amount', type: 'int', nullable: true, comment: '奶量(ml)' })
+	amount: number
 
-  @Column({ name: 'breast_amount', type: 'int', nullable: true, comment: '母乳量(ml)，混合喂养时使用' })
-  breastAmount: number;
+	@Column({
+		name: 'breast_amount',
+		type: 'int',
+		nullable: true,
+		comment: '母乳量(ml)，混合喂养时使用',
+	})
+	breastAmount: number
 
-  @Column({ name: 'formula_amount', type: 'int', nullable: true, comment: '奶粉量(ml)，混合喂养时使用' })
-  formulaAmount: number;
+	@Column({
+		name: 'formula_amount',
+		type: 'int',
+		nullable: true,
+		comment: '奶粉量(ml)，混合喂养时使用',
+	})
+	formulaAmount: number
 
-  @Column({ name: 'duration', type: 'int', nullable: true, comment: '时长(分钟)' })
-  duration: number;
+	@Column({
+		name: 'duration',
+		type: 'int',
+		nullable: true,
+		comment: '时长(分钟)',
+	})
+	duration: number
 
-  // 尿布相关
-  @Column({
-    name: 'diaper_status',
-    type: 'enum',
-    enum: DiaperStatus,
-    nullable: true,
-  })
-  diaperStatus: DiaperStatus;
+	// 尿布相关
+	@Column({
+		name: 'diaper_status',
+		type: 'enum',
+		enum: DiaperStatus,
+		nullable: true,
+	})
+	diaperStatus: DiaperStatus
 
-  @Column({ name: 'diaper_image', nullable: true, comment: '尿布照片URL' })
-  diaperImage: string;
+	@Column({ name: 'diaper_image', nullable: true, comment: '尿布照片URL' })
+	diaperImage: string
 
-  @Column({ name: 'diaper_analysis', type: 'json', nullable: true, comment: '便便图片观察结果' })
-  diaperAnalysis: object;
+	@Column({
+		name: 'diaper_analysis',
+		type: 'json',
+		nullable: true,
+		comment: '便便图片观察结果',
+	})
+	diaperAnalysis: object
 
-  // 辅食/饮水相关
-  @Column({ name: 'food_name', nullable: true, comment: '辅食名称' })
-  foodName: string;
+	// 辅食/饮水相关
+	@Column({ name: 'food_name', nullable: true, comment: '辅食名称' })
+	foodName: string
 
-  // 体温
-  @Column({ name: 'temperature', type: 'decimal', precision: 4, scale: 1, nullable: true, comment: '体温(°C)' })
-  temperature: number;
+	// 体温
+	@Column({
+		name: 'temperature',
+		type: 'decimal',
+		precision: 4,
+		scale: 1,
+		nullable: true,
+		comment: '体温(°C)',
+	})
+	temperature: number
 
-  // 身高体重
-  @Column({ name: 'height', type: 'decimal', precision: 5, scale: 1, nullable: true, comment: '身高(cm)' })
-  height: number;
+	// 身高体重
+	@Column({
+		name: 'height',
+		type: 'decimal',
+		precision: 5,
+		scale: 1,
+		nullable: true,
+		comment: '身高(cm)',
+	})
+	height: number
 
-  @Column({ name: 'weight', type: 'decimal', precision: 5, scale: 2, nullable: true, comment: '体重(kg)' })
-  weight: number;
+	@Column({
+		name: 'weight',
+		type: 'decimal',
+		precision: 5,
+		scale: 2,
+		nullable: true,
+		comment: '体重(kg)',
+	})
+	weight: number
 
-  // 用药相关
-  @Column({ name: 'medicine_name', nullable: true, comment: '药品名称' })
-  medicineName: string;
+	// 用药相关
+	@Column({ name: 'medicine_name', nullable: true, comment: '药品名称' })
+	medicineName: string
 
-  @Column({ name: 'medicine_dose', nullable: true, comment: '用药剂量' })
-  medicineDose: string;
+	@Column({ name: 'medicine_dose', nullable: true, comment: '用药剂量' })
+	medicineDose: string
 
-  // 疫苗相关
-  @Column({ name: 'vaccine_name', nullable: true, comment: '疫苗名称' })
-  vaccineName: string;
+	// 疫苗相关
+	@Column({ name: 'vaccine_name', nullable: true, comment: '疫苗名称' })
+	vaccineName: string
 
-  @Column({ name: 'vaccine_code', nullable: true, comment: '预置疫苗编码' })
-  vaccineCode: string;
+	@Column({ name: 'vaccine_code', nullable: true, comment: '预置疫苗编码' })
+	vaccineCode: string
 
-  @Column({ name: 'vaccine_dose', type: 'tinyint', nullable: true, comment: '疫苗剂次' })
-  vaccineDose: number;
+	@Column({
+		name: 'vaccine_dose',
+		type: 'tinyint',
+		nullable: true,
+		comment: '疫苗剂次',
+	})
+	vaccineDose: number
 
-  @Column({ name: 'vaccine_schedule_item_id', nullable: true, comment: '疫苗计划节点ID' })
-  vaccineScheduleItemId: string;
+	@Column({
+		name: 'vaccine_schedule_item_id',
+		nullable: true,
+		comment: '疫苗计划节点ID',
+	})
+	vaccineScheduleItemId: string
 
-  @Column({ name: 'vaccine_schedule_version', nullable: true, comment: '疫苗计划版本' })
-  vaccineScheduleVersion: string;
+	@Column({
+		name: 'vaccine_schedule_version',
+		nullable: true,
+		comment: '疫苗计划版本',
+	})
+	vaccineScheduleVersion: string
 
-  @Column({ name: 'is_custom_vaccine', type: 'boolean', default: false, comment: '是否为自定义疫苗' })
-  isCustomVaccine: boolean;
+	@Column({
+		name: 'is_custom_vaccine',
+		type: 'boolean',
+		default: false,
+		comment: '是否为自定义疫苗',
+	})
+	isCustomVaccine: boolean
 
-  @Column({ name: 'vaccine_hospital', nullable: true, comment: '接种医院' })
-  vaccineHospital: string;
+	@Column({ name: 'vaccine_hospital', nullable: true, comment: '接种医院' })
+	vaccineHospital: string
 
-  // 户外活动
-  @Column({ name: 'outdoor_location', nullable: true, comment: '活动地点' })
-  outdoorLocation: string;
+	// 户外活动
+	@Column({ name: 'outdoor_location', nullable: true, comment: '活动地点' })
+	outdoorLocation: string
 
-  @Column({ name: 'note', type: 'text', nullable: true })
-  note: string;
+	@Column({ name: 'note', type: 'text', nullable: true })
+	note: string
 
-  @ManyToOne(() => Baby)
-  @JoinColumn({ name: 'baby_id' })
-  baby: Baby;
+	@ManyToOne(() => Baby)
+	@JoinColumn({ name: 'baby_id' })
+	baby: Baby
 
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+	@CreateDateColumn({ name: 'created_at' })
+	createdAt: Date
 
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+	@UpdateDateColumn({ name: 'updated_at' })
+	updatedAt: Date
 }

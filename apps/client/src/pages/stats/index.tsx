@@ -3,11 +3,32 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
-import { useRecordStore, DailyStat, HeightWeightTrendPoint, TemperatureTrendPoint } from '../../stores/recordStore'
-import { formatDate, formatDuration, formatDurationLong, formatHM } from '../../utils/date'
+import {
+	useRecordStore,
+	DailyStat,
+	HeightWeightTrendPoint,
+	TemperatureTrendPoint,
+} from '../../stores/recordStore'
+import {
+	calculateAge,
+	formatDate,
+	formatDuration,
+	formatDurationLong,
+	formatHM,
+} from '../../utils/date'
 import { needLogin } from '../../utils/needLogin'
 import { MOCK_STATS, MOCK_DETAIL } from '../../utils/mock'
-import { detailTypeTabs, getRecordMainText, getIntervalText } from '../../utils/recordDisplay'
+import {
+	detailTypeTabs,
+	getRecordMainText,
+	getIntervalText,
+} from '../../utils/recordDisplay'
+import { recordApi } from '../../utils/request'
+import {
+	getCurrentVaccineStage,
+	VACCINE_SCHEDULE,
+	VaccineScheduleItem,
+} from '../../utils/vaccineSchedule'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -34,6 +55,18 @@ interface GrowthSeriesPoint extends HeightWeightTrendPoint {
 	weightMeasured: boolean
 }
 
+interface VaccineRecord {
+	id: string
+	startTime: string
+	vaccineName?: string
+	vaccineHospital?: string
+	vaccineScheduleItemId?: string
+}
+
+const vaccineAgeGroups = Array.from(
+	new Set(VACCINE_SCHEDULE.map(item => item.ageMonths)),
+)
+
 export default function StatsPage() {
 	const { isLoggedIn } = useAuthStore()
 	const { currentBaby } = useBabyStore()
@@ -53,33 +86,53 @@ export default function StatsPage() {
 	const [activeType, setActiveType] = useState('feeding')
 	const [selectedDate, setSelectedDate] = useState(formatDate(new Date()))
 	const [growthChartRatio, setGrowthChartRatio] = useState(0.46)
+	const [vaccineRecords, setVaccineRecords] = useState<VaccineRecord[]>([])
+
+	const loadVaccineRecords = async (babyId: string) => {
+		const res = await recordApi.getVaccines(babyId)
+		setVaccineRecords(res.data || [])
+	}
 
 	// 每次进入统计页都重新拉一次最新的宝宝信息和数据，避免拿到切换宝宝前的旧数据
 	useDidShow(() => {
 		if (!isLoggedIn) return
-		useBabyStore.getState().fetchBabies().then(() => {
-			const baby = useBabyStore.getState().currentBaby
-			if (baby) {
-				fetchStats(baby.id, days)
-				fetchDetail(baby.id, activeType, { date: selectedDate })
-				fetchDetailSummary(baby.id, activeType, { date: selectedDate })
-			}
-		})
+		useBabyStore
+			.getState()
+			.fetchBabies()
+			.then(() => {
+				const baby = useBabyStore.getState().currentBaby
+				if (baby) {
+					fetchStats(baby.id, days)
+					if (activeType === 'vaccine') loadVaccineRecords(baby.id)
+					else {
+						fetchDetail(baby.id, activeType, { date: selectedDate })
+						fetchDetailSummary(baby.id, activeType, { date: selectedDate })
+					}
+				}
+			})
 	})
 
 	useEffect(() => {
-		if (isLoggedIn && currentBaby) {
+		if (isLoggedIn && currentBaby && activeType !== 'vaccine') {
 			fetchDetail(currentBaby.id, activeType, { date: selectedDate })
 			fetchDetailSummary(currentBaby.id, activeType, { date: selectedDate })
 		}
 	}, [isLoggedIn, currentBaby?.id, activeType, selectedDate])
 
 	useEffect(() => {
+		if (isLoggedIn && currentBaby && activeType === 'vaccine') {
+			loadVaccineRecords(currentBaby.id).catch(() =>
+				Taro.showToast({ title: '加载疫苗记录失败', icon: 'none' }),
+			)
+		}
+	}, [isLoggedIn, currentBaby?.id, activeType])
+
+	useEffect(() => {
 		if (activeType !== 'height_weight' && activeType !== 'temperature') return
 		Taro.nextTick(() => {
 			Taro.createSelectorQuery()
 				.select('.line-chart')
-				.boundingClientRect((rect) => {
+				.boundingClientRect(rect => {
 					if (rect?.width && rect.height) {
 						setGrowthChartRatio(rect.height / rect.width)
 					}
@@ -106,13 +159,44 @@ export default function StatsPage() {
 			needLogin()
 			return
 		}
+
 		if (!currentBaby) {
 			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
 			return
 		}
 		const t = overrideType || activeType
-		Taro.navigateTo({ url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}` })
-	}
+		Taro.navigateTo({
+			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}`,
+			})
+		}
+
+		const goToVaccineRecord = (item: VaccineScheduleItem) => {
+			if (!currentBaby) return
+			Taro.navigateTo({
+				url: `/pages/record/index?type=vaccine&babyId=${currentBaby.id}&scheduleItemId=${item.id}`,
+			})
+		}
+
+		const manageVaccineRecord = async (record: VaccineRecord) => {
+			if (!currentBaby) return
+			try {
+				const action = await Taro.showActionSheet({ itemList: ['编辑', '删除'] })
+				if (action.tapIndex === 0) {
+					Taro.navigateTo({ url: `/pages/record/index?type=vaccine&babyId=${currentBaby.id}&id=${record.id}` })
+					return
+				}
+				const confirm = await Taro.showModal({
+					title: '删除接种记录',
+					content: `确定删除“${record.vaccineName || '这条疫苗'}”吗？`,
+				})
+				if (!confirm.confirm) return
+				await recordApi.delete(record.id)
+				await loadVaccineRecords(currentBaby.id)
+				Taro.showToast({ title: '已删除', icon: 'success' })
+			} catch (error) {
+				if (error?.errMsg && !error.errMsg.includes('cancel')) Taro.showToast({ title: '操作失败', icon: 'none' })
+			}
+		}
 
 	const getMaxValue = (stats: DailyStat[], key: keyof DailyStat) => {
 		return Math.max(...stats.map(s => (s[key] as number) || 0), 1)
@@ -132,7 +216,7 @@ export default function StatsPage() {
 				<Text className="chart-title">{label}</Text>
 				<ScrollView scrollX className="chart-scroll-view" showScrollbar={false}>
 					<View className="chart-container">
-						{stats.map((stat) => {
+						{stats.map(stat => {
 							const value = (stat[key] as number) || 0
 							const height = maxValue > 0 ? (value / maxValue) * 100 : 0
 							const date = new Date(stat.date)
@@ -161,8 +245,13 @@ export default function StatsPage() {
 		)
 	}
 
-	const buildGrowthSeries = (points: HeightWeightTrendPoint[], rangeDays: number): GrowthSeriesPoint[] => {
-		const sortedPoints = points.slice().sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+	const buildGrowthSeries = (
+		points: HeightWeightTrendPoint[],
+		rangeDays: number,
+	): GrowthSeriesPoint[] => {
+		const sortedPoints = points
+			.slice()
+			.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 		const start = new Date()
 		start.setHours(0, 0, 0, 0)
 		start.setDate(start.getDate() - rangeDays + 1)
@@ -173,9 +262,11 @@ export default function StatsPage() {
 		let baselineHeight: number | null = null
 		let baselineWeight: number | null = null
 
-		sortedPoints.forEach((point) => {
+		sortedPoints.forEach(point => {
 			const pointDate = new Date(formatDate(point.date))
-			const index = Math.round((pointDate.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
+			const index = Math.round(
+				(pointDate.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
+			)
 			if (index < 0) {
 				if (point.height != null) baselineHeight = point.height
 				if (point.weight != null) baselineWeight = point.weight
@@ -192,10 +283,13 @@ export default function StatsPage() {
 			}
 		})
 
-		const fillTrendValues = (values: Array<number | null>, baseline: number | null) => {
+		const fillTrendValues = (
+			values: Array<number | null>,
+			baseline: number | null,
+		) => {
 			const result = values.slice()
 			const knownIndexes = values
-				.map((value, index) => value == null ? null : index)
+				.map((value, index) => (value == null ? null : index))
 				.filter((index): index is number => index != null)
 			if (baseline != null && !knownIndexes.includes(0)) {
 				result[0] = baseline
@@ -212,10 +306,15 @@ export default function StatsPage() {
 				const fromValue = result[from] as number
 				const toValue = result[to] as number
 				for (let day = from + 1; day < to; day++) {
-					result[day] = fromValue + ((toValue - fromValue) * (day - from)) / (to - from)
+					result[day] =
+						fromValue + ((toValue - fromValue) * (day - from)) / (to - from)
 				}
 			}
-			for (let index = knownIndexes[knownIndexes.length - 1] + 1; index < rangeDays; index++) {
+			for (
+				let index = knownIndexes[knownIndexes.length - 1] + 1;
+				index < rangeDays;
+				index++
+			) {
 				result[index] = result[knownIndexes[knownIndexes.length - 1]]
 			}
 			return result
@@ -250,7 +349,10 @@ export default function StatsPage() {
 
 		const minValue = Math.min(...values)
 		const maxValue = Math.max(...values)
-		const padding = Math.max((maxValue - minValue) * 0.2, key === 'height' ? 1 : 0.2)
+		const padding = Math.max(
+			(maxValue - minValue) * 0.2,
+			key === 'height' ? 1 : 0.2,
+		)
 		const lowerBound = minValue - padding
 		const upperBound = maxValue + padding
 		const range = upperBound - lowerBound || 1
@@ -271,36 +373,73 @@ export default function StatsPage() {
 			<View className="chart-card growth-chart-card">
 				<View className="growth-chart-header">
 					<Text className="chart-title">{label}</Text>
-					<Text className="growth-chart-range">{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}{unit}</Text>
+					<Text className="growth-chart-range">
+						{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}
+						{unit}
+					</Text>
 				</View>
 				<View className="growth-chart line-chart">
 					<View className="growth-grid-line growth-grid-line-top" />
 					<View className="growth-grid-line growth-grid-line-middle" />
 					<View className="growth-grid-line growth-grid-line-bottom" />
 					{points.map((point, index) => {
-						const showDate = points.length <= 7 || index === 0 || index === points.length - 1 || index % Math.ceil(points.length / 6) === 0
-						return showDate && <Text key={`${point.date}-date-${key}`} className="growth-date" style={{ left: `${points.length === 1 ? 50 : (index / (points.length - 1)) * 100}%` }}>{formatDate(point.date).slice(5)}</Text>
+						const showDate =
+							points.length <= 7 ||
+							index === 0 ||
+							index === points.length - 1 ||
+							index % Math.ceil(points.length / 6) === 0
+						return (
+							showDate && (
+								<Text
+									key={`${point.date}-date-${key}`}
+									className="growth-date"
+									style={{
+										left: `${points.length === 1 ? 50 : (index / (points.length - 1)) * 100}%`,
+									}}
+								>
+									{formatDate(point.date).slice(5)}
+								</Text>
+							)
+						)
 					})}
 					{plotPoints.map((point, index) => {
 						const previous = plotPoints[index - 1]
 						const dx = previous ? point.x - previous.x : 0
 						const dy = previous ? point.y - previous.y : 0
-						const angle = previous ? -Math.atan2(dy * growthChartRatio, dx) * (180 / Math.PI) : 0
-						const length = previous ? Math.sqrt(dx * dx + (dy * growthChartRatio) * (dy * growthChartRatio)) : 0
-						const measured = key === 'height'
-							? (point as GrowthSeriesPoint).heightMeasured
-							: (point as GrowthSeriesPoint).weightMeasured
+						const angle = previous
+							? -Math.atan2(dy * growthChartRatio, dx) * (180 / Math.PI)
+							: 0
+						const length = previous
+							? Math.sqrt(
+									dx * dx + dy * growthChartRatio * (dy * growthChartRatio),
+								)
+							: 0
+						const measured =
+							key === 'height'
+								? (point as GrowthSeriesPoint).heightMeasured
+								: (point as GrowthSeriesPoint).weightMeasured
 						return (
 							<View key={`${point.date}-${key}`}>
 								{previous && (
 									<View
 										className={`growth-line ${lineClassName}`}
-										style={{ left: `${previous.x}%`, bottom: `${previous.y}%`, width: `${length}%`, transform: `rotate(${angle}deg)` }}
+										style={{
+											left: `${previous.x}%`,
+											bottom: `${previous.y}%`,
+											width: `${length}%`,
+											transform: `rotate(${angle}deg)`,
+										}}
 									/>
 								)}
 								{measured && (
-									<View className={`growth-point ${lineClassName}`} style={{ left: `${point.x}%`, bottom: `${point.y}%` }}>
-										<Text className="growth-value">{point.value}{unit}</Text>
+									<View
+										className={`growth-point ${lineClassName}`}
+										style={{ left: `${point.x}%`, bottom: `${point.y}%` }}
+									>
+										<Text className="growth-value">
+											{point.value}
+											{unit}
+										</Text>
 									</View>
 								)}
 							</View>
@@ -312,7 +451,9 @@ export default function StatsPage() {
 	}
 
 	const renderTemperatureLineChart = (points: TemperatureTrendPoint[]) => {
-		const sortedPoints = points.slice().sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+		const sortedPoints = points
+			.slice()
+			.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 		if (sortedPoints.length === 0) return null
 		const rangeStart = new Date()
 		rangeStart.setHours(0, 0, 0, 0)
@@ -324,32 +465,79 @@ export default function StatsPage() {
 		const dailyPoints = Array.from({ length: days }, (_, index) => {
 			const date = new Date(rangeStart)
 			date.setDate(rangeStart.getDate() + index)
-			const readings = sortedPoints.filter(point => formatDate(point.date) === formatDate(date))
+			const readings = sortedPoints.filter(
+				point => formatDate(point.date) === formatDate(date),
+			)
 			if (readings.length === 0) return null
 			return {
 				date: date.toISOString(),
 				temperature: Math.max(...readings.map(point => point.temperature)),
-				lowestTemperature: Math.min(...readings.map(point => point.temperature)),
+				lowestTemperature: Math.min(
+					...readings.map(point => point.temperature),
+				),
 			}
-		}).filter((point): point is { date: string; temperature: number; lowestTemperature: number } => point != null)
+		}).filter(
+			(
+				point,
+			): point is {
+				date: string
+				temperature: number
+				lowestTemperature: number
+			} => point != null,
+		)
 		const chartPoints = detailedTimeline ? sortedPoints : dailyPoints
-		const values = chartPoints.flatMap(point => 'lowestTemperature' in point ? [point.temperature, point.lowestTemperature] : [point.temperature])
+		const values = chartPoints.flatMap(point =>
+			'lowestTemperature' in point
+				? [point.temperature, point.lowestTemperature]
+				: [point.temperature],
+		)
 		const lowerBound = Math.floor((Math.min(...values) - 0.2) * 10) / 10
 		const upperBound = Math.ceil((Math.max(...values) + 0.2) * 10) / 10
 		const valueRange = upperBound - lowerBound || 1
-		const plotPoints = chartPoints.reduce<Array<{ date: string; temperature: number; lowestTemperature?: number; x: number; y: number; lowY?: number; labelOffset: number }>>((result, point, index) => {
-			const rawX = Math.max(0, Math.min(100, ((new Date(point.date).getTime() - rangeStart.getTime()) / timeRange) * 100))
+		const plotPoints = chartPoints.reduce<
+			Array<{
+				date: string
+				temperature: number
+				lowestTemperature?: number
+				x: number
+				y: number
+				lowY?: number
+				labelOffset: number
+			}>
+		>((result, point, index) => {
+			const rawX = Math.max(
+				0,
+				Math.min(
+					100,
+					((new Date(point.date).getTime() - rangeStart.getTime()) /
+						timeRange) *
+						100,
+				),
+			)
 			const previous = result[index - 1]
 			// 同一时刻或相邻时刻的读数保留顺序，并留出最小可视间距避免重叠。
 			const x = detailedTimeline
-				? (previous && rawX - previous.x < 1.4 ? Math.min(100, previous.x + 1.4) : rawX)
-				: (days === 1 ? 50 : Math.round((new Date(formatDate(point.date)).getTime() - rangeStart.getTime()) / (24 * 60 * 60 * 1000)) / (days - 1) * 100)
+				? previous && rawX - previous.x < 1.4
+					? Math.min(100, previous.x + 1.4)
+					: rawX
+				: days === 1
+					? 50
+					: (Math.round(
+							(new Date(formatDate(point.date)).getTime() -
+								rangeStart.getTime()) /
+								(24 * 60 * 60 * 1000),
+						) /
+							(days - 1)) *
+						100
 			result.push({
 				...point,
 				x,
 				// 底部留给日期轴，避免最低读数和横坐标重叠。
 				y: 15 + ((point.temperature - lowerBound) / valueRange) * 85,
-				lowY: 'lowestTemperature' in point ? 15 + ((point.lowestTemperature - lowerBound) / valueRange) * 85 : undefined,
+				lowY:
+					'lowestTemperature' in point
+						? 15 + ((point.lowestTemperature - lowerBound) / valueRange) * 85
+						: undefined,
 				labelOffset: 24 + (index % 3) * 28,
 			})
 			return result
@@ -357,70 +545,182 @@ export default function StatsPage() {
 		const timeTicks = Array.from({ length: days }, (_, index) => {
 			const date = new Date(rangeStart)
 			date.setDate(rangeStart.getDate() + index)
-			return { label: days <= 7 || index === 0 || index === days - 1 || index % Math.ceil(days / 6) === 0 ? formatDate(date).slice(5) : '', x: days === 1 ? 50 : (index / (days - 1)) * 100 }
+			return {
+				label:
+					days <= 7 ||
+					index === 0 ||
+					index === days - 1 ||
+					index % Math.ceil(days / 6) === 0
+						? formatDate(date).slice(5)
+						: '',
+				x: days === 1 ? 50 : (index / (days - 1)) * 100,
+			}
 		})
 		const showAllValues = !detailedTimeline || plotPoints.length <= 8
-		const chartWidth = detailedTimeline ? Math.max(days * 220, 750) : Math.max(days * 100, 750)
+		const chartWidth = detailedTimeline
+			? Math.max(days * 220, 750)
+			: Math.max(days * 100, 750)
 		const latestPointId = `temperature-point-${plotPoints.length - 1}`
 
 		return (
 			<View className="chart-card growth-chart-card temperature-chart-card">
 				<View className="growth-chart-header">
-					<Text className="chart-title">{detailedTimeline ? '体温趋势' : `近${days}天每日体温范围`}</Text>
-					<Text className="growth-chart-range">{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}°C</Text>
+					<Text className="chart-title">
+						{detailedTimeline ? '体温趋势' : `近${days}天每日体温范围`}
+					</Text>
+					<Text className="growth-chart-range">
+						{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}°C
+					</Text>
 				</View>
-				<ScrollView className="temperature-scroll" scrollX scrollIntoView={latestPointId} showScrollbar={false}>
-				<View className="growth-chart line-chart temperature-chart temperature-chart-wide" style={{ width: `${chartWidth}rpx` }}>
-					{[0, 50, 100].map(position => <View key={position} className="growth-grid-line" style={{ bottom: `${position}%` }} />)}
-					{Array.from({ length: days - 1 }, (_, index) => <View key={index} className="temperature-day-divider" style={{ left: `${((index + 1) / days) * 100}%` }} />)}
-					<Text className="temperature-axis-label temperature-axis-top">{upperBound.toFixed(1)}°</Text>
-					<Text className="temperature-axis-label temperature-axis-middle">{(lowerBound + valueRange / 2).toFixed(1)}°</Text>
-					<Text className="temperature-axis-label temperature-axis-bottom">{lowerBound.toFixed(1)}°</Text>
-					{timeTicks.map(tick => <Text key={tick.x} className="growth-date" style={{ left: `${tick.x}%` }}>{tick.label}</Text>)}
-					{plotPoints.map((point, index) => {
-						const previous = plotPoints[index - 1]
-						const dx = previous ? point.x - previous.x : 0
-						const dy = previous ? point.y - previous.y : 0
-						const angle = previous ? -Math.atan2(dy * growthChartRatio, dx) * (180 / Math.PI) : 0
-						const length = previous ? Math.sqrt(dx * dx + (dy * growthChartRatio) * (dy * growthChartRatio)) : 0
-						const showValue = showAllValues || index === 0 || index === plotPoints.length - 1 || point.temperature >= 37.5
-						const highValueStyle = point.y > 80
-							? { top: '24rpx', bottom: 'auto' }
-							: { bottom: `${point.labelOffset}rpx` }
-						return (
-							<View key={`${point.date}-${point.temperature}`}>
-								{previous && <View className="growth-line temperature-line" style={{ left: `${previous.x}%`, bottom: `${previous.y}%`, width: `${length}%`, transform: `rotate(${angle}deg)` }} />}
-								{point.lowY != null && point.lowY !== point.y && (
-									<>
-										<View className="temperature-range-bar" style={{ left: `${point.x}%`, bottom: `${point.lowY}%`, height: `${point.y - point.lowY}%` }} />
-										<View className="temperature-low-point" style={{ left: `${point.x}%`, bottom: `${point.lowY}%` }}>
-											<Text className="temperature-low-value">{point.lowestTemperature?.toFixed(1)}°</Text>
-										</View>
-									</>
-								)}
-								<View id={index === plotPoints.length - 1 ? latestPointId : undefined} className="growth-point temperature-point" style={{ left: `${point.x}%`, bottom: `${point.y}%` }}>
-									{showValue && <Text className="growth-value" style={highValueStyle}>{point.temperature.toFixed(1)}°</Text>}
+				<ScrollView
+					className="temperature-scroll"
+					scrollX
+					scrollIntoView={latestPointId}
+					showScrollbar={false}
+				>
+					<View
+						className="growth-chart line-chart temperature-chart temperature-chart-wide"
+						style={{ width: `${chartWidth}rpx` }}
+					>
+						{[0, 50, 100].map(position => (
+							<View
+								key={position}
+								className="growth-grid-line"
+								style={{ bottom: `${position}%` }}
+							/>
+						))}
+						{Array.from({ length: days - 1 }, (_, index) => (
+							<View
+								key={index}
+								className="temperature-day-divider"
+								style={{ left: `${((index + 1) / days) * 100}%` }}
+							/>
+						))}
+						<Text className="temperature-axis-label temperature-axis-top">
+							{upperBound.toFixed(1)}°
+						</Text>
+						<Text className="temperature-axis-label temperature-axis-middle">
+							{(lowerBound + valueRange / 2).toFixed(1)}°
+						</Text>
+						<Text className="temperature-axis-label temperature-axis-bottom">
+							{lowerBound.toFixed(1)}°
+						</Text>
+						{timeTicks.map(tick => (
+							<Text
+								key={tick.x}
+								className="growth-date"
+								style={{ left: `${tick.x}%` }}
+							>
+								{tick.label}
+							</Text>
+						))}
+						{plotPoints.map((point, index) => {
+							const previous = plotPoints[index - 1]
+							const dx = previous ? point.x - previous.x : 0
+							const dy = previous ? point.y - previous.y : 0
+							const angle = previous
+								? -Math.atan2(dy * growthChartRatio, dx) * (180 / Math.PI)
+								: 0
+							const length = previous
+								? Math.sqrt(
+										dx * dx + dy * growthChartRatio * (dy * growthChartRatio),
+									)
+								: 0
+							const showValue =
+								showAllValues ||
+								index === 0 ||
+								index === plotPoints.length - 1 ||
+								point.temperature >= 37.5
+							const highValueStyle =
+								point.y > 80
+									? { top: '24rpx', bottom: 'auto' }
+									: { bottom: `${point.labelOffset}rpx` }
+							return (
+								<View key={`${point.date}-${point.temperature}`}>
+									{previous && (
+										<View
+											className="growth-line temperature-line"
+											style={{
+												left: `${previous.x}%`,
+												bottom: `${previous.y}%`,
+												width: `${length}%`,
+												transform: `rotate(${angle}deg)`,
+											}}
+										/>
+									)}
+									{point.lowY != null && point.lowY !== point.y && (
+										<>
+											<View
+												className="temperature-range-bar"
+												style={{
+													left: `${point.x}%`,
+													bottom: `${point.lowY}%`,
+													height: `${point.y - point.lowY}%`,
+												}}
+											/>
+											<View
+												className="temperature-low-point"
+												style={{
+													left: `${point.x}%`,
+													bottom: `${point.lowY}%`,
+												}}
+											>
+												<Text className="temperature-low-value">
+													{point.lowestTemperature?.toFixed(1)}°
+												</Text>
+											</View>
+										</>
+									)}
+									<View
+										id={
+											index === plotPoints.length - 1
+												? latestPointId
+												: undefined
+										}
+										className="growth-point temperature-point"
+										style={{ left: `${point.x}%`, bottom: `${point.y}%` }}
+									>
+										{showValue && (
+											<Text className="growth-value" style={highValueStyle}>
+												{point.temperature.toFixed(1)}°
+											</Text>
+										)}
+									</View>
 								</View>
-							</View>
-						)
-					})}
-				</View>
+							)
+						})}
+					</View>
 				</ScrollView>
 			</View>
 		)
 	}
 
 	// 未登录时使用 mock 数据
-	const displayDailyStats = isLoggedIn && currentBaby ? dailyStats : MOCK_STATS.dailyStats
-	const displayHeightWeightTrend = isLoggedIn && currentBaby ? heightWeightTrend : MOCK_STATS.heightWeightTrend
-	const displayTemperatureTrend = isLoggedIn && currentBaby ? temperatureTrend : MOCK_STATS.temperatureTrend
-	const displayHeightWeightSeries = buildGrowthSeries(displayHeightWeightTrend, days)
-	const displayHeightWeight = isLoggedIn && currentBaby ? latestHeightWeight : MOCK_STATS.latestHeightWeight
-	const displayTemperature = isLoggedIn && currentBaby ? latestTemperature : MOCK_STATS.latestTemperature
-	const displayItems = isLoggedIn && currentBaby ? detailItems : MOCK_DETAIL[activeType].items
-	const summary = isLoggedIn && currentBaby ? detailSummary : MOCK_DETAIL[activeType].summary
+	const displayDailyStats =
+		isLoggedIn && currentBaby ? dailyStats : MOCK_STATS.dailyStats
+	const displayHeightWeightTrend =
+		isLoggedIn && currentBaby ? heightWeightTrend : MOCK_STATS.heightWeightTrend
+	const displayTemperatureTrend =
+		isLoggedIn && currentBaby ? temperatureTrend : MOCK_STATS.temperatureTrend
+	const displayHeightWeightSeries = buildGrowthSeries(
+		displayHeightWeightTrend,
+		days,
+	)
+	const displayHeightWeight =
+		isLoggedIn && currentBaby
+			? latestHeightWeight
+			: MOCK_STATS.latestHeightWeight
+	const displayTemperature =
+		isLoggedIn && currentBaby ? latestTemperature : MOCK_STATS.latestTemperature
+	const displayItems =
+		isLoggedIn && currentBaby ? detailItems : MOCK_DETAIL[activeType].items
+	const summary =
+		isLoggedIn && currentBaby ? detailSummary : MOCK_DETAIL[activeType].summary
 
-	const avgIntervalText = summary?.avgIntervalMinutes != null ? formatDuration(summary.avgIntervalMinutes) : '-'
+	const avgIntervalText =
+		summary?.avgIntervalMinutes != null
+			? formatDuration(summary.avgIntervalMinutes)
+			: '-'
 
 	let summaryTiles: { label: string; value: string }[]
 	if (activeType === 'feeding') {
@@ -451,22 +751,55 @@ export default function StatsPage() {
 	} else if (activeType === 'height_weight') {
 		summaryTiles = [
 			{ label: '总次数', value: `${summary?.count ?? 0}次` },
-			{ label: '最新身高', value: summary?.latestHeight != null ? `${summary.latestHeight}cm` : '-' },
-			{ label: '最新体重', value: summary?.latestWeight != null ? `${summary.latestWeight}kg` : '-' },
+			{
+				label: '最新身高',
+				value:
+					summary?.latestHeight != null ? `${summary.latestHeight}cm` : '-',
+			},
+			{
+				label: '最新体重',
+				value:
+					summary?.latestWeight != null ? `${summary.latestWeight}kg` : '-',
+			},
 		]
 	} else if (activeType === 'temperature') {
 		summaryTiles = [
 			{ label: '总次数', value: `${summary?.count ?? 0}次` },
-			{ label: '最新体温', value: summary?.latestTemperature != null ? `${summary.latestTemperature}°C` : '-' },
+			{
+				label: '最新体温',
+				value:
+					summary?.latestTemperature != null
+						? `${summary.latestTemperature}°C`
+						: '-',
+			},
 			{ label: '平均间隔', value: avgIntervalText },
 		]
 	} else {
 		summaryTiles = [
 			{ label: '总次数', value: `${summary?.count ?? 0}次` },
-			{ label: '总时长', value: formatDurationLong(summary?.totalDuration ?? 0) },
+			{
+				label: '总时长',
+				value: formatDurationLong(summary?.totalDuration ?? 0),
+			},
 			{ label: '平均清醒间隔', value: avgIntervalText },
 		]
 	}
+
+	const vaccineAge = currentBaby ? calculateAge(currentBaby.birthday) : null
+	const currentVaccineItems = vaccineAge
+		? getCurrentVaccineStage(vaccineAge.months)
+		: []
+	const vaccineRecordByScheduleItem = new Map(
+		vaccineRecords
+			.filter(record => record.vaccineScheduleItemId)
+			.map(record => [record.vaccineScheduleItemId as string, record]),
+	)
+	const scheduledVaccineRecordIds = new Set(
+		Array.from(vaccineRecordByScheduleItem.values()).map(record => record.id),
+	)
+	const customVaccineRecords = vaccineRecords.filter(
+		record => !scheduledVaccineRecordIds.has(record.id),
+	)
 
 	return (
 		<View className="page">
@@ -475,11 +808,15 @@ export default function StatsPage() {
 				<Text className="section-title">最新数据</Text>
 				<View className="latest-grid">
 					{displayHeightWeight && (
-						<View className="latest-card" onClick={goToFullDetail.bind(null, 'height_weight')}>
+						<View
+							className="latest-card"
+							onClick={goToFullDetail.bind(null, 'height_weight')}
+						>
 							<Text className="latest-icon">📏</Text>
 							<View className="latest-info">
 								<Text className="latest-value">
-									{displayHeightWeight.height}cm / {displayHeightWeight.weight}kg
+									{displayHeightWeight.height}cm / {displayHeightWeight.weight}
+									kg
 								</Text>
 								<Text className="latest-date">
 									{new Date(displayHeightWeight.date).toLocaleDateString()}
@@ -488,7 +825,10 @@ export default function StatsPage() {
 						</View>
 					)}
 					{displayTemperature && (
-						<View className="latest-card" onClick={goToFullDetail.bind(null, 'temperature')}>
+						<View
+							className="latest-card"
+							onClick={goToFullDetail.bind(null, 'temperature')}
+						>
 							<Text className="latest-icon">🌡️</Text>
 							<View className="latest-info">
 								<Text className="latest-value">
@@ -522,119 +862,293 @@ export default function StatsPage() {
 				))}
 			</View>
 
-			{/* 日期切换 */}
-			<View className="date-nav">
-				<View className="date-arrow" onClick={() => handleDateChange(shiftDate(selectedDate, -1))}>
-					<Text>‹</Text>
-				</View>
-				<Picker
-					mode="date"
-					value={selectedDate}
-					end={formatDate(new Date())}
-					onChange={e => handleDateChange(e.detail.value as string)}
-				>
-					<View className="date-label-wrap">
-						<Text className="date-label">{getDateLabel(selectedDate)}</Text>
-						<Text className="date-icon">📅</Text>
-					</View>
-				</Picker>
-				<View
-					className={`date-arrow ${isToday(selectedDate) ? 'disabled' : ''}`}
-					onClick={() => !isToday(selectedDate) && handleDateChange(shiftDate(selectedDate, 1))}
-				>
-					<Text>›</Text>
-				</View>
-			</View>
-
-			{/* 明细卡 */}
-			<View className="detail-card">
-				<View className="detail-card-header">
-					<Text className="section-title">{isToday(selectedDate) ? '今日总结' : `${getDateLabel(selectedDate)}总结`}</Text>
-					<View className="detail-link" onClick={() => goToFullDetail()}>
-						<Text>完整明细 ›</Text>
-					</View>
-				</View>
-
-				<View className="summary-tiles">
-					{summaryTiles.map(tile => (
-						<View key={tile.label} className="summary-tile">
-							<Text className="summary-tile-value">{tile.value}</Text>
-							<Text className="summary-tile-label">{tile.label}</Text>
-						</View>
-					))}
-				</View>
-
-				{displayItems.length > 0 ? (
-					<View className="timeline">
-						{displayItems.map((item, idx) => (
-							<View key={item.id} className="timeline-item">
-								<View className="timeline-track">
-									<View className="timeline-dot" />
-									{idx < displayItems.length - 1 && <View className="timeline-line" />}
-								</View>
-								<View className="timeline-content">
-									<View className="timeline-row">
-										<Text className="timeline-time">{formatHM(item.startTime)}</Text>
-										<Text className="timeline-interval">{getIntervalText(activeType, item.intervalMinutes)}</Text>
-									</View>
-								<View className="timeline-text-row">
-									<View className="timeline-text-content">
-										<Text className="timeline-text">{getRecordMainText(activeType, item)}</Text>
-										{item.note && <Text className="timeline-note">备注：{item.note}</Text>}
-									</View>
-									{activeType === 'diaper' && item.diaperImage && (
-											<Image
-												className="timeline-thumb"
-												src={item.diaperImage}
-												mode="aspectFill"
-												onClick={() => Taro.previewImage({ current: item.diaperImage, urls: [item.diaperImage] })}
-											/>
-										)}
-									</View>
-								</View>
-							</View>
-						))}
-					</View>
-				) : (
-					<View className="timeline-empty">
-						<Text>这一天还没有记录</Text>
-					</View>
-				)}
-			</View>
-
-			{/* 统计图表 */}
-			{displayDailyStats.length > 0 && (
-				<View className="charts-section">
-					<Text className="section-title">趋势图表</Text>
-					<View className="time-range">
-						{[7, 14, 30].map(d => (
-							<View
-								key={d}
-								className={`range-item ${days === d ? 'active' : ''}`}
-								onClick={() => handleDaysChange(d)}
-							>
-								<Text>{d}天</Text>
-							</View>
-						))}
-					</View>
-					{activeType === 'feeding' && renderBarChart(displayDailyStats, 'feedingCount', '喂奶次数', '次')}
-					{activeType === 'feeding' && renderBarChart(displayDailyStats, 'totalMilk', '奶量', 'ml')}
-					{activeType === 'diaper' && renderBarChart(displayDailyStats, 'diaperCount', '换尿布次数', '次')}
-					{activeType === 'sleep' && renderBarChart(displayDailyStats, 'sleepTotal', '睡眠时长', '时')}
-					{activeType === 'height_weight' && displayHeightWeightSeries.some(point => point.height != null || point.weight != null) && (
+			{activeType === 'vaccine' ? (
+				<View className="vaccine-plan-view">
+					{currentBaby && vaccineAge ? (
 						<>
-							{renderHeightWeightLineChart(displayHeightWeightSeries, 'height', '身高趋势', 'cm', 'growth-height')}
-							{renderHeightWeightLineChart(displayHeightWeightSeries, 'weight', '体重趋势', 'kg', 'growth-weight')}
+							<View className="vaccine-plan-header">
+								<View>
+									<Text className="vaccine-plan-name">{currentBaby.name}</Text>
+									<Text className="vaccine-plan-age">
+										{vaccineAge.months}个月{vaccineAge.days}天
+									</Text>
+								</View>
+								<View className="vaccine-plan-stage">
+									<Text>当前阶段</Text>
+									<Text>{currentVaccineItems[0]?.ageLabel || '常规接种'}</Text>
+								</View>
+							</View>
+							<Text className="vaccine-plan-tip">
+								国家免疫规划常规接种参考，实际以接种门诊和接种证为准。
+							</Text>
+							<View className="vaccine-plan-list">
+								{vaccineAgeGroups.map(ageMonths => {
+									const items = VACCINE_SCHEDULE.filter(
+										item => item.ageMonths === ageMonths,
+									)
+									const isCurrent = items.some(item =>
+										currentVaccineItems.some(current => current.id === item.id),
+									)
+									return (
+										<View
+											key={ageMonths}
+											className={`vaccine-plan-group${isCurrent ? ' current' : ''}`}
+										>
+											<View className="vaccine-plan-marker">
+												<View />
+											</View>
+											<View className="vaccine-plan-group-content">
+												<View className="vaccine-plan-group-title">
+													<Text>{items[0].ageLabel}</Text>
+													{isCurrent && <Text>当前</Text>}
+												</View>
+												{items.map(item => {
+													const record = vaccineRecordByScheduleItem.get(
+														item.id,
+													)
+													return (
+														<View
+															key={item.id}
+															className={`vaccine-plan-item${record ? ' completed' : ''}`}
+															onClick={() =>
+																record
+																	? manageVaccineRecord(record)
+																	: goToVaccineRecord(item)
+															}
+														>
+															<View>
+																<Text className="vaccine-plan-item-name">
+																	{item.displayName}
+																</Text>
+																{record && (
+																	<Text className="vaccine-plan-item-info">
+																		已记录 {formatDate(record.startTime)}
+																	</Text>
+																)}
+															</View>
+															<Text className="vaccine-plan-item-action">
+																{record ? '管理' : '记录'}
+															</Text>
+														</View>
+													)
+												})}
+											</View>
+										</View>
+									)
+								})}
+							</View>
+							{customVaccineRecords.length > 0 && (
+								<View className="vaccine-custom-list">
+									<Text className="vaccine-custom-list-title">
+										其他已记录疫苗
+									</Text>
+									{customVaccineRecords.map(record => (
+										<View
+											key={record.id}
+											className="vaccine-custom-list-item"
+											onClick={() => manageVaccineRecord(record)}
+										>
+											<Text>{record.vaccineName || '未命名疫苗'}</Text>
+											<Text>{formatDate(record.startTime)}</Text>
+										</View>
+									))}
+								</View>
+							)}
 						</>
-					)}
-					{activeType === 'height_weight' && !displayHeightWeightSeries.some(point => point.height != null || point.weight != null) && (
-						<View className="chart-card growth-empty"><Text>所选时间内暂无身高体重记录</Text></View>
-					)}
-					{activeType === 'temperature' && displayTemperatureTrend.length > 0 && renderTemperatureLineChart(displayTemperatureTrend)}
-					{activeType === 'temperature' && displayTemperatureTrend.length === 0 && (
-						<View className="chart-card growth-empty"><Text>所选时间内暂无体温记录</Text></View>
+					) : (
+						<View className="vaccine-plan-empty">
+							<Text>请先添加宝宝信息后查看疫苗时间轴</Text>
+						</View>
 					)}
 				</View>
+			) : (
+				<>
+					{/* 日期切换 */}
+					<View className="date-nav">
+						<View
+							className="date-arrow"
+							onClick={() => handleDateChange(shiftDate(selectedDate, -1))}
+						>
+							<Text>‹</Text>
+						</View>
+						<Picker
+							mode="date"
+							value={selectedDate}
+							end={formatDate(new Date())}
+							onChange={e => handleDateChange(e.detail.value as string)}
+						>
+							<View className="date-label-wrap">
+								<Text className="date-label">{getDateLabel(selectedDate)}</Text>
+								<Text className="date-icon">📅</Text>
+							</View>
+						</Picker>
+						<View
+							className={`date-arrow ${isToday(selectedDate) ? 'disabled' : ''}`}
+							onClick={() =>
+								!isToday(selectedDate) &&
+								handleDateChange(shiftDate(selectedDate, 1))
+							}
+						>
+							<Text>›</Text>
+						</View>
+					</View>
+
+					{/* 明细卡 */}
+					<View className="detail-card">
+						<View className="detail-card-header">
+							<Text className="section-title">
+								{isToday(selectedDate)
+									? '今日总结'
+									: `${getDateLabel(selectedDate)}总结`}
+							</Text>
+							<View className="detail-link" onClick={() => goToFullDetail()}>
+								<Text>完整明细 ›</Text>
+							</View>
+						</View>
+
+						<View className="summary-tiles">
+							{summaryTiles.map(tile => (
+								<View key={tile.label} className="summary-tile">
+									<Text className="summary-tile-value">{tile.value}</Text>
+									<Text className="summary-tile-label">{tile.label}</Text>
+								</View>
+							))}
+						</View>
+
+						{displayItems.length > 0 ? (
+							<View className="timeline">
+								{displayItems.map((item, idx) => (
+									<View key={item.id} className="timeline-item">
+										<View className="timeline-track">
+											<View className="timeline-dot" />
+											{idx < displayItems.length - 1 && (
+												<View className="timeline-line" />
+											)}
+										</View>
+										<View className="timeline-content">
+											<View className="timeline-row">
+												<Text className="timeline-time">
+													{formatHM(item.startTime)}
+												</Text>
+												<Text className="timeline-interval">
+													{getIntervalText(activeType, item.intervalMinutes)}
+												</Text>
+											</View>
+											<View className="timeline-text-row">
+												<View className="timeline-text-content">
+													<Text className="timeline-text">
+														{getRecordMainText(activeType, item)}
+													</Text>
+													{item.note && (
+														<Text className="timeline-note">
+															备注：{item.note}
+														</Text>
+													)}
+												</View>
+												{activeType === 'diaper' && item.diaperImage && (
+													<Image
+														className="timeline-thumb"
+														src={item.diaperImage}
+														mode="aspectFill"
+														onClick={() =>
+															Taro.previewImage({
+																current: item.diaperImage,
+																urls: [item.diaperImage],
+															})
+														}
+													/>
+												)}
+											</View>
+										</View>
+									</View>
+								))}
+							</View>
+						) : (
+							<View className="timeline-empty">
+								<Text>这一天还没有记录</Text>
+							</View>
+						)}
+					</View>
+
+					{/* 统计图表 */}
+					{displayDailyStats.length > 0 && (
+						<View className="charts-section">
+							<Text className="section-title">趋势图表</Text>
+							<View className="time-range">
+								{[7, 14, 30].map(d => (
+									<View
+										key={d}
+										className={`range-item ${days === d ? 'active' : ''}`}
+										onClick={() => handleDaysChange(d)}
+									>
+										<Text>{d}天</Text>
+									</View>
+								))}
+							</View>
+							{activeType === 'feeding' &&
+								renderBarChart(
+									displayDailyStats,
+									'feedingCount',
+									'喂奶次数',
+									'次',
+								)}
+							{activeType === 'feeding' &&
+								renderBarChart(displayDailyStats, 'totalMilk', '奶量', 'ml')}
+							{activeType === 'diaper' &&
+								renderBarChart(
+									displayDailyStats,
+									'diaperCount',
+									'尿布次数',
+									'次',
+								)}
+							{activeType === 'sleep' &&
+								renderBarChart(
+									displayDailyStats,
+									'sleepTotal',
+									'睡眠时长',
+									'时',
+								)}
+							{activeType === 'height_weight' &&
+								displayHeightWeightSeries.some(
+									point => point.height != null || point.weight != null,
+								) && (
+									<>
+										{renderHeightWeightLineChart(
+											displayHeightWeightSeries,
+											'height',
+											'身高趋势',
+											'cm',
+											'growth-height',
+										)}
+										{renderHeightWeightLineChart(
+											displayHeightWeightSeries,
+											'weight',
+											'体重趋势',
+											'kg',
+											'growth-weight',
+										)}
+									</>
+								)}
+							{activeType === 'height_weight' &&
+								!displayHeightWeightSeries.some(
+									point => point.height != null || point.weight != null,
+								) && (
+									<View className="chart-card growth-empty">
+										<Text>所选时间内暂无身高体重记录</Text>
+									</View>
+								)}
+							{activeType === 'temperature' &&
+								displayTemperatureTrend.length > 0 &&
+								renderTemperatureLineChart(displayTemperatureTrend)}
+							{activeType === 'temperature' &&
+								displayTemperatureTrend.length === 0 && (
+									<View className="chart-card growth-empty">
+										<Text>所选时间内暂无体温记录</Text>
+									</View>
+								)}
+						</View>
+					)}
+				</>
 			)}
 
 			<TabBar />

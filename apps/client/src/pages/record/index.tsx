@@ -3,7 +3,12 @@ import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState, useRef } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
 import { recordApi, stoolAnalysisApi } from '../../utils/request'
-import { calculateAge, formatDate, formatHM, formatDurationLong } from '../../utils/date'
+import {
+	calculateAge,
+	formatDate,
+	formatHM,
+	formatDurationLong,
+} from '../../utils/date'
 import { chooseAndUploadImage } from '../../utils/upload'
 import {
 	COMMON_VACCINE_SCHEDULE_IDS,
@@ -18,7 +23,7 @@ import './index.scss'
 
 const recordTypes = {
 	feeding: { title: '喂奶记录', icon: '🍼' },
-	diaper: { title: '换尿布记录', icon: '💩' },
+	diaper: { title: '尿布记录', icon: '💩' },
 	sleep: { title: '睡眠记录', icon: '😴' },
 	food: { title: '辅食记录', icon: '🍚' },
 	water: { title: '饮水记录', icon: '💧' },
@@ -45,7 +50,11 @@ const diaperStatuses = [
 type StoolAnalysis = {
 	riskLevel: 'normal' | 'observe' | 'medical_attention' | 'urgent' | 'unknown'
 	summary: string
-	observedFeatures: { color: string; consistency: string; visibleFindings: string[] }
+	observedFeatures: {
+		color: string
+		consistency: string
+		visibleFindings: string[]
+	}
 	concerns: string[]
 	guidance: string[]
 	redFlags: string[]
@@ -76,7 +85,9 @@ export default function RecordPage() {
 	const [sleepEndTime, setSleepEndTime] = useState(formatHM(new Date()))
 	const [diaperStatus, setDiaperStatus] = useState('wet')
 	const [diaperImage, setDiaperImage] = useState('')
-	const [diaperAnalysis, setDiaperAnalysis] = useState<StoolAnalysis | null>(null)
+	const [diaperAnalysis, setDiaperAnalysis] = useState<StoolAnalysis | null>(
+		null,
+	)
 	const [analyzingStool, setAnalyzingStool] = useState(false)
 	const [foodName, setFoodName] = useState('')
 	const [temperature, setTemperature] = useState('')
@@ -84,9 +95,14 @@ export default function RecordPage() {
 	const [weight, setWeight] = useState('')
 	const [medicineName, setMedicineName] = useState('')
 	const [medicineDose, setMedicineDose] = useState('')
-	const [vaccineName, setVaccineName] = useState(() => findVaccineScheduleItem(router.params.scheduleItemId)?.displayName || '')
+	const [vaccineName, setVaccineName] = useState(
+		() =>
+			findVaccineScheduleItem(router.params.scheduleItemId)?.displayName || '',
+	)
 	const [vaccineHospital, setVaccineHospital] = useState('')
-	const [selectedVaccineId, setSelectedVaccineId] = useState(router.params.scheduleItemId || '')
+	const [selectedVaccineId, setSelectedVaccineId] = useState(
+		router.params.scheduleItemId || '',
+	)
 	const [vaccineSearch, setVaccineSearch] = useState('')
 	const [isCustomVaccine, setIsCustomVaccine] = useState(false)
 	const [outdoorLocation, setOutdoorLocation] = useState('')
@@ -97,15 +113,23 @@ export default function RecordPage() {
 
 	const typeInfo = recordTypes[type] || recordTypes.feeding
 	const selectedVaccine = findVaccineScheduleItem(selectedVaccineId)
-	const currentBaby = useBabyStore((state) => state.currentBaby)
-	const currentVaccineItems = currentBaby ? getCurrentVaccineStage(calculateAge(currentBaby.birthday).months) : []
-	const suggestedVaccineItems = currentVaccineItems.length > 0
-		? currentVaccineItems
-		: COMMON_VACCINE_SCHEDULE_IDS.map(findVaccineScheduleItem).filter((item): item is VaccineScheduleItem => !!item)
+	const currentBaby = useBabyStore(state => state.currentBaby)
+	const currentVaccineItems = currentBaby
+		? getCurrentVaccineStage(calculateAge(currentBaby.birthday).months)
+		: []
+	const suggestedVaccineItems =
+		currentVaccineItems.length > 0
+			? currentVaccineItems
+			: COMMON_VACCINE_SCHEDULE_IDS.map(findVaccineScheduleItem).filter(
+					(item): item is VaccineScheduleItem => !!item,
+				)
 	const normalizedVaccineSearch = vaccineSearch.trim().toLowerCase()
-	const searchableVaccineItems = VACCINE_SCHEDULE.filter((item) => (
-		!normalizedVaccineSearch || item.displayName.toLowerCase().includes(normalizedVaccineSearch) || item.vaccineName.toLowerCase().includes(normalizedVaccineSearch)
-	))
+	const searchableVaccineItems = VACCINE_SCHEDULE.filter(
+		item =>
+			!normalizedVaccineSearch ||
+			item.displayName.toLowerCase().includes(normalizedVaccineSearch) ||
+			item.vaccineName.toLowerCase().includes(normalizedVaccineSearch),
+	)
 
 	// 编辑态：进入页面时拉取原始记录，回填各字段
 	useDidShow(() => {
@@ -209,14 +233,18 @@ export default function RecordPage() {
 		}
 		const consent = await Taro.showModal({
 			title: '发送图片进行观察',
-			content: '图片会发送至智谱视觉模型进行分析，仅供健康记录和就医参考，不能替代医生诊断。',
+			content:
+				'图片会发送至智谱视觉模型进行分析，仅供健康记录和就医参考，不能替代医生诊断。',
 			confirmText: '确认',
 		})
 		if (!consent.confirm) return
 
 		setAnalyzingStool(true)
 		try {
-			const res = await stoolAnalysisApi.analyze({ babyId, imageUrl: diaperImage })
+			const res = await stoolAnalysisApi.analyze({
+				babyId,
+				imageUrl: diaperImage,
+			})
 			setDiaperAnalysis(res.data || null)
 		} catch (error) {
 			Taro.showToast({ title: '暂时无法分析，请稍后重试', icon: 'none' })
@@ -265,7 +293,10 @@ export default function RecordPage() {
 			const data: any = {
 				babyId,
 				type,
-				startTime: buildTimeOnDate(buildRecordDate(recordDate), startTime).toISOString(),
+				startTime: buildTimeOnDate(
+					buildRecordDate(recordDate),
+					startTime,
+				).toISOString(),
 			}
 			if (type === 'height_weight') {
 				data.startTime = buildRecordDate(recordDate).toISOString()
@@ -359,7 +390,14 @@ export default function RecordPage() {
 				<Text className="record-icon">{typeInfo.icon}</Text>
 				<Text className="record-title">{typeInfo.title}</Text>
 				{type === 'vaccine' && babyId && (
-					<View className="timeline-link" onClick={() => Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${babyId}` })}>
+					<View
+						className="timeline-link"
+						onClick={() =>
+							Taro.navigateTo({
+								url: `/pages/vaccine-timeline/index?babyId=${babyId}`,
+							})
+						}
+					>
 						<Text>查看时间轴</Text>
 					</View>
 				)}
@@ -371,7 +409,12 @@ export default function RecordPage() {
 					<Text className="form-label">
 						{type === 'height_weight' ? '测量日期' : '发生日期'}
 					</Text>
-					<Picker mode="date" value={recordDate} end={today} onChange={handleRecordDateChange}>
+					<Picker
+						mode="date"
+						value={recordDate}
+						end={today}
+						onChange={handleRecordDateChange}
+					>
 						<View className="form-input time-input">
 							<Text>{recordDate}</Text>
 						</View>
@@ -380,7 +423,9 @@ export default function RecordPage() {
 
 				{type !== 'height_weight' && (
 					<View className="form-group">
-						<Text className="form-label">{type === 'sleep' ? '入睡时间' : '发生时间'}</Text>
+						<Text className="form-label">
+							{type === 'sleep' ? '入睡时间' : '发生时间'}
+						</Text>
 						<Picker mode="time" value={startTime} onChange={handleTimeChange}>
 							<View className="form-input time-input">
 								<Text>{startTime}</Text>
@@ -479,8 +524,12 @@ export default function RecordPage() {
 						<View className="form-group">
 							<Text className="form-label">照片 (可选)</Text>
 							<View className="stool-photo-tips">
-								<Text className="stool-photo-tips-title">用于识别的拍摄建议</Text>
-								<Text className="stool-photo-tips-content">自然光下拍摄，对焦便便区域并尽量完整入镜；避免强滤镜、反光和阴影，不拍入宝宝面部或私密部位。</Text>
+								<Text className="stool-photo-tips-title">
+									用于识别的拍摄建议
+								</Text>
+								<Text className="stool-photo-tips-content">
+									自然光下拍摄，对焦便便区域并尽量完整入镜；避免强滤镜、反光和阴影，不拍入宝宝面部或私密部位。
+								</Text>
 							</View>
 							{diaperImage ? (
 								<View className="image-preview">
@@ -521,17 +570,39 @@ export default function RecordPage() {
 								</View>
 							)}
 							{diaperImage && (
-								<View className={`stool-analyze-btn${analyzingStool ? ' disabled' : ''}`} onClick={analyzingStool ? undefined : handleAnalyzeStool}>
-									<Text>{analyzingStool ? '图片分析中...' : diaperAnalysis ? '重新分析' : '识别便便情况'}</Text>
+								<View
+									className={`stool-analyze-btn${analyzingStool ? ' disabled' : ''}`}
+									onClick={analyzingStool ? undefined : handleAnalyzeStool}
+								>
+									<Text>
+										{analyzingStool
+											? '图片分析中...'
+											: diaperAnalysis
+												? '重新分析'
+												: '识别便便情况'}
+									</Text>
 								</View>
 							)}
 							{diaperAnalysis && (
 								<View className={`stool-result ${diaperAnalysis.riskLevel}`}>
-									<Text className="stool-result-title">{riskLabels[diaperAnalysis.riskLevel]}</Text>
-									<Text className="stool-result-summary">{diaperAnalysis.summary}</Text>
-									<Text className="stool-result-feature">观察：{diaperAnalysis.observedFeatures.color}；{diaperAnalysis.observedFeatures.consistency}</Text>
-									{diaperAnalysis.guidance?.map((item, index) => <Text key={index} className="stool-result-guidance">{item}</Text>)}
-									<Text className="stool-result-disclaimer">{diaperAnalysis.disclaimer}</Text>
+									<Text className="stool-result-title">
+										{riskLabels[diaperAnalysis.riskLevel]}
+									</Text>
+									<Text className="stool-result-summary">
+										{diaperAnalysis.summary}
+									</Text>
+									<Text className="stool-result-feature">
+										观察：{diaperAnalysis.observedFeatures.color}；
+										{diaperAnalysis.observedFeatures.consistency}
+									</Text>
+									{diaperAnalysis.guidance?.map((item, index) => (
+										<Text key={index} className="stool-result-guidance">
+											{item}
+										</Text>
+									))}
+									<Text className="stool-result-disclaimer">
+										{diaperAnalysis.disclaimer}
+									</Text>
 								</View>
 							)}
 						</View>
@@ -663,19 +734,25 @@ export default function RecordPage() {
 									<Text>当前月龄可关注</Text>
 								</View>
 							)}
-								<View className="vaccine-chip-grid">
-								{suggestedVaccineItems.map((item) => (
-									<View key={item.id} className={`vaccine-chip${selectedVaccineId === item.id ? ' active' : ''}`} onClick={() => selectVaccine(item)}>
+							<View className="vaccine-chip-grid">
+								{suggestedVaccineItems.map(item => (
+									<View
+										key={item.id}
+										className={`vaccine-chip${selectedVaccineId === item.id ? ' active' : ''}`}
+										onClick={() => selectVaccine(item)}
+									>
 										<Text>{item.displayName}</Text>
 									</View>
-									))}
+								))}
+							</View>
+							{selectedVaccine && (
+								<View className="selected-vaccine-summary">
+									<Text className="selected-vaccine-label">已选择</Text>
+									<Text className="selected-vaccine-name">
+										{selectedVaccine.displayName}
+									</Text>
 								</View>
-								{selectedVaccine && (
-									<View className="selected-vaccine-summary">
-										<Text className="selected-vaccine-label">已选择</Text>
-										<Text className="selected-vaccine-name">{selectedVaccine.displayName}</Text>
-									</View>
-								)}
+							)}
 							<View className="vaccine-search-wrap">
 								<Input
 									className="form-input vaccine-search-input"
@@ -685,17 +762,28 @@ export default function RecordPage() {
 								/>
 								{normalizedVaccineSearch && (
 									<View className="vaccine-search-results">
-										{searchableVaccineItems.map((item) => (
-																							<View key={item.id} className="vaccine-search-item" onTap={() => selectVaccine(item)}>
+										{searchableVaccineItems.map(item => (
+											<View
+												key={item.id}
+												className="vaccine-search-item"
+												onTap={() => selectVaccine(item)}
+											>
 												<Text>{item.displayName}</Text>
 												<Text>{item.ageLabel}</Text>
 											</View>
 										))}
-										{searchableVaccineItems.length === 0 && <Text className="vaccine-no-result">未找到，下面可自定义填写</Text>}
+										{searchableVaccineItems.length === 0 && (
+											<Text className="vaccine-no-result">
+												未找到，下面可自定义填写
+											</Text>
+										)}
 									</View>
 								)}
 							</View>
-							<View className={`vaccine-custom-trigger${isCustomVaccine ? ' active' : ''}`} onClick={selectCustomVaccine}>
+							<View
+								className={`vaccine-custom-trigger${isCustomVaccine ? ' active' : ''}`}
+								onClick={selectCustomVaccine}
+							>
 								<Text>＋ 自定义疫苗</Text>
 							</View>
 							{isCustomVaccine && (
