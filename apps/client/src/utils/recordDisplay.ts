@@ -7,6 +7,7 @@ export const detailTypeTabs = [
   { type: 'sleep', label: '睡觉', icon: '😴' },
   { type: 'height_weight', label: '身高体重', icon: '📏' },
   { type: 'temperature', label: '体温', icon: '🌡️' },
+  { type: 'vaccine', label: '疫苗', icon: '💉' },
 ]
 
 export const feedingMethodLabel: Record<string, string> = { breast: '母乳', formula: '奶粉', mixed: '混合' }
@@ -35,6 +36,10 @@ export function getRecordMainText(type: string, item: any): string {
   }
   if (type === 'temperature') {
     return item.temperature != null ? `${item.temperature}°C` : '-'
+  }
+  if (type === 'vaccine') {
+    const dose = item.vaccineDose ? ` 第${item.vaccineDose}剂` : ''
+    return `${item.vaccineName || '疫苗'}${dose}`
   }
   return ''
 }

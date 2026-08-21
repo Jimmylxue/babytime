@@ -27,6 +27,11 @@ export interface Record {
   medicineDose?: string;
   vaccineName?: string;
   vaccineHospital?: string;
+  vaccineCode?: string;
+  vaccineDose?: number;
+  vaccineScheduleItemId?: string;
+  vaccineScheduleVersion?: string;
+  isCustomVaccine?: boolean;
   outdoorLocation?: string;
   note?: string;
   createdAt: string;

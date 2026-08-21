@@ -70,6 +70,31 @@ export default function VaccineTimelinePage() {
     })
   }
 
+  const handleRecordAction = async (record: VaccineRecord) => {
+    try {
+      const action = await Taro.showActionSheet({ itemList: ['编辑', '删除'] })
+      if (action.tapIndex === 0) {
+        Taro.navigateTo({ url: `/pages/record/index?type=vaccine&babyId=${baby.id}&id=${record.id}` })
+        return
+      }
+      if (action.tapIndex === 1) {
+        const confirm = await Taro.showModal({
+          title: '删除接种记录',
+          content: `确定删除“${record.vaccineName || '这条疫苗'}”的接种记录吗？`,
+        })
+        if (!confirm.confirm) return
+        await recordApi.delete(record.id)
+        Taro.showToast({ title: '已删除', icon: 'success' })
+        await loadData()
+      }
+    } catch (error) {
+      // 用户取消 action sheet 时，微信会以 reject 结束，不提示错误。
+      if (error?.errMsg && !error.errMsg.includes('cancel')) {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    }
+  }
+
   return (
     <View className="timeline-page">
       <View className="timeline-hero">
@@ -105,7 +130,7 @@ export default function VaccineTimelinePage() {
                   {items.map((item) => {
                     const record = recordByScheduleItem.get(item.id)
                     return (
-                      <View key={item.id} className={`vaccine-item${record ? ' completed' : ''}`} onClick={() => !record && goToRecord(item)}>
+                      <View key={item.id} className={`vaccine-item${record ? ' completed' : ''}`} onClick={() => record ? handleRecordAction(record) : goToRecord(item)}>
                         <View className="vaccine-item-main">
                           <Text className="vaccine-name">{item.displayName}</Text>
                           {item.note && <Text className="vaccine-note">{item.note}</Text>}
@@ -115,7 +140,7 @@ export default function VaccineTimelinePage() {
                             </Text>
                           )}
                         </View>
-                        <Text className={`vaccine-status${record ? ' done' : ''}`}>{record ? '已接种' : '记录接种'}</Text>
+                        <Text className={`vaccine-status${record ? ' done' : ''}`}>{record ? '管理记录' : '记录接种'}</Text>
                       </View>
                     )
                   })}
@@ -130,7 +155,7 @@ export default function VaccineTimelinePage() {
         <View className="custom-records">
           <Text className="custom-records-title">其他已记录疫苗</Text>
           {customRecords.map((record) => (
-            <View key={record.id} className="custom-record-item">
+            <View key={record.id} className="custom-record-item" onClick={() => handleRecordAction(record)}>
               <Text>{record.vaccineName || '未命名疫苗'}</Text>
               <Text>{formatDate(record.startTime)}</Text>
             </View>

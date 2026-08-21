@@ -320,6 +320,12 @@ export default function RecordPage() {
 						data.vaccineDose = selectedVaccine.dose
 						data.vaccineScheduleItemId = selectedVaccine.id
 						data.vaccineScheduleVersion = VACCINE_SCHEDULE_VERSION
+					} else {
+						// 编辑时切换为自定义疫苗，必须清除旧的时间轴关联。
+						data.vaccineCode = ''
+						data.vaccineDose = null
+						data.vaccineScheduleItemId = ''
+						data.vaccineScheduleVersion = ''
 					}
 					break
 				case 'outdoor':
@@ -657,13 +663,19 @@ export default function RecordPage() {
 									<Text>当前月龄可关注</Text>
 								</View>
 							)}
-							<View className="vaccine-chip-grid">
+								<View className="vaccine-chip-grid">
 								{suggestedVaccineItems.map((item) => (
 									<View key={item.id} className={`vaccine-chip${selectedVaccineId === item.id ? ' active' : ''}`} onClick={() => selectVaccine(item)}>
 										<Text>{item.displayName}</Text>
 									</View>
-								))}
-							</View>
+									))}
+								</View>
+								{selectedVaccine && (
+									<View className="selected-vaccine-summary">
+										<Text className="selected-vaccine-label">已选择</Text>
+										<Text className="selected-vaccine-name">{selectedVaccine.displayName}</Text>
+									</View>
+								)}
 							<View className="vaccine-search-wrap">
 								<Input
 									className="form-input vaccine-search-input"
@@ -674,7 +686,7 @@ export default function RecordPage() {
 								{normalizedVaccineSearch && (
 									<View className="vaccine-search-results">
 										{searchableVaccineItems.map((item) => (
-											<View key={item.id} className="vaccine-search-item" onClick={() => selectVaccine(item)}>
+																							<View key={item.id} className="vaccine-search-item" onTap={() => selectVaccine(item)}>
 												<Text>{item.displayName}</Text>
 												<Text>{item.ageLabel}</Text>
 											</View>

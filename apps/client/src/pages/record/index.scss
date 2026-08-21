@@ -106,6 +106,28 @@
   gap: 14px;
 }
 
+.selected-vaccine-summary {
+  display: flex;
+  align-items: center;
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: #FFF0ED;
+  border: 1px solid #FFC4D0;
+  border-radius: 16px;
+}
+
+.selected-vaccine-label {
+  color: #A66E79;
+  font-size: 22px;
+}
+
+.selected-vaccine-name {
+  margin-left: 12px;
+  color: #D85B75;
+  font-size: 24px;
+  font-weight: 600;
+}
+
 .vaccine-chip {
   display: flex;
   align-items: center;

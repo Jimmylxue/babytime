@@ -13,6 +13,7 @@ const DETAIL_SUPPORTED_TYPES = [
   RecordType.SLEEP,
   RecordType.HEIGHT_WEIGHT,
   RecordType.TEMPERATURE,
+  RecordType.VACCINE,
 ];
 
 @Injectable()
