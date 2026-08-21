@@ -113,6 +113,8 @@ export const recordApi = {
 		}),
 	getSummary: (babyId: string) =>
 		request<any>({ url: `/record/summary/${babyId}` }),
+	getVaccines: (babyId: string) =>
+		request<any[]>({ url: `/record/vaccines/${babyId}` }),
 	getStats: (babyId: string, days?: number) =>
 		request<any>({
 			url: `/record/stats/${babyId}${days ? `?days=${days}` : ''}`,

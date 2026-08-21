@@ -6,6 +6,7 @@ import {
   IsString,
   IsUUID,
   IsObject,
+  IsBoolean,
 } from 'class-validator';
 import { RecordType, FeedingMethod, DiaperStatus } from '../entities/record.entity';
 
@@ -89,6 +90,26 @@ export class CreateRecordDto {
   @IsString()
   @IsOptional()
   vaccineName?: string;
+
+  @IsString()
+  @IsOptional()
+  vaccineCode?: string;
+
+  @IsNumber()
+  @IsOptional()
+  vaccineDose?: number;
+
+  @IsString()
+  @IsOptional()
+  vaccineScheduleItemId?: string;
+
+  @IsString()
+  @IsOptional()
+  vaccineScheduleVersion?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isCustomVaccine?: boolean;
 
   @IsString()
   @IsOptional()

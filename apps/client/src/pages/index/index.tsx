@@ -1,340 +1,461 @@
-import { View, Text, Image } from '@tarojs/components';
-import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro';
-import { useRef, useState } from 'react';
-import { useAuthStore } from '../../stores/authStore';
-import { useBabyStore } from '../../stores/babyStore';
-import { useRecordStore } from '../../stores/recordStore';
-import { calculateAge, formatDurationLong } from '../../utils/date';
-import { takePhotoAndSave } from '../../utils/upload';
-import { needLogin } from '../../utils/needLogin';
-import { announcementApi } from '../../utils/request';
-import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock';
-import TabBar from '../../components/TabBar';
-import './index.scss';
+import { View, Text, Image } from '@tarojs/components'
+import Taro, {
+	useDidShow,
+	useShareAppMessage,
+	useShareTimeline,
+} from '@tarojs/taro'
+import { useRef, useState } from 'react'
+import { useAuthStore } from '../../stores/authStore'
+import { useBabyStore } from '../../stores/babyStore'
+import { useRecordStore } from '../../stores/recordStore'
+import { calculateAge, formatDurationLong } from '../../utils/date'
+import { takePhotoAndSave } from '../../utils/upload'
+import { needLogin } from '../../utils/needLogin'
+import { announcementApi } from '../../utils/request'
+import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock'
+import TabBar from '../../components/TabBar'
+import './index.scss'
 
 const quickActions = [
-  { type: 'feeding', icon: '🍼', label: '喂奶' },
-  { type: 'diaper', icon: '💩', label: '换尿布' },
-  { type: 'photo', icon: '📷', label: '拍照' },
-];
+	{ type: 'feeding', icon: '🍼', label: '喂奶' },
+	{ type: 'diaper', icon: '💩', label: '换尿布' },
+	{ type: 'sleep', icon: '😴', label: '睡觉' },
+	{ type: 'food', icon: '🍚', label: '辅食' },
+	{ type: 'vaccine', icon: '💉', label: '疫苗' },
+	{ type: 'temperature', icon: '🌡️', label: '体温' },
+	{ type: 'photo', icon: '📷', label: '拍照' },
+]
 
 const moreActions = [
-  { type: 'sleep', icon: '😴', label: '睡觉' },
-  { type: 'food', icon: '🍚', label: '辅食' },
-  { type: 'water', icon: '💧', label: '喝水' },
-  { type: 'bath', icon: '🛁', label: '洗澡' },
-  { type: 'temperature', icon: '🌡️', label: '体温' },
-  { type: 'height_weight', icon: '📏', label: '身高体重' },
-  { type: 'medicine', icon: '💊', label: '用药' },
-  { type: 'vaccine', icon: '💉', label: '疫苗' },
-  { type: 'outdoor', icon: '🌳', label: '户外活动' },
-];
+	{ type: 'water', icon: '💧', label: '喝水' },
+	{ type: 'bath', icon: '🛁', label: '洗澡' },
+	{ type: 'height_weight', icon: '📏', label: '身高体重' },
+	{ type: 'medicine', icon: '💊', label: '用药' },
+	{ type: 'outdoor', icon: '🌳', label: '户外活动' },
+]
 
 const feedingMethodLabel: Record<string, string> = {
-  breast: '母乳',
-  formula: '奶粉',
-  mixed: '混合',
-};
+	breast: '母乳',
+	formula: '奶粉',
+	mixed: '混合',
+}
 
 export default function Index() {
-  const { isLoggedIn } = useAuthStore();
-  const { currentBaby, fetchBabies } = useBabyStore();
-  const { summary, records, fetchSummary, fetchStats, latestHeightWeight, latestTemperature } = useRecordStore();
-  const [showMore, setShowMore] = useState(false);
-  const announcementCheckingRef = useRef(false);
+	const { isLoggedIn } = useAuthStore()
+	const { currentBaby, fetchBabies } = useBabyStore()
+	const {
+		summary,
+		records,
+		fetchSummary,
+		fetchStats,
+		latestHeightWeight,
+		latestTemperature,
+	} = useRecordStore()
+	const [showMore, setShowMore] = useState(false)
+	const announcementCheckingRef = useRef(false)
 
-  const showAnnouncementIfNeeded = async () => {
-    if (announcementCheckingRef.current) return;
-    announcementCheckingRef.current = true;
-    try {
-      const res = await announcementApi.getCurrent();
-      const announcement = res.data;
-      if (!announcement) return;
+	const showAnnouncementIfNeeded = async () => {
+		if (announcementCheckingRef.current) return
+		announcementCheckingRef.current = true
+		try {
+			const res = await announcementApi.getCurrent()
+			const announcement = res.data
+			if (!announcement) return
 
-      const storageKey = `announcement:seen:${announcement.id}`;
-      if (Taro.getStorageSync(storageKey)) return;
+			const storageKey = `announcement:seen:${announcement.id}`
+			if (Taro.getStorageSync(storageKey)) return
 
-      await Taro.showModal({
-        title: announcement.title,
-        content: announcement.content,
-        showCancel: false,
-        confirmText: '知道了',
-      });
-      Taro.setStorageSync(storageKey, true);
-    } catch (error) {
-      // 公告加载失败不干扰首页的正常使用。
-      console.warn('获取公告失败', error);
-    } finally {
-      announcementCheckingRef.current = false;
-    }
-  };
+			await Taro.showModal({
+				title: announcement.title,
+				content: announcement.content,
+				showCancel: false,
+				confirmText: '知道了',
+			})
+			Taro.setStorageSync(storageKey, true)
+		} catch (error) {
+			// 公告加载失败不干扰首页的正常使用。
+			console.warn('获取公告失败', error)
+		} finally {
+			announcementCheckingRef.current = false
+		}
+	}
 
-  useShareAppMessage(() => ({
-    title: '育娃手记 - 记录宝宝成长的每一天',
-    path: '/pages/index/index',
-  }));
+	useShareAppMessage(() => ({
+		title: '育娃手记 - 记录宝宝成长的每一天',
+		path: '/pages/index/index',
+	}))
 
-  useShareTimeline(() => ({
-    title: '育娃手记 - 记录宝宝成长的每一天',
-    query: '',
-  }));
+	useShareTimeline(() => ({
+		title: '育娃手记 - 记录宝宝成长的每一天',
+		query: '',
+	}))
 
-  useDidShow(() => {
-    showAnnouncementIfNeeded();
-    if (isLoggedIn) {
-      fetchBabies().then(() => {
-        const baby = useBabyStore.getState().currentBaby;
-        if (baby) {
-          fetchSummary(baby.id);
-          fetchStats(baby.id);
-        }
-      });
-    }
-  });
+	useDidShow(() => {
+		showAnnouncementIfNeeded()
+		if (isLoggedIn) {
+			fetchBabies().then(() => {
+				const baby = useBabyStore.getState().currentBaby
+				if (baby) {
+					fetchSummary(baby.id)
+					fetchStats(baby.id)
+				}
+			})
+		}
+	})
 
-  // 从记录中提取辅助信息
-  const todayRecords = records || [];
-  const feedingRecords = todayRecords.filter((r) => r.type === 'feeding');
-  const diaperRecords = todayRecords.filter((r) => r.type === 'diaper');
-  const sleepRecords = todayRecords.filter((r) => r.type === 'sleep');
-  const foodRecords = todayRecords.filter((r) => r.type === 'food');
+	// 从记录中提取辅助信息
+	const todayRecords = records || []
+	const feedingRecords = todayRecords.filter(r => r.type === 'feeding')
+	const diaperRecords = todayRecords.filter(r => r.type === 'diaper')
+	const sleepRecords = todayRecords.filter(r => r.type === 'sleep')
+	const foodRecords = todayRecords.filter(r => r.type === 'food')
 
-  // 最近一次喂奶方式
-  const lastFeeding = feedingRecords.length > 0 ? feedingRecords[0] : null;
-  const lastFeedingMethod = lastFeeding?.feedingMethod || null;
+	// 最近一次喂奶方式
+	const lastFeeding = feedingRecords.length > 0 ? feedingRecords[0] : null
+	const lastFeedingMethod = lastFeeding?.feedingMethod || null
 
-  // 尿布类型统计
-  const diaperBreakdown = diaperRecords.reduce(
-    (acc, r) => {
-      if (r.diaperStatus === 'wet') acc.wet++;
-      else if (r.diaperStatus === 'dirty') acc.dirty++;
-      else if (r.diaperStatus === 'both') acc.both++;
-      return acc;
-    },
-    { wet: 0, dirty: 0, both: 0 },
-  );
-  const diaperDetailParts: string[] = [];
-  if (diaperBreakdown.wet > 0) diaperDetailParts.push(`尿${diaperBreakdown.wet}`);
-  if (diaperBreakdown.dirty > 0) diaperDetailParts.push(`拉${diaperBreakdown.dirty}`);
-  if (diaperBreakdown.both > 0) diaperDetailParts.push(`都有${diaperBreakdown.both}`);
+	// 尿布类型统计
+	const diaperBreakdown = diaperRecords.reduce(
+		(acc, r) => {
+			if (r.diaperStatus === 'wet') acc.wet++
+			else if (r.diaperStatus === 'dirty') acc.dirty++
+			else if (r.diaperStatus === 'both') acc.both++
+			return acc
+		},
+		{ wet: 0, dirty: 0, both: 0 },
+	)
+	const diaperDetailParts: string[] = []
+	if (diaperBreakdown.wet > 0)
+		diaperDetailParts.push(`尿${diaperBreakdown.wet}`)
+	if (diaperBreakdown.dirty > 0)
+		diaperDetailParts.push(`拉${diaperBreakdown.dirty}`)
+	if (diaperBreakdown.both > 0)
+		diaperDetailParts.push(`都有${diaperBreakdown.both}`)
 
-  // 最近一次辅食
-  const lastFoodName = foodRecords.length > 0 ? foodRecords[0].foodName : null;
+	// 最近一次辅食
+	const lastFoodName = foodRecords.length > 0 ? foodRecords[0].foodName : null
 
-  // 最近一次睡眠时长
-  const lastSleepDuration = sleepRecords.length > 0 ? sleepRecords[0].duration : null;
+	// 最近一次睡眠时长
+	const lastSleepDuration =
+		sleepRecords.length > 0 ? sleepRecords[0].duration : null
 
-  const navigateToRecord = async (type: string) => {
-    if (!isLoggedIn) {
-      needLogin();
-      return;
-    }
-    if (!currentBaby) {
-      Taro.showToast({ title: '请先添加宝贝', icon: 'none' });
-      return;
-    }
-    if (type === 'photo') {
-      takePhotoAndSave(currentBaby.id);
-      return;
-    }
-    Taro.navigateTo({
-      url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}`,
-    });
-    setShowMore(false);
-  };
+	const navigateToRecord = async (type: string) => {
+		if (!isLoggedIn) {
+			needLogin()
+			return
+		}
+		if (!currentBaby) {
+			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
+			return
+		}
+		if (type === 'photo') {
+			takePhotoAndSave(currentBaby.id)
+			return
+		}
+		Taro.navigateTo({
+			url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}`,
+		})
+		setShowMore(false)
+	}
 
-  // 查看喂奶明细
-  const goToFeedingDetail = () => {
-    if (!isLoggedIn) {
-      needLogin();
-      return;
-    }
-    if (!currentBaby) {
-      Taro.showToast({ title: '请先添加宝贝', icon: 'none' });
-      return;
-    }
-    Taro.navigateTo({
-      url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=feeding`,
-    });
-  };
+	// 查看喂奶明细
+	const goToFeedingDetail = () => {
+		if (!isLoggedIn) {
+			needLogin()
+			return
+		}
+		if (!currentBaby) {
+			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
+			return
+		}
+		Taro.navigateTo({
+			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=feeding`,
+		})
+	}
 
-  // 查看换尿布明细（含上传的尿布照片）
-  const goToDiaperDetail = () => {
-    if (!isLoggedIn) {
-      needLogin();
-      return;
-    }
-    if (!currentBaby) {
-      Taro.showToast({ title: '请先添加宝贝', icon: 'none' });
-      return;
-    }
-    Taro.navigateTo({
-      url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=diaper`,
-    });
-  };
+	// 查看换尿布明细（含上传的尿布照片）
+	const goToDiaperDetail = () => {
+		if (!isLoggedIn) {
+			needLogin()
+			return
+		}
+		if (!currentBaby) {
+			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
+			return
+		}
+		Taro.navigateTo({
+			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=diaper`,
+		})
+	}
 
-  // 未登录时使用 mock 数据
-  const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY;
-  const displaySummary = isLoggedIn ? summary : MOCK_SUMMARY;
-  const displayAge = displayBaby ? calculateAge(displayBaby.birthday) : null;
+	// 未登录时使用 mock 数据
+	const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY
+	const displaySummary = isLoggedIn ? summary : MOCK_SUMMARY
+	const displayAge = displayBaby ? calculateAge(displayBaby.birthday) : null
 
-  return (
-    <View className="page">
-      {/* 宝宝信息卡片 */}
-      <View className="baby-card">
-        <View className="baby-header">
-          <View className="baby-avatar">
-            {displayBaby?.avatar ? (
-              <Image className="avatar-img" src={displayBaby.avatar} mode="aspectFill" />
-            ) : (
-              <Text>{displayBaby?.gender === 'male' ? '👦' : '👧'}</Text>
-            )}
-          </View>
-          <View className="baby-info">
-            <Text className="baby-name">{displayBaby?.name || '未添加宝贝'}</Text>
-            {displayAge && (
-              <Text className="baby-age">
-                {displayAge.months}个月{displayAge.days}天
-              </Text>
-            )}
-          </View>
-        </View>
-        {displayBaby && (
-          <Text className="baby-birthday">
-            {displayBaby.birthday} 出生
-          </Text>
-        )}
-      </View>
+	return (
+		<View className="page">
+			{/* 宝宝信息卡片 */}
+			<View className="baby-card">
+				<View className="baby-header">
+					<View className="baby-avatar-wrap">
+						<View className="baby-avatar">
+							{displayBaby?.avatar ? (
+								<Image
+									className="avatar-img"
+									src={displayBaby.avatar}
+									mode="aspectFill"
+								/>
+							) : (
+								<Text>{displayBaby?.gender === 'male' ? '👦' : '👧'}</Text>
+							)}
+						</View>
+					</View>
+					<View className="baby-info">
+						<View className="baby-name-row">
+							<Text className="baby-name">
+								{displayBaby?.name || '未添加宝贝'}
+							</Text>
+							{displayBaby && (
+								<View className="gender-badge">
+									<Text className="gender-icon">
+										{displayBaby.gender === 'male' ? '♂' : '♀'}
+									</Text>
+								</View>
+							)}
+						</View>
+						{displayAge && (
+							<Text className="baby-age">
+								{displayAge.months}个月 {displayAge.days}天
+							</Text>
+						)}
+					</View>
+				</View>
+				{displayBaby && (
+					<View className="baby-tags">
+						<View className="baby-tag">
+							<Text className="tag-icon">🎂</Text>
+							<Text className="tag-text">{displayBaby.birthday} 出生</Text>
+						</View>
+					</View>
+				)}
+			</View>
 
-      {/* 快速记录 */}
-      {displayBaby && (
-        <View className="quick-section">
-          <Text className="section-title">快速记录</Text>
-          <View className="action-grid">
-            {quickActions.map((action) => (
-              <View
-                key={action.type}
-                className="action-item"
-                onClick={() => navigateToRecord(action.type)}
-              >
-                <View className={`action-icon ${action.type}`}>
-                  <Text>{action.icon}</Text>
-                </View>
-                <Text className="action-text">{action.label}</Text>
-              </View>
-            ))}
-            <View
-              className="action-item"
-              onClick={() => setShowMore(true)}
-            >
-              <View className="action-icon more">
-                <Text>···</Text>
-              </View>
-              <Text className="action-text">更多</Text>
-            </View>
-          </View>
-        </View>
-      )}
+			{/* 快速记录 */}
+			{displayBaby && (
+				<View className="quick-section">
+					<Text className="section-title">快速记录</Text>
+					<View className="action-grid">
+						{quickActions.map(action => (
+							<View
+								key={action.type}
+								className="action-item"
+								onClick={() => navigateToRecord(action.type)}
+							>
+								<View className={`action-icon ${action.type}`}>
+									<Text>{action.icon}</Text>
+								</View>
+								<Text className="action-text">{action.label}</Text>
+							</View>
+						))}
+						<View className="action-item" onClick={() => setShowMore(true)}>
+							<View className="action-icon more">
+								<Text>···</Text>
+							</View>
+							<Text className="action-text">更多</Text>
+						</View>
+					</View>
+				</View>
+			)}
 
-      {/* 今日统计 */}
-      {displaySummary && (
-        <View className="stats-section">
-          <Text className="section-title">今日记录</Text>
-          <View className="stats-grid">
-            <View className="stat-card" onClick={() => goToFeedingDetail()}>
-              <Text className="stat-icon">🍼</Text>
-              <Text className="stat-value">{displaySummary.feedingCount}<Text className="stat-unit">次</Text></Text>
-              <Text className="stat-label">喂奶</Text>
-              {displaySummary.totalMilk > 0 && (
-                <Text className="stat-detail">共{displaySummary.totalMilk}ml</Text>
-              )}
-              {lastFeedingMethod && (
-                <Text className="stat-sub">
-                  {feedingMethodLabel[lastFeedingMethod] || lastFeedingMethod}
-                  {lastFeedingMethod === 'mixed' && (lastFeeding?.breastAmount || lastFeeding?.formulaAmount)
-                    ? ` 母乳${lastFeeding?.breastAmount || 0}ml+奶粉${lastFeeding?.formulaAmount || 0}ml`
-                    : ''}
-                </Text>
-              )}
-            </View>
-            <View className="stat-card" onClick={() => goToDiaperDetail()}>
-              <Text className="stat-icon">💩</Text>
-              <Text className="stat-value">{displaySummary.diaperCount}<Text className="stat-unit">次</Text></Text>
-              <Text className="stat-label">换尿布</Text>
-              {diaperDetailParts.length > 0 && (
-                <Text className="stat-detail">{diaperDetailParts.join(' ')}</Text>
-              )}
-            </View>
-            <View className="stat-card">
-              <Text className="stat-icon">😴</Text>
-              <Text className="stat-value">{displaySummary.sleepCount}<Text className="stat-unit">次</Text></Text>
-              <Text className="stat-label">睡觉</Text>
-              {displaySummary.sleepTotal > 0 && (
-                <Text className="stat-detail">共{formatDurationLong(displaySummary.sleepTotal)}</Text>
-              )}
-              {lastSleepDuration != null && lastSleepDuration > 0 && (
-                <Text className="stat-sub">最近{formatDurationLong(lastSleepDuration)}</Text>
-              )}
-            </View>
-            <View className="stat-card">
-              <Text className="stat-icon">🍚</Text>
-              <Text className="stat-value">{displaySummary.foodCount}<Text className="stat-unit">次</Text></Text>
-              <Text className="stat-label">辅食</Text>
-              {lastFoodName && (
-                <Text className="stat-detail">{lastFoodName}</Text>
-              )}
-            </View>
-          </View>
-          {(latestHeightWeight || latestTemperature) && (
-            <View className="vital-signs">
-              {latestHeightWeight && (
-                <View className="vital-item">
-                  <Text className="vital-icon">📏</Text>
-                  <Text className="vital-text">
-                    {latestHeightWeight.weight}kg / {latestHeightWeight.height}cm
-                  </Text>
-                </View>
-              )}
-              {latestTemperature && (
-                <View className="vital-item">
-                  <Text className="vital-icon">🌡️</Text>
-                  <Text className="vital-text">{latestTemperature.temperature}°C</Text>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-      )}
+			{/* 今日统计 */}
+			{displaySummary && (
+				<View className="stats-section">
+					<Text className="section-title">今日记录</Text>
+					<View className="stats-list-container">
+						{/* 喂奶 */}
+						<View
+							className="stat-list-item"
+							onClick={() => goToFeedingDetail()}
+						>
+							<View className="stat-icon-wrap feeding">
+								<Text className="stat-icon">🍼</Text>
+							</View>
+							<View className="stat-main">
+								<View className="stat-info-left">
+									<View className="stat-title-row">
+										<Text className="stat-label">喂奶</Text>
+										<Text className="stat-value">
+											{displaySummary.feedingCount}
+											<Text className="stat-unit">次</Text>
+										</Text>
+									</View>
+								</View>
+								<View className="stat-info-right">
+									{displaySummary.totalMilk > 0 ? (
+										<Text className="stat-detail">
+											共{displaySummary.totalMilk}ml
+										</Text>
+									) : (
+										<Text className="stat-detail">-</Text>
+									)}
+									{lastFeedingMethod && (
+										<Text className="stat-sub">
+											{feedingMethodLabel[lastFeedingMethod] ||
+												lastFeedingMethod}
+											{lastFeedingMethod === 'mixed' &&
+											(lastFeeding?.breastAmount || lastFeeding?.formulaAmount)
+												? `(母${lastFeeding?.breastAmount || 0}+奶${lastFeeding?.formulaAmount || 0})`
+												: ''}
+										</Text>
+									)}
+								</View>
+							</View>
+							<View className="stat-arrow">
+								<Text className="arrow-icon">›</Text>
+							</View>
+						</View>
 
-      {/* 更多记录 - 底部弹窗 */}
-      {showMore && (
-        <View className="sheet-overlay" onClick={() => setShowMore(false)}>
-          <View className="sheet-panel" onClick={(e) => e.stopPropagation()}>
-            <View className="sheet-handle" />
-            <View className="sheet-header">
-              <Text className="sheet-title">📝 更多记录</Text>
-            </View>
-            <View className="sheet-body">
-              <View className="sheet-grid">
-                {moreActions.map((action) => (
-                  <View
-                    key={action.type}
-                    className="sheet-item"
-                    onClick={() => navigateToRecord(action.type)}
-                  >
-                    <View className="sheet-item-icon">
-                      <Text>{action.icon}</Text>
-                    </View>
-                    <Text className="sheet-item-label">{action.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
+						{/* 换尿布 */}
+						<View className="stat-list-item" onClick={() => goToDiaperDetail()}>
+							<View className="stat-icon-wrap diaper">
+								<Text className="stat-icon">💩</Text>
+							</View>
+							<View className="stat-main">
+								<View className="stat-info-left">
+									<View className="stat-title-row">
+										<Text className="stat-label">换尿布</Text>
+										<Text className="stat-value">
+											{displaySummary.diaperCount}
+											<Text className="stat-unit">次</Text>
+										</Text>
+									</View>
+								</View>
+								<View className="stat-info-right">
+									{diaperDetailParts.length > 0 ? (
+										<Text className="stat-detail">
+											{diaperDetailParts.join(' ')}
+										</Text>
+									) : (
+										<Text className="stat-detail">-</Text>
+									)}
+								</View>
+							</View>
+							<View className="stat-arrow">
+								<Text className="arrow-icon">›</Text>
+							</View>
+						</View>
 
-      <TabBar />
-    </View>
-  );
+						{/* 睡觉 */}
+						<View className="stat-list-item">
+							<View className="stat-icon-wrap sleep">
+								<Text className="stat-icon">😴</Text>
+							</View>
+							<View className="stat-main">
+								<View className="stat-info-left">
+									<View className="stat-title-row">
+										<Text className="stat-label">睡觉</Text>
+										<Text className="stat-value">
+											{displaySummary.sleepCount}
+											<Text className="stat-unit">次</Text>
+										</Text>
+									</View>
+								</View>
+								<View className="stat-info-right">
+									{displaySummary.sleepTotal > 0 ? (
+										<Text className="stat-detail">
+											共{formatDurationLong(displaySummary.sleepTotal)}
+										</Text>
+									) : (
+										<Text className="stat-detail">-</Text>
+									)}
+									{lastSleepDuration != null && lastSleepDuration > 0 && (
+										<Text className="stat-sub">
+											最近{formatDurationLong(lastSleepDuration)}
+										</Text>
+									)}
+								</View>
+							</View>
+						</View>
+
+						{/* 辅食 */}
+						<View className="stat-list-item">
+							<View className="stat-icon-wrap food">
+								<Text className="stat-icon">🍚</Text>
+							</View>
+							<View className="stat-main">
+								<View className="stat-info-left">
+									<View className="stat-title-row">
+										<Text className="stat-label">辅食</Text>
+										<Text className="stat-value">
+											{displaySummary.foodCount}
+											<Text className="stat-unit">次</Text>
+										</Text>
+									</View>
+								</View>
+								<View className="stat-info-right">
+									{lastFoodName ? (
+										<Text className="stat-detail">{lastFoodName}</Text>
+									) : (
+										<Text className="stat-detail">-</Text>
+									)}
+								</View>
+							</View>
+						</View>
+					</View>
+					{(latestHeightWeight || latestTemperature) && (
+						<View className="vital-signs">
+							{latestHeightWeight && (
+								<View className="vital-item">
+									<Text className="vital-icon">📏</Text>
+									<Text className="vital-text">
+										{latestHeightWeight.weight}kg / {latestHeightWeight.height}
+										cm
+									</Text>
+								</View>
+							)}
+							{latestTemperature && (
+								<View className="vital-item">
+									<Text className="vital-icon">🌡️</Text>
+									<Text className="vital-text">
+										{latestTemperature.temperature}°C
+									</Text>
+								</View>
+							)}
+						</View>
+					)}
+				</View>
+			)}
+
+			{/* 更多记录 - 底部弹窗 */}
+			{showMore && (
+				<View className="sheet-overlay" onClick={() => setShowMore(false)}>
+					<View className="sheet-panel" onClick={e => e.stopPropagation()}>
+						<View className="sheet-handle" />
+						<View className="sheet-header">
+							<Text className="sheet-title">📝 更多记录</Text>
+						</View>
+						<View className="sheet-body">
+							<View className="sheet-grid">
+								{moreActions.map(action => (
+									<View
+										key={action.type}
+										className="sheet-item"
+										onClick={() => navigateToRecord(action.type)}
+									>
+										<View className="sheet-item-icon">
+											<Text>{action.icon}</Text>
+										</View>
+										<Text className="sheet-item-label">{action.label}</Text>
+									</View>
+								))}
+							</View>
+						</View>
+					</View>
+				</View>
+			)}
+
+			<TabBar />
+		</View>
+	)
 }

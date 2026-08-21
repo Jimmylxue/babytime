@@ -63,6 +63,14 @@ export class RecordService {
     });
   }
 
+  async findVaccinesByBaby(userId: string, babyId: string) {
+    await this.babyService.findOne(babyId, userId);
+    return this.recordRepository.find({
+      where: { babyId, type: RecordType.VACCINE },
+      order: { startTime: 'ASC' },
+    });
+  }
+
   async findOne(id: string, userId: string) {
     const record = await this.recordRepository.findOne({
       where: { id },

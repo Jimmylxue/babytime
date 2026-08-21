@@ -35,37 +35,68 @@
 
 // 宝宝卡片
 .baby-card {
+  position: relative;
   background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
-  border-radius: 36px;
-  padding: 36px 32px;
+  border-radius: 40px;
+  padding: 40px 32px;
   margin-bottom: 40px;
   color: #fff;
-  box-shadow: 0 16px 32px rgba(255, 165, 180, 0.2);
+  box-shadow: 0 16px 32px rgba(255, 165, 180, 0.25);
+  overflow: hidden;
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -30px;
+    right: -20px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -40px;
+    right: 80px;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+  }
 }
 
 .baby-header {
   display: flex;
   align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.baby-avatar-wrap {
+  position: relative;
+  margin-right: 28px;
 }
 
 .baby-avatar {
-  width: 100px;
-  height: 100px;
-  background: rgba(255, 255, 255, 0.3);
+  width: 112px;
+  height: 112px;
+  background: #fff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
-  margin-right: 24px;
+  font-size: 56px;
   overflow: hidden;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  border: 4px solid rgba(255, 255, 255, 0.6);
   animation: float 5s ease-in-out infinite;
 
   .avatar-img {
-    width: 100px;
-    height: 100px;
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
     object-fit: cover;
   }
@@ -75,35 +106,80 @@
   flex: 1;
 }
 
+.baby-name-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .baby-name {
-  font-size: 40px;
+  font-size: 44px;
+  font-weight: 800;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  letter-spacing: 2px;
+}
+
+.gender-badge {
+  margin-left: 12px;
+  background: rgba(255, 255, 255, 0.25);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.gender-icon {
+  font-size: 26px;
   font-weight: 700;
-  display: block;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  color: #fff;
+  line-height: 1;
 }
 
 .baby-age {
   font-size: 28px;
   opacity: 0.95;
-  margin-top: 6px;
+  font-weight: 500;
   display: block;
 }
 
-.baby-birthday {
-  font-size: 24px;
-  opacity: 0.8;
-  margin-top: 20px;
-  display: block;
-  background: rgba(255,255,255,0.2);
-  display: inline-block;
-  padding: 4px 16px;
-  border-radius: 20px;
+.baby-tags {
+  margin-top: 32px;
+  display: flex;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.baby-tag {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 10px 24px;
+  border-radius: 30px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.tag-icon {
+  font-size: 28px;
+  margin-right: 8px;
+}
+
+.tag-text {
+  font-size: 26px;
+  font-weight: 600;
+  color: #fff;
 }
 
 // 统计区域
 .stats-section {
   margin-bottom: 40px;
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+  margin-bottom: 80px;
 }
 
 .section-title {
@@ -114,66 +190,116 @@
   display: block;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-
-.stat-card {
+.stats-list-container {
   background: #fff;
   border-radius: 32px;
-  padding: 28px 24px;
+  padding: 0 24px;
   box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
   border: 1px solid #F0EDE6;
-  transition: transform 0.2s ease;
+}
 
+.stat-list-item {
+  display: flex;
+  align-items: center;
+  padding: 24px 0;
+  border-bottom: 1px solid #F5F3EF;
+  transition: opacity 0.2s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+  
   &:active {
-    transform: scale(0.98);
+    opacity: 0.7;
   }
 }
 
-.stat-icon {
-  font-size: 44px;
-  display: block;
-  margin-bottom: 16px;
-  animation: bounceSoft 3s ease-in-out infinite;
+.stat-icon-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+  flex-shrink: 0;
+  
+  &.feeding { background: #FFF0ED; }
+  &.diaper { background: #F0F6E6; }
+  &.sleep { background: #EEF4FA; }
+  &.food { background: #FFF2D9; }
 }
 
-.stat-value {
-  font-size: 48px;
-  font-weight: 700;
-  color: #2D2A2E;
-  display: block;
+.stat-icon {
+  font-size: 40px;
+}
+
+.stat-main {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 0;
+}
+
+.stat-info-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.stat-title-row {
+  display: flex;
+  align-items: baseline;
 }
 
 .stat-label {
-  font-size: 26px;
-  color: #8E8B82;
-  margin-top: 4px;
-  display: block;
+  font-size: 30px;
+  font-weight: 600;
+  color: #2D2A2E;
+  margin-right: 12px;
 }
 
-.stat-detail {
-  font-size: 24px;
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
   color: #FFA5B4;
-  font-weight: 600;
-  margin-top: 12px;
-  display: block;
 }
 
 .stat-unit {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 500;
-  color: #8E8B82;
-  margin-left: 6px;
+  margin-left: 4px;
+}
+
+.stat-info-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 16px;
+  flex-shrink: 1;
+}
+
+.stat-detail {
+  font-size: 28px;
+  color: #2D2A2E;
+  font-weight: 600;
+  text-align: right;
 }
 
 .stat-sub {
-  font-size: 22px;
-  color: #A8A59E;
+  font-size: 24px;
+  color: #8E8B82;
   margin-top: 6px;
-  display: block;
+  text-align: right;
+}
+
+.stat-arrow {
+  margin-left: 16px;
+  color: #D4D2CD;
+  font-size: 40px;
+  font-family: Arial, sans-serif;
+  padding-bottom: 6px;
 }
 
 .vital-signs {
@@ -244,6 +370,8 @@
   &.sleep { background: #EEF4FA; color: #8BCBFF; }
   &.food { background: #FFF2D9; color: #FFC570; }
   &.photo { background: #F4EFFF; color: #CBAACB; }
+  &.water { background: #E6F7FF; color: #69C0FF; }
+  &.temperature { background: #FFF1F0; color: #FF7875; }
   &.more { 
     background: #F9F9F9; color: #A8A59E;
     &.active { background: #FFF0ED; color: #FFA5B4; }

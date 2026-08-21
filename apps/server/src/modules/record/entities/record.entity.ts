@@ -123,6 +123,21 @@ export class Record {
   @Column({ name: 'vaccine_name', nullable: true, comment: '疫苗名称' })
   vaccineName: string;
 
+  @Column({ name: 'vaccine_code', nullable: true, comment: '预置疫苗编码' })
+  vaccineCode: string;
+
+  @Column({ name: 'vaccine_dose', type: 'tinyint', nullable: true, comment: '疫苗剂次' })
+  vaccineDose: number;
+
+  @Column({ name: 'vaccine_schedule_item_id', nullable: true, comment: '疫苗计划节点ID' })
+  vaccineScheduleItemId: string;
+
+  @Column({ name: 'vaccine_schedule_version', nullable: true, comment: '疫苗计划版本' })
+  vaccineScheduleVersion: string;
+
+  @Column({ name: 'is_custom_vaccine', type: 'boolean', default: false, comment: '是否为自定义疫苗' })
+  isCustomVaccine: boolean;
+
   @Column({ name: 'vaccine_hospital', nullable: true, comment: '接种医院' })
   vaccineHospital: string;
 

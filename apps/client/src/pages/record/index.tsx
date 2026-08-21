@@ -3,8 +3,17 @@ import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState, useRef } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
 import { recordApi, stoolAnalysisApi } from '../../utils/request'
-import { formatDate, formatHM, formatDurationLong } from '../../utils/date'
+import { calculateAge, formatDate, formatHM, formatDurationLong } from '../../utils/date'
 import { chooseAndUploadImage } from '../../utils/upload'
+import {
+	COMMON_VACCINE_SCHEDULE_IDS,
+	findVaccineScheduleItem,
+	getCurrentVaccineStage,
+	VACCINE_SCHEDULE,
+	VACCINE_SCHEDULE_VERSION,
+	VaccineScheduleItem,
+} from '../../utils/vaccineSchedule'
+import { useBabyStore } from '../../stores/babyStore'
 import './index.scss'
 
 const recordTypes = {
@@ -75,8 +84,11 @@ export default function RecordPage() {
 	const [weight, setWeight] = useState('')
 	const [medicineName, setMedicineName] = useState('')
 	const [medicineDose, setMedicineDose] = useState('')
-	const [vaccineName, setVaccineName] = useState('')
+	const [vaccineName, setVaccineName] = useState(() => findVaccineScheduleItem(router.params.scheduleItemId)?.displayName || '')
 	const [vaccineHospital, setVaccineHospital] = useState('')
+	const [selectedVaccineId, setSelectedVaccineId] = useState(router.params.scheduleItemId || '')
+	const [vaccineSearch, setVaccineSearch] = useState('')
+	const [isCustomVaccine, setIsCustomVaccine] = useState(false)
 	const [outdoorLocation, setOutdoorLocation] = useState('')
 	const [note, setNote] = useState('')
 	const [startTime, setStartTime] = useState(formatHM(new Date()))
@@ -84,6 +96,16 @@ export default function RecordPage() {
 	const today = formatDate(new Date())
 
 	const typeInfo = recordTypes[type] || recordTypes.feeding
+	const selectedVaccine = findVaccineScheduleItem(selectedVaccineId)
+	const currentBaby = useBabyStore((state) => state.currentBaby)
+	const currentVaccineItems = currentBaby ? getCurrentVaccineStage(calculateAge(currentBaby.birthday).months) : []
+	const suggestedVaccineItems = currentVaccineItems.length > 0
+		? currentVaccineItems
+		: COMMON_VACCINE_SCHEDULE_IDS.map(findVaccineScheduleItem).filter((item): item is VaccineScheduleItem => !!item)
+	const normalizedVaccineSearch = vaccineSearch.trim().toLowerCase()
+	const searchableVaccineItems = VACCINE_SCHEDULE.filter((item) => (
+		!normalizedVaccineSearch || item.displayName.toLowerCase().includes(normalizedVaccineSearch) || item.vaccineName.toLowerCase().includes(normalizedVaccineSearch)
+	))
 
 	// 编辑态：进入页面时拉取原始记录，回填各字段
 	useDidShow(() => {
@@ -140,6 +162,8 @@ export default function RecordPage() {
 				case 'vaccine':
 					if (record.vaccineName) setVaccineName(record.vaccineName)
 					if (record.vaccineHospital) setVaccineHospital(record.vaccineHospital)
+					setSelectedVaccineId(record.vaccineScheduleItemId || '')
+					setIsCustomVaccine(!record.vaccineScheduleItemId)
 					break
 				case 'outdoor':
 					if (record.outdoorLocation) setOutdoorLocation(record.outdoorLocation)
@@ -151,6 +175,19 @@ export default function RecordPage() {
 		} catch (error) {
 			Taro.showToast({ title: '获取记录失败', icon: 'none' })
 		}
+	}
+
+	const selectVaccine = (item: VaccineScheduleItem) => {
+		setSelectedVaccineId(item.id)
+		setVaccineName(item.displayName)
+		setIsCustomVaccine(false)
+		setVaccineSearch('')
+	}
+
+	const selectCustomVaccine = () => {
+		setSelectedVaccineId('')
+		setVaccineName('')
+		setIsCustomVaccine(true)
 	}
 
 	const handleTimeChange = e => {
@@ -218,6 +255,10 @@ export default function RecordPage() {
 
 	const handleSubmit = async () => {
 		if (submittingRef.current) return
+		if (type === 'vaccine' && !vaccineName.trim()) {
+			Taro.showToast({ title: '请选择或填写疫苗名称', icon: 'none' })
+			return
+		}
 		submittingRef.current = true
 		setLoading(true)
 		try {
@@ -273,6 +314,13 @@ export default function RecordPage() {
 				case 'vaccine':
 					data.vaccineName = vaccineName
 					data.vaccineHospital = vaccineHospital
+					data.isCustomVaccine = isCustomVaccine
+					if (selectedVaccine) {
+						data.vaccineCode = selectedVaccine.vaccineCode
+						data.vaccineDose = selectedVaccine.dose
+						data.vaccineScheduleItemId = selectedVaccine.id
+						data.vaccineScheduleVersion = VACCINE_SCHEDULE_VERSION
+					}
 					break
 				case 'outdoor':
 					data.outdoorLocation = outdoorLocation
@@ -304,6 +352,11 @@ export default function RecordPage() {
 			<View className="record-header">
 				<Text className="record-icon">{typeInfo.icon}</Text>
 				<Text className="record-title">{typeInfo.title}</Text>
+				{type === 'vaccine' && babyId && (
+					<View className="timeline-link" onClick={() => Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${babyId}` })}>
+						<Text>查看时间轴</Text>
+					</View>
+				)}
 			</View>
 
 			<View className="record-form">
@@ -598,13 +651,49 @@ export default function RecordPage() {
 				{type === 'vaccine' && (
 					<>
 						<View className="form-group">
-							<Text className="form-label">疫苗名称</Text>
-							<Input
-								className="form-input"
-								placeholder="请输入疫苗名称"
-								value={vaccineName}
-								onInput={e => setVaccineName(e.detail.value)}
-							/>
+							<Text className="form-label">选择疫苗</Text>
+							{currentVaccineItems.length > 0 && (
+								<View className="vaccine-stage-tip">
+									<Text>当前月龄可关注</Text>
+								</View>
+							)}
+							<View className="vaccine-chip-grid">
+								{suggestedVaccineItems.map((item) => (
+									<View key={item.id} className={`vaccine-chip${selectedVaccineId === item.id ? ' active' : ''}`} onClick={() => selectVaccine(item)}>
+										<Text>{item.displayName}</Text>
+									</View>
+								))}
+							</View>
+							<View className="vaccine-search-wrap">
+								<Input
+									className="form-input vaccine-search-input"
+									placeholder="搜索乙肝、百白破、脊灰等"
+									value={vaccineSearch}
+									onInput={e => setVaccineSearch(e.detail.value)}
+								/>
+								{normalizedVaccineSearch && (
+									<View className="vaccine-search-results">
+										{searchableVaccineItems.map((item) => (
+											<View key={item.id} className="vaccine-search-item" onClick={() => selectVaccine(item)}>
+												<Text>{item.displayName}</Text>
+												<Text>{item.ageLabel}</Text>
+											</View>
+										))}
+										{searchableVaccineItems.length === 0 && <Text className="vaccine-no-result">未找到，下面可自定义填写</Text>}
+									</View>
+								)}
+							</View>
+							<View className={`vaccine-custom-trigger${isCustomVaccine ? ' active' : ''}`} onClick={selectCustomVaccine}>
+								<Text>＋ 自定义疫苗</Text>
+							</View>
+							{isCustomVaccine && (
+								<Input
+									className="form-input vaccine-custom-input"
+									placeholder="如：流感疫苗、肺炎球菌疫苗"
+									value={vaccineName}
+									onInput={e => setVaccineName(e.detail.value)}
+								/>
+							)}
 						</View>
 						<View className="form-group">
 							<Text className="form-label">接种医院</Text>

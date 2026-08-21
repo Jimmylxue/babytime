@@ -75,6 +75,16 @@ export class RecordController {
     };
   }
 
+  @Get('vaccines/:babyId')
+  async getVaccines(@Param('babyId') babyId: string, @Request() req) {
+    const records = await this.recordService.findVaccinesByBaby(req.user.id, babyId);
+    return {
+      code: 0,
+      message: 'success',
+      data: records,
+    };
+  }
+
   @Get('detail/:babyId')
   async getRecordDetail(
     @Param('babyId') babyId: string,
