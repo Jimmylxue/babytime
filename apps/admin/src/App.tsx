@@ -1,0 +1,35 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { getToken } from './auth';
+import AdminLayout from './layouts/AdminLayout';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Users from './pages/Users';
+import Announcements from './pages/Announcements';
+
+function RequireAuth({ children }: { children: JSX.Element }) {
+	if (!getToken()) {
+		return <Navigate to="/login" replace />;
+	}
+	return children;
+}
+
+export default function App() {
+	return (
+		<Routes>
+			<Route path="/login" element={<Login />} />
+			<Route
+				path="/"
+				element={
+					<RequireAuth>
+						<AdminLayout />
+					</RequireAuth>
+				}
+			>
+				<Route index element={<Dashboard />} />
+				<Route path="users" element={<Users />} />
+				<Route path="announcements" element={<Announcements />} />
+			</Route>
+			<Route path="*" element={<Navigate to="/" replace />} />
+		</Routes>
+	);
+}

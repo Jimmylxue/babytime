@@ -14,6 +14,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { FamilyModule } from './modules/family/family.module';
 import { StoolAnalysisModule } from './modules/stool-analysis/stool-analysis.module';
 import { AnnouncementModule } from './modules/announcement/announcement.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AnnouncementModule } from './modules/announcement/announcement.module';
     FamilyModule,
     StoolAnalysisModule,
     AnnouncementModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

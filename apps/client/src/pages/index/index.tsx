@@ -1,14 +1,15 @@
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, {
 	useDidShow,
 	useShareAppMessage,
 	useShareTimeline,
 } from '@tarojs/taro'
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
 import { calculateAge, formatDurationLong } from '../../utils/date'
+import { getMonthlyTips } from '../../utils/monthlyTips'
 import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi } from '../../utils/request'
@@ -52,6 +53,7 @@ export default function Index() {
 		latestTemperature,
 	} = useRecordStore()
 	const [showMore, setShowMore] = useState(false)
+	const [showTips, setShowTips] = useState(false)
 	const announcementCheckingRef = useRef(false)
 
 	const showAnnouncementIfNeeded = async () => {
@@ -192,24 +194,26 @@ export default function Index() {
 	const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY
 	const displaySummary = isLoggedIn ? summary : MOCK_SUMMARY
 	const displayAge = displayBaby ? calculateAge(displayBaby.birthday) : null
+	const monthlyTips = displayAge ? getMonthlyTips(displayAge.months) : null
+	const featuredTip = monthlyTips?.tips[0]
 
 	return (
 		<View className="page">
-			{/* 宝宝信息卡片 */}
+			{/* 宝宝档案 */}
 			<View className="baby-card">
-				<View className="baby-header">
-					<View className="baby-avatar-wrap">
-						<View className="baby-avatar">
-							{displayBaby?.avatar ? (
-								<Image
-									className="avatar-img"
-									src={displayBaby.avatar}
-									mode="aspectFill"
-								/>
-							) : (
-								<Text>{displayBaby?.gender === 'male' ? '👦' : '👧'}</Text>
-							)}
-						</View>
+				<View className="baby-deco baby-deco-a" />
+				<View className="baby-deco baby-deco-b" />
+				<View className="baby-main">
+					<View className="baby-avatar">
+						{displayBaby?.avatar ? (
+							<Image
+								className="avatar-img"
+								src={displayBaby.avatar}
+								mode="aspectFill"
+							/>
+						) : (
+							<Text>{displayBaby?.gender === 'male' ? '👦' : '👧'}</Text>
+						)}
 					</View>
 					<View className="baby-info">
 						<View className="baby-name-row">
@@ -217,26 +221,87 @@ export default function Index() {
 								{displayBaby?.name || '未添加宝贝'}
 							</Text>
 							{displayBaby && (
-								<View className="gender-badge">
-									<Text className="gender-icon">
+								<View className={`baby-gender ${displayBaby.gender}`}>
+									<Text className="baby-gender-icon">
 										{displayBaby.gender === 'male' ? '♂' : '♀'}
 									</Text>
 								</View>
 							)}
 						</View>
-						{displayAge && (
-							<Text className="baby-age">
-								{displayAge.months}个月 {displayAge.days}天
-							</Text>
-						)}
+						<Text className="baby-age">
+							{displayAge
+								? `${displayAge.months}个月 ${displayAge.days}天`
+								: '添加宝宝档案后开始记录'}
+						</Text>
 					</View>
 				</View>
-				{displayBaby && (
-					<View className="baby-tags">
-						<View className="baby-tag">
-							<Text className="tag-icon">🎂</Text>
-							<Text className="tag-text">{displayBaby.birthday} 出生</Text>
+
+				{(latestHeightWeight || latestTemperature) && (
+					<View className="baby-metrics">
+						{latestHeightWeight && (
+							<Fragment>
+								<View className="baby-metric m-weight">
+									<View className="baby-metric-icon">
+										<Text>⚖️</Text>
+									</View>
+									<View className="baby-metric-copy">
+										<Text className="baby-metric-label">体重</Text>
+										<View className="baby-metric-value">
+											<Text className="baby-metric-num">
+												{latestHeightWeight.weight}
+											</Text>
+											<Text className="baby-metric-unit">kg</Text>
+										</View>
+									</View>
+								</View>
+								<View className="baby-metric m-height">
+									<View className="baby-metric-icon">
+										<Text>📏</Text>
+									</View>
+									<View className="baby-metric-copy">
+										<Text className="baby-metric-label">身高</Text>
+										<View className="baby-metric-value">
+											<Text className="baby-metric-num">
+												{latestHeightWeight.height}
+											</Text>
+											<Text className="baby-metric-unit">cm</Text>
+										</View>
+									</View>
+								</View>
+							</Fragment>
+						)}
+						{latestTemperature && (
+							<View className="baby-metric m-temp">
+								<View className="baby-metric-icon">
+									<Text>🌡️</Text>
+								</View>
+								<View className="baby-metric-copy">
+									<Text className="baby-metric-label">体温</Text>
+									<View className="baby-metric-value">
+										<Text className="baby-metric-num">
+											{latestTemperature.temperature}
+										</Text>
+										<Text className="baby-metric-unit">°C</Text>
+									</View>
+								</View>
+							</View>
+						)}
+					</View>
+				)}
+
+				{/* 本月关注：一行入口，完整内容通过底部面板查看 */}
+				{monthlyTips && featuredTip && (
+					<View className="baby-tip" onClick={() => setShowTips(true)}>
+						<View className="baby-tip-badge">
+							<Text>✦</Text>
 						</View>
+						<View className="baby-tip-copy">
+							<Text className="baby-tip-tag">
+								本月关注 · {featuredTip.category}
+							</Text>
+							<Text className="baby-tip-content">{featuredTip.content}</Text>
+						</View>
+						<Text className="baby-tip-arrow">›</Text>
 					</View>
 				)}
 			</View>
@@ -244,25 +309,30 @@ export default function Index() {
 			{/* 快速记录 */}
 			{displayBaby && (
 				<View className="quick-section">
-					<Text className="section-title">快速记录</Text>
-					<View className="action-grid">
-						{quickActions.map(action => (
-							<View
-								key={action.type}
-								className="action-item"
-								onClick={() => navigateToRecord(action.type)}
-							>
-								<View className={`action-icon ${action.type}`}>
-									<Text>{action.icon}</Text>
+					<View className="section-head">
+						<View className="section-accent" />
+						<Text className="section-label">快速记录</Text>
+					</View>
+					<View className="quick-card">
+						<View className="action-grid">
+							{quickActions.map(action => (
+								<View
+									key={action.type}
+									className="action-item"
+									onClick={() => navigateToRecord(action.type)}
+								>
+									<View className={`action-icon ${action.type}`}>
+										<Text>{action.icon}</Text>
+									</View>
+									<Text className="action-text">{action.label}</Text>
 								</View>
-								<Text className="action-text">{action.label}</Text>
+							))}
+							<View className="action-item" onClick={() => setShowMore(true)}>
+								<View className="action-icon more">
+									<Text>···</Text>
+								</View>
+								<Text className="action-text">更多</Text>
 							</View>
-						))}
-						<View className="action-item" onClick={() => setShowMore(true)}>
-							<View className="action-icon more">
-								<Text>···</Text>
-							</View>
-							<Text className="action-text">更多</Text>
 						</View>
 					</View>
 				</View>
@@ -271,11 +341,14 @@ export default function Index() {
 			{/* 今日统计 */}
 			{displaySummary && (
 				<View className="stats-section">
-					<Text className="section-title">今日记录</Text>
+					<View className="section-head">
+						<View className="section-accent" />
+						<Text className="section-label">今日记录</Text>
+					</View>
 					<View className="stats-list-container">
 						{/* 喂奶 */}
 						<View
-							className="stat-list-item"
+							className="stat-list-item t-feeding"
 							onClick={() => goToFeedingDetail()}
 						>
 							<View className="stat-icon-wrap feeding">
@@ -317,7 +390,7 @@ export default function Index() {
 						</View>
 
 						{/* 尿布 */}
-						<View className="stat-list-item" onClick={() => goToDiaperDetail()}>
+						<View className="stat-list-item t-diaper" onClick={() => goToDiaperDetail()}>
 							<View className="stat-icon-wrap diaper">
 								<Text className="stat-icon">💩</Text>
 							</View>
@@ -347,7 +420,7 @@ export default function Index() {
 						</View>
 
 						{/* 睡觉 */}
-						<View className="stat-list-item">
+						<View className="stat-list-item t-sleep">
 							<View className="stat-icon-wrap sleep">
 								<Text className="stat-icon">😴</Text>
 							</View>
@@ -379,7 +452,7 @@ export default function Index() {
 						</View>
 
 						{/* 辅食 */}
-						<View className="stat-list-item">
+						<View className="stat-list-item t-food">
 							<View className="stat-icon-wrap food">
 								<Text className="stat-icon">🍚</Text>
 							</View>
@@ -403,27 +476,6 @@ export default function Index() {
 							</View>
 						</View>
 					</View>
-					{(latestHeightWeight || latestTemperature) && (
-						<View className="vital-signs">
-							{latestHeightWeight && (
-								<View className="vital-item">
-									<Text className="vital-icon">📏</Text>
-									<Text className="vital-text">
-										{latestHeightWeight.weight}kg / {latestHeightWeight.height}
-										cm
-									</Text>
-								</View>
-							)}
-							{latestTemperature && (
-								<View className="vital-item">
-									<Text className="vital-icon">🌡️</Text>
-									<Text className="vital-text">
-										{latestTemperature.temperature}°C
-									</Text>
-								</View>
-							)}
-						</View>
-					)}
 				</View>
 			)}
 
@@ -451,6 +503,33 @@ export default function Index() {
 								))}
 							</View>
 						</View>
+					</View>
+				</View>
+			)}
+
+			{showTips && monthlyTips && (
+				<View className="sheet-overlay" onClick={() => setShowTips(false)}>
+					<View className="sheet-panel tips-sheet-panel" onClick={e => e.stopPropagation()}>
+						<View className="sheet-handle" />
+						<View className="tips-sheet-header">
+							<View>
+								<Text className="tips-sheet-title">{monthlyTips.ageLabel} 本月关注</Text>
+								<Text className="tips-sheet-desc">每个宝宝的成长节奏都不一样</Text>
+							</View>
+							<View className="tips-sheet-count"><Text>{monthlyTips.tips.length} 条</Text></View>
+						</View>
+						<ScrollView className="tips-sheet-list" scrollY>
+							{monthlyTips.tips.map((tip, index) => (
+								<View key={tip.category} className="tips-sheet-item">
+									<Text className="tips-sheet-index">0{index + 1}</Text>
+									<View className="tips-sheet-copy">
+										<Text className="tips-sheet-category">{tip.category}</Text>
+										<Text className="tips-sheet-content">{tip.content}</Text>
+									</View>
+								</View>
+							))}
+							<Text className="tips-sheet-disclaimer">小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。</Text>
+						</ScrollView>
 					</View>
 				</View>
 			)}

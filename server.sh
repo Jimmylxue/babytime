@@ -41,7 +41,11 @@ log "安装依赖..."
 cd "$SCRIPT_DIR"
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
-# 4. 构建服务端
+# 4. 构建
+log "构建管理后台..."
+cd "$SCRIPT_DIR"
+npm run build:admin
+
 log "构建服务端..."
 cd "$SCRIPT_DIR"
 npm run build:server
@@ -68,3 +72,4 @@ log "部署完成!"
 log "查看日志: pm2 logs $APP_NAME"
 log "查看状态: pm2 status"
 log "重启服务: pm2 restart $APP_NAME"
+log "管理后台: http://服务器地址:<PORT>/admin （账号密码见 .env 的 ADMIN_USERNAME / ADMIN_PASSWORD）"
