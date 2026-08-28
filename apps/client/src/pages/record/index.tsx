@@ -375,6 +375,10 @@ export default function RecordPage() {
 			} else {
 				await addRecord(data)
 				Taro.showToast({ title: '记录成功', icon: 'success' })
+				// 累计记录数 +1，用于「添加到我的小程序」引导（记满 3 条弹一次）
+				const cumulative =
+					(Taro.getStorageSync('stats:cumulativeRecords') || 0) + 1
+				Taro.setStorageSync('stats:cumulativeRecords', cumulative)
 			}
 			setTimeout(() => Taro.navigateBack(), 1500)
 		} catch (error) {

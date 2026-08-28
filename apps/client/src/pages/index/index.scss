@@ -813,3 +813,71 @@
   font-weight: 700;
   color: #FFFFFF;
 }
+
+// 「添加到我的小程序」引导浮层
+.add-guide-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1200;
+  animation: fadeIn 0.25s ease;
+}
+
+.add-guide-bubble {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 440px;
+  background: #FFFFFF;
+  border-radius: 26px;
+  padding: 34px 30px 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  animation: fadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+// 朝上指向右上角胶囊的箭头
+.add-guide-arrow {
+  position: absolute;
+  top: -14px;
+  right: 56px;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 16px solid #FFFFFF;
+}
+
+.add-guide-title {
+  display: block;
+  font-size: 30px;
+  font-weight: 700;
+  color: #2D2A2E;
+  margin-bottom: 14px;
+}
+
+.add-guide-desc {
+  display: block;
+  font-size: 25px;
+  color: #8E8B82;
+  line-height: 1.6;
+  margin-bottom: 26px;
+}
+
+.add-guide-btn {
+  height: 76px;
+  border-radius: 38px;
+  background: linear-gradient(135deg, #FFA5B4, #FFC4A3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 18px rgba(255, 165, 180, 0.3);
+}
+
+.add-guide-btn-text {
+  font-size: 27px;
+  font-weight: 700;
+  color: #FFFFFF;
+}

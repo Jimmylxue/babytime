@@ -60,6 +60,7 @@ export default function Index() {
 	} = useRecordStore()
 	const [showMore, setShowMore] = useState(false)
 	const [showTips, setShowTips] = useState(false)
+	const [showAddGuide, setShowAddGuide] = useState(false)
 	const announcementCheckingRef = useRef(false)
 
 	const showAnnouncementIfNeeded = async () => {
@@ -98,6 +99,20 @@ export default function Index() {
 		query: '',
 	}))
 
+	// 累计记满 3 条时，引导一次「添加到我的小程序」（storage 标记，只弹一次）
+	const maybeShowAddGuide = () => {
+		if (Taro.getStorageSync('guide:addToMyMp:done')) return
+		const cumulative = Taro.getStorageSync('stats:cumulativeRecords') || 0
+		if (cumulative >= 3) {
+			setShowAddGuide(true)
+		}
+	}
+
+	const dismissAddGuide = () => {
+		Taro.setStorageSync('guide:addToMyMp:done', true)
+		setShowAddGuide(false)
+	}
+
 	useDidShow(() => {
 		showAnnouncementIfNeeded()
 		if (isLoggedIn) {
@@ -106,6 +121,7 @@ export default function Index() {
 				if (baby) {
 					fetchSummary(baby.id)
 					fetchStats(baby.id)
+					maybeShowAddGuide()
 				} else if (!hasAutoRedirectedToOnboarding()) {
 					// 已登录但没有宝宝档案，进引导页创建
 					markAutoRedirectedToOnboarding()
@@ -583,6 +599,22 @@ export default function Index() {
 							))}
 							<Text className="tips-sheet-disclaimer">小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。</Text>
 						</ScrollView>
+					</View>
+				</View>
+			)}
+
+			{/* 「添加到我的小程序」引导浮层：气泡指向右上角胶囊 */}
+			{showAddGuide && (
+				<View className="add-guide-overlay" onClick={dismissAddGuide}>
+					<View className="add-guide-bubble" onClick={e => e.stopPropagation()}>
+						<View className="add-guide-arrow" />
+						<Text className="add-guide-title">把育娃手记添加到「我的小程序」</Text>
+						<Text className="add-guide-desc">
+							点击右上角「···」，选择「添加到我的小程序」，下次从微信首页下拉就能快速打开
+						</Text>
+						<View className="add-guide-btn" onClick={dismissAddGuide}>
+							<Text className="add-guide-btn-text">我知道了</Text>
+						</View>
 					</View>
 				</View>
 			)}

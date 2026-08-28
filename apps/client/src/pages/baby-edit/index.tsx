@@ -68,6 +68,10 @@ export default function BabyEditPage() {
       Taro.showToast({ title: '请选择出生日期', icon: 'none' });
       return;
     }
+    if (birthday > today) {
+      Taro.showToast({ title: '出生日期不能晚于今天', icon: 'none' });
+      return;
+    }
     if (submittingRef.current) return;
     submittingRef.current = true;
 
