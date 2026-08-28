@@ -209,10 +209,22 @@ export const uploadFile = (filePath: string): Promise<{ url: string }> => {
 
 // 家庭成员 API
 export const familyApi = {
-	createInvite: (babyId: string, role?: string) =>
-		request<any>({ url: '/family/invite', method: 'POST', data: { babyId, role } }),
+	createInvite: (babyId: string, force = false) =>
+		request<{ inviteCode: string; expiresAt: string }>({
+			url: '/family/invite',
+			method: 'POST',
+			data: { babyId, force },
+		}),
 	acceptInvite: (inviteCode: string, role?: string) =>
 		request<any>({ url: `/family/accept/${inviteCode}`, method: 'POST', data: { role } }),
+	getInviteInfo: (inviteCode: string) =>
+		request<{
+			valid: boolean
+			reason: 'invalid' | 'expired' | 'own' | 'already_member' | 'bound_other' | 'full' | null
+			inviterNickname: string
+			babyName: string
+			babyGender?: 'male' | 'female'
+		}>({ url: `/family/invite/info/${inviteCode}` }),
 	getMembers: () =>
 		request<any[]>({ url: '/family/members' }),
 	getMyFamilies: () =>

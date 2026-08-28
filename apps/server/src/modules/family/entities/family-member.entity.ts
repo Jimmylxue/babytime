@@ -51,7 +51,8 @@ export class FamilyMember {
   })
   status: InviteStatus;
 
-  @Column({ name: 'invite_code', unique: true, length: 8 })
+  // 旧版"邀请即成员"模型遗留列：新模型下成员不再由邀请码标识，保留兼容历史数据
+  @Column({ name: 'invite_code', nullable: true, length: 8 })
   inviteCode: string;
 
   @ManyToOne(() => User, { nullable: true })

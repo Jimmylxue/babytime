@@ -12,6 +12,7 @@ export default defineAppConfig({
     'pages/baby-edit/index',
     'pages/onboarding/index',
     'pages/family/index',
+    'pages/family-join/index',
     'pages/agreement/index',
     'pages/privacy/index',
   ],

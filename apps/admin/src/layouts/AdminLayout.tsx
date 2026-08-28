@@ -1,7 +1,9 @@
 import { Layout, Menu, Button, Space, Typography } from 'antd';
 import {
 	DashboardOutlined,
+	SmileOutlined,
 	TeamOutlined,
+	BarChartOutlined,
 	NotificationOutlined,
 	LogoutOutlined,
 } from '@ant-design/icons';
@@ -12,7 +14,9 @@ const { Header, Sider, Content } = Layout;
 
 const MENU_ITEMS = [
 	{ key: '/', icon: <DashboardOutlined />, label: '数据看板' },
+	{ key: '/babies', icon: <SmileOutlined />, label: '宝宝列表' },
 	{ key: '/users', icon: <TeamOutlined />, label: '用户列表' },
+	{ key: '/analytics', icon: <BarChartOutlined />, label: '数据分析' },
 	{ key: '/announcements', icon: <NotificationOutlined />, label: '公告管理' },
 ];
 
@@ -20,6 +24,8 @@ export default function AdminLayout() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const username = getUsername();
+	// 宝宝详情页路径为 /babies/:id，高亮仍落在「宝宝列表」菜单上
+	const selectedKey = location.pathname.startsWith('/babies') ? '/babies' : location.pathname;
 
 	const handleLogout = () => {
 		clearAuth();
@@ -33,7 +39,7 @@ export default function AdminLayout() {
 				<Menu
 					theme="dark"
 					mode="inline"
-					selectedKeys={[location.pathname]}
+					selectedKeys={[selectedKey]}
 					items={MENU_ITEMS}
 					onClick={({ key }) => navigate(key)}
 				/>

@@ -2,15 +2,30 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FamilyMember, InviteStatus, MemberRole } from './entities/family-member.entity';
+import {
+  FamilyInvite,
+  FamilyInviteStatus,
+} from './entities/family-invite.entity';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { BabyService } from '../baby/baby.service';
 import { v4 as uuidv4 } from 'uuid';
 
+// 家庭成员人数上限
+const FAMILY_MEMBER_LIMIT = 8;
+
 @Injectable()
 export class FamilyService {
+  // 邀请卡有效期（天），可通过 env 调整便于测试
+  private readonly inviteExpireDays = parseInt(
+    process.env.FAMILY_INVITE_EXPIRE_DAYS || '7',
+    10,
+  );
+
   constructor(
     @InjectRepository(FamilyMember)
     private familyRepository: Repository<FamilyMember>,
+    @InjectRepository(FamilyInvite)
+    private inviteRepository: Repository<FamilyInvite>,
     private babyService: BabyService,
   ) {}
 
@@ -19,38 +34,104 @@ export class FamilyService {
     return uuidv4().substring(0, 8).toUpperCase();
   }
 
-  // 创建邀请
+  // 创建（或复用）邀请卡：一张卡在有效期内可让多位家人加入
   async createInvite(userId: string, createInviteDto: CreateInviteDto) {
-    const { babyId, role } = createInviteDto;
+    const { babyId, force } = createInviteDto;
 
     // 验证宝宝属于当前用户（仅创建者可邀请）
     await this.babyService.creatorOnlyFindOne(babyId, userId);
 
-    // 检查是否已经邀请过
-    const existing = await this.familyRepository.findOne({
-      where: { inviterId: userId, babyId, status: InviteStatus.PENDING },
-    });
-
-    if (existing) {
-      return {
-        inviteCode: existing.inviteCode,
-        message: '已有未使用的邀请码',
-      };
+    // 强制重新生成：作废当前有效邀请卡
+    if (force) {
+      await this.inviteRepository.update(
+        { babyId, inviterId: userId, status: FamilyInviteStatus.ACTIVE },
+        { status: FamilyInviteStatus.DISABLED },
+      );
+    } else {
+      // 复用仍然有效的邀请卡
+      const existing = await this.inviteRepository.findOne({
+        where: { babyId, inviterId: userId, status: FamilyInviteStatus.ACTIVE },
+        order: { createdAt: 'DESC' },
+      });
+      if (existing && existing.expiresAt > new Date()) {
+        return {
+          inviteCode: existing.inviteCode,
+          expiresAt: existing.expiresAt,
+          message: '已有有效邀请卡',
+        };
+      }
+      // 已过期但未标记的旧卡，顺手作废
+      if (existing) {
+        existing.status = FamilyInviteStatus.DISABLED;
+        await this.inviteRepository.save(existing);
+      }
     }
 
     const inviteCode = this.generateInviteCode();
+    const expiresAt = new Date(
+      Date.now() + this.inviteExpireDays * 24 * 60 * 60 * 1000,
+    );
 
-    const invite = this.familyRepository.create({
+    const invite = this.inviteRepository.create({
       babyId,
       inviterId: userId,
-      role: role || MemberRole.OTHER,
-      status: InviteStatus.PENDING,
       inviteCode,
+      status: FamilyInviteStatus.ACTIVE,
+      expiresAt,
     });
 
-    await this.familyRepository.save(invite);
+    await this.inviteRepository.save(invite);
 
-    return { inviteCode };
+    return { inviteCode, expiresAt };
+  }
+
+  // 查询邀请卡信息（供落地页展示与状态判断）
+  async getInviteInfo(userId: string, inviteCode: string) {
+    const invite = await this.inviteRepository.findOne({
+      where: { inviteCode },
+      relations: ['baby', 'inviter'],
+    });
+
+    const base = {
+      inviterNickname: invite?.inviter?.nickname || '家人',
+      babyName: invite?.baby?.name || '宝宝',
+      babyGender: invite?.baby?.gender,
+    };
+
+    if (!invite || invite.status === FamilyInviteStatus.DISABLED) {
+      return { valid: false, reason: 'invalid', ...base };
+    }
+    if (invite.expiresAt <= new Date()) {
+      return { valid: false, reason: 'expired', ...base };
+    }
+    if (invite.inviterId === userId) {
+      return { valid: false, reason: 'own', ...base };
+    }
+    // 已是该宝宝家庭的成员
+    const existingMember = await this.familyRepository.findOne({
+      where: { userId, babyId: invite.babyId, status: InviteStatus.ACCEPTED },
+    });
+    if (existingMember) {
+      return { valid: false, reason: 'already_member', ...base };
+    }
+    // 已绑定其他家庭
+    const binding = await this.checkFamilyBinding(userId);
+    if (binding.isBound) {
+      return { valid: false, reason: 'bound_other', ...base };
+    }
+    // 家庭人数是否已满
+    const memberCount = await this.countAcceptedMembers(invite.babyId);
+    if (memberCount >= FAMILY_MEMBER_LIMIT) {
+      return { valid: false, reason: 'full', ...base };
+    }
+
+    return { valid: true, reason: null, ...base };
+  }
+
+  private countAcceptedMembers(babyId: string): Promise<number> {
+    return this.familyRepository.count({
+      where: { babyId, status: InviteStatus.ACCEPTED },
+    });
   }
 
   // 检查账号是否已绑定家庭关系
@@ -83,17 +164,19 @@ export class FamilyService {
     return { isBound: false, reason: null };
   }
 
-  // 接受邀请
+  // 接受邀请（新：邀请卡模型，一卡多人；兼容旧版一次性邀请码）
   async acceptInvite(userId: string, inviteCode: string, role?: MemberRole) {
-    const invite = await this.familyRepository.findOne({
-      where: { inviteCode, status: InviteStatus.PENDING },
+    const invite = await this.inviteRepository.findOne({
+      where: { inviteCode },
     });
 
-    if (!invite) {
-      throw new NotFoundException('邀请码无效或已使用');
+    if (!invite || invite.status === FamilyInviteStatus.DISABLED) {
+      // 兼容改造前生成的旧版一次性邀请码（记录在 family_members 表，PENDING 状态）
+      return this.acceptLegacyInvite(userId, inviteCode, role);
     }
-
-    // 检查是否是自己的邀请
+    if (invite.expiresAt <= new Date()) {
+      throw new BadRequestException('邀请已过期，请联系邀请人重新分享');
+    }
     if (invite.inviterId === userId) {
       throw new BadRequestException('不能接受自己的邀请');
     }
@@ -102,12 +185,60 @@ export class FamilyService {
     const existingMember = await this.familyRepository.findOne({
       where: { userId, babyId: invite.babyId, status: InviteStatus.ACCEPTED },
     });
-
     if (existingMember) {
       throw new BadRequestException('已经是该宝宝的家庭成员');
     }
 
     // 检查账号是否已绑定其他家庭关系
+    const binding = await this.checkFamilyBinding(userId);
+    if (binding.isBound) {
+      throw new BadRequestException('该账号已绑定家庭关系，无法加入其他家庭');
+    }
+
+    // 家庭人数上限
+    const memberCount = await this.countAcceptedMembers(invite.babyId);
+    if (memberCount >= FAMILY_MEMBER_LIMIT) {
+      throw new BadRequestException(`家庭成员已满（上限 ${FAMILY_MEMBER_LIMIT} 人）`);
+    }
+
+    const member = this.familyRepository.create({
+      babyId: invite.babyId,
+      inviterId: invite.inviterId,
+      userId,
+      role: role || MemberRole.OTHER,
+      status: InviteStatus.ACCEPTED,
+    });
+
+    await this.familyRepository.save(member);
+
+    return { success: true, message: '已成功加入家庭' };
+  }
+
+  // 旧版一次性邀请码（邀请记录即成员记录）的兼容入口
+  private async acceptLegacyInvite(
+    userId: string,
+    inviteCode: string,
+    role?: MemberRole,
+  ) {
+    const invite = await this.familyRepository.findOne({
+      where: { inviteCode, status: InviteStatus.PENDING },
+    });
+
+    if (!invite) {
+      throw new NotFoundException('邀请码无效或已使用');
+    }
+
+    if (invite.inviterId === userId) {
+      throw new BadRequestException('不能接受自己的邀请');
+    }
+
+    const existingMember = await this.familyRepository.findOne({
+      where: { userId, babyId: invite.babyId, status: InviteStatus.ACCEPTED },
+    });
+    if (existingMember) {
+      throw new BadRequestException('已经是该宝宝的家庭成员');
+    }
+
     const binding = await this.checkFamilyBinding(userId);
     if (binding.isBound) {
       throw new BadRequestException('该账号已绑定家庭关系，无法加入其他家庭');

@@ -60,6 +60,103 @@ export interface UserListResult {
 	pageSize: number;
 }
 
+// 宝宝列表
+export interface BabyParent {
+	id: string;
+	nickname: string | null;
+	avatar: string | null;
+}
+
+export interface BabyListItem {
+	id: string;
+	name: string;
+	gender: 'male' | 'female';
+	birthday: string;
+	avatar: string | null;
+	parent: BabyParent | null;
+	recordCount: number;
+	photoCount: number;
+	familyCount: number;
+	lastRecordAt: string | null;
+	createdAt: string;
+}
+
+export interface BabyListResult {
+	list: BabyListItem[];
+	total: number;
+	page: number;
+	pageSize: number;
+}
+
+export interface FamilyMemberInfo {
+	userId: string | null;
+	nickname: string | null;
+	avatar: string | null;
+	role: string;
+	status: string;
+	createdAt: string;
+}
+
+export interface RecentRecord {
+	id: string;
+	type: string;
+	startTime: string;
+	endTime: string | null;
+	duration: number | null;
+	amount: number | null;
+	note: string | null;
+}
+
+export interface AiAnalysisRecord {
+	id: string;
+	startTime: string;
+	analysis: {
+		riskLevel?: string;
+		summary?: string;
+		observedFeatures?: { color?: string; consistency?: string; visibleFindings?: string[] };
+		guidance?: string[];
+		concerns?: string[];
+	};
+}
+
+export interface BabyDetail {
+	baby: {
+		id: string;
+		name: string;
+		gender: 'male' | 'female';
+		birthday: string;
+		avatar: string | null;
+		createdAt: string;
+		parent: BabyParent | null;
+	};
+	stats: {
+		recordCount: number;
+		photoCount: number;
+		familyCount: number;
+		firstRecordAt: string | null;
+		lastRecordAt: string | null;
+	};
+	recordTypes: RecordTypeDistribution[];
+	familyMembers: FamilyMemberInfo[];
+	recentRecords: RecentRecord[];
+	aiAnalyses: AiAnalysisRecord[];
+}
+
+// 漏斗与留存
+export interface Funnel {
+	totalUsers: number;
+	usersWithBaby: number;
+	usersWithRecord: number;
+}
+
+export interface Retention {
+	days: number;
+	cohortSize: number;
+	activeIn1Day: number;
+	activeIn7Day: number;
+	activeIn30Day: number;
+}
+
 // 公告
 export interface Announcement {
 	id: string;

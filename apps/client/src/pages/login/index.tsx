@@ -1,5 +1,5 @@
 import { View, Text, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useRouter } from '@tarojs/taro'
 import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
@@ -8,6 +8,7 @@ import babyFacePink from '../../assets/icons/baby-face-pink.svg'
 import './index.scss'
 
 export default function LoginPage() {
+	const router = useRouter()
 	const [loading, setLoading] = useState(false)
 	const [agreed, setAgreed] = useState(false)
 
@@ -35,6 +36,13 @@ export default function LoginPage() {
 			Taro.showToast({ title: '登录成功', icon: 'success' })
 
 			setTimeout(async () => {
+				// 从邀请卡进入的：登录后直接回到加入家庭页
+				if (router.params.redirect === 'family-join' && router.params.invite) {
+					Taro.redirectTo({
+						url: `/pages/family-join/index?invite=${router.params.invite}`,
+					})
+					return
+				}
 				// 新用户还没有宝宝档案时，先进引导页创建
 				try {
 					await useBabyStore.getState().fetchBabies()

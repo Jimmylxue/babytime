@@ -1,0 +1,137 @@
+.fj-page {
+  min-height: 100vh;
+  background: #FFFDF9;
+  padding: 60px 40px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+// 有效邀请：确认卡
+.fj-invite-card {
+  width: 100%;
+  background: linear-gradient(140deg, #FFF4EA 0%, #FFEAF1 52%, #F0EDFB 100%);
+  border-radius: 32px;
+  padding: 60px 40px 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 16px 36px rgba(232, 158, 172, 0.18);
+  animation: fjFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fj-invite-hello {
+  font-size: 34px;
+  font-weight: 700;
+  color: #2D2A2E;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.fj-baby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.fj-baby-avatar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 24px rgba(232, 158, 172, 0.28);
+  margin-bottom: 18px;
+}
+
+.fj-baby-avatar-icon {
+  width: 76px;
+  height: 76px;
+}
+
+.fj-baby-name {
+  font-size: 32px;
+  font-weight: 600;
+  color: #2D2A2E;
+}
+
+.fj-invite-desc {
+  font-size: 26px;
+  color: #8E8B82;
+  margin-bottom: 48px;
+}
+
+// 状态提示（未登录/过期/已满等）
+.fj-state {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 100px;
+  animation: fjFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fj-state-icon {
+  font-size: 90px;
+  margin-bottom: 30px;
+}
+
+.fj-state-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #2D2A2E;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.fj-state-desc {
+  font-size: 27px;
+  color: #8E8B82;
+  line-height: 1.6;
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.fj-primary-btn {
+  min-width: 360px;
+  height: 92px;
+  border-radius: 46px;
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4A3 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 26px rgba(255, 165, 180, 0.35);
+  padding: 0 50px;
+  box-sizing: border-box;
+}
+
+.fj-primary-btn-text {
+  font-size: 30px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 2px;
+}
+
+// 转发兜底按钮
+.fj-share-fallback {
+  margin-top: 60px;
+  border: none;
+  background: transparent;
+  color: #FFA5B4;
+  font-size: 26px;
+}
+
+@keyframes fjFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

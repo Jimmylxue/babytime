@@ -296,3 +296,52 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
+
+// 邀请卡面板
+.invite-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.invite-expiry {
+  font-size: 23px;
+  color: #B8B5AC;
+  text-align: center;
+}
+
+// 微信分享按钮（重置 Button 默认样式）
+.invite-share-btn {
+  margin: 0;
+  height: 92px;
+  border-radius: 46px;
+  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4A3 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 22px rgba(255, 165, 180, 0.32);
+  border: none;
+  line-height: 92px;
+
+  &::after {
+    border: none;
+  }
+}
+
+.invite-share-btn-text {
+  font-size: 30px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 2px;
+}
+
+.invite-regen {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+
+.invite-regen-text {
+  font-size: 24px;
+  color: #B8B5AC;
+}

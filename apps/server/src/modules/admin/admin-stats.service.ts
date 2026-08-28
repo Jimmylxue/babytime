@@ -142,6 +142,56 @@ export class AdminStatsService {
     };
   }
 
+  // 转化漏斗：注册 → 创建宝宝档案 → 产生首条记录
+  async getFunnel() {
+    const [row] = await this.dataSource.query(
+      `SELECT
+        (SELECT COUNT(*) FROM users) AS totalUsers,
+        (SELECT COUNT(DISTINCT b.user_id) FROM babies b WHERE b.user_id IS NOT NULL) AS usersWithBaby,
+        (SELECT COUNT(DISTINCT b.user_id) FROM babies b INNER JOIN records r ON r.baby_id = b.id) AS usersWithRecord
+      `,
+    );
+
+    return {
+      totalUsers: Number(row.totalUsers),
+      usersWithBaby: Number(row.usersWithBaby),
+      usersWithRecord: Number(row.usersWithRecord),
+    };
+  }
+
+  // 新用户活跃情况：注册后 N 天内是否产生过记录
+  async getRetention(days: number) {
+    const safeDays = Math.min(Math.max(Math.floor(days) || 90, 7), 365);
+
+    const [row] = await this.dataSource.query(
+      `SELECT
+        COUNT(*) AS cohortSize,
+        COALESCE(SUM(CASE WHEN EXISTS(
+          SELECT 1 FROM records r INNER JOIN babies b ON b.id = r.baby_id
+          WHERE b.user_id = u.id AND r.created_at BETWEEN u.created_at AND DATE_ADD(u.created_at, INTERVAL 1 DAY)
+        ) THEN 1 ELSE 0 END), 0) AS activeIn1Day,
+        COALESCE(SUM(CASE WHEN EXISTS(
+          SELECT 1 FROM records r INNER JOIN babies b ON b.id = r.baby_id
+          WHERE b.user_id = u.id AND r.created_at BETWEEN u.created_at AND DATE_ADD(u.created_at, INTERVAL 7 DAY)
+        ) THEN 1 ELSE 0 END), 0) AS activeIn7Day,
+        COALESCE(SUM(CASE WHEN EXISTS(
+          SELECT 1 FROM records r INNER JOIN babies b ON b.id = r.baby_id
+          WHERE b.user_id = u.id AND r.created_at BETWEEN u.created_at AND DATE_ADD(u.created_at, INTERVAL 30 DAY)
+        ) THEN 1 ELSE 0 END), 0) AS activeIn30Day
+      FROM users u
+      WHERE u.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)`,
+      [safeDays],
+    );
+
+    return {
+      days: safeDays,
+      cohortSize: Number(row.cohortSize),
+      activeIn1Day: Number(row.activeIn1Day),
+      activeIn7Day: Number(row.activeIn7Day),
+      activeIn30Day: Number(row.activeIn30Day),
+    };
+  }
+
   private formatDate(date: Date) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');

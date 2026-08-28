@@ -29,6 +29,22 @@ export class FamilyController {
     };
   }
 
+  @Get('invite/info/:inviteCode')
+  async getInviteInfo(
+    @Request() req,
+    @Param('inviteCode') inviteCode: string,
+  ) {
+    const result = await this.familyService.getInviteInfo(
+      req.user.id,
+      inviteCode,
+    );
+    return {
+      code: 0,
+      message: 'success',
+      data: result,
+    };
+  }
+
   @Post('accept/:inviteCode')
   @HttpCode(200)
   async acceptInvite(

@@ -1,5 +1,5 @@
-import { View, Text, Image, Input } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import { View, Text, Image, Input, Button } from '@tarojs/components'
+import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro'
 import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
@@ -24,6 +24,11 @@ interface Member {
   }
 }
 
+interface InviteInfo {
+  inviteCode: string
+  expiresAt: string
+}
+
 const ROLE_MAP: Record<string, string> = {
   father: '爸爸',
   mother: '妈妈',
@@ -35,19 +40,23 @@ const ROLE_MAP: Record<string, string> = {
 
 export default function FamilyPage() {
   const { userInfo } = useAuthStore()
-  const { currentBaby, babies, fetchBabies } = useBabyStore()
+  const { fetchBabies } = useBabyStore()
   const [members, setMembers] = useState<Member[]>([])
   const [isBound, setIsBound] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
 
   // Invite & Join state
-  const [inviteCode, setInviteCode] = useState('')
+  const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null)
   const [inputInviteCode, setInputInviteCode] = useState('')
 
   useDidShow(() => {
-    loadData()
-    fetchBabies()
+    init()
   })
+
+  const init = async () => {
+    await fetchBabies()
+    await loadData()
+  }
 
   const loadData = async () => {
     try {
@@ -60,11 +69,40 @@ export default function FamilyPage() {
       const reason = bindingRes.data?.reason
       setIsBound(bound)
       // 未绑定说明没有家庭成员，自己就是创建者；已绑定且 reason 是 owner 也是创建者
-      setIsOwner(!bound || reason === 'owner')
+      const owner = !bound || reason === 'owner'
+      setIsOwner(owner)
+      // 创建者自动准备邀请卡（分享按钮即点即用）
+      if (owner) {
+        prepareInvite()
+      }
     } catch (error) {
       console.error('加载家庭数据失败', error)
     }
   }
+
+  // 生成/复用邀请卡（force=true 时作废旧卡重新生成）
+  const prepareInvite = async (force = false) => {
+    const { currentBaby: baby, babies: list } = useBabyStore.getState()
+    const target = baby || list[0]
+    if (!target) return
+    try {
+      const res = await familyApi.createInvite(target.id, force)
+      setInviteInfo({
+        inviteCode: res.data.inviteCode,
+        expiresAt: res.data.expiresAt,
+      })
+    } catch (error) {
+      if (force) {
+        Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
+      }
+    }
+  }
+
+  // 分享卡片（转发不断链：落地页可继续转发）
+  useShareAppMessage(() => ({
+    title: `${userInfo?.nickname || '家人'} 邀请你一起记录宝宝的成长`,
+    path: `/pages/family-join/index?invite=${inviteInfo?.inviteCode || ''}`,
+  }))
 
   const handleDeleteMember = async (member: Member) => {
     const name = member.user?.nickname || '该成员'
@@ -83,27 +121,25 @@ export default function FamilyPage() {
     }
   }
 
-  const handleCreateInvite = async () => {
-    const baby = currentBaby || babies[0]
-    if (!baby) {
-      Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
-      return
-    }
-    try {
-      const res = await familyApi.createInvite(baby.id)
-      setInviteCode(res.data.inviteCode)
-    } catch (error) {
-      Taro.showToast({ title: '生成邀请码失败', icon: 'none' })
-    }
-  }
-
   const handleCopyInviteCode = () => {
+    if (!inviteInfo) return
     Taro.setClipboardData({
-      data: inviteCode,
+      data: inviteInfo.inviteCode,
       success: () => {
         Taro.showToast({ title: '已复制', icon: 'success' })
       },
     })
+  }
+
+  const handleRegenerate = async () => {
+    const res = await Taro.showModal({
+      title: '重新生成邀请卡',
+      content: '旧邀请卡将立即失效，已分享出去的卡片无法再加入，确定重新生成吗？',
+      confirmText: '重新生成',
+    })
+    if (res.confirm) {
+      prepareInvite(true)
+    }
   }
 
   const handleAcceptInvite = async () => {
@@ -141,6 +177,12 @@ export default function FamilyPage() {
 
   const getRoleText = (role?: string) => ROLE_MAP[role || ''] || '家人'
 
+  const formatExpiry = (iso: string) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    return `${d.getMonth() + 1}月${d.getDate()}日`
+  }
+
   return (
     <View className="family-page">
       {/* Family members */}
@@ -149,7 +191,7 @@ export default function FamilyPage() {
         {members.length === 0 ? (
           <View className="members-empty">
             <Text className="members-empty-text">暂无其他成员</Text>
-            <Text className="members-empty-desc">分享邀请码给家人，共同记录宝宝成长</Text>
+            <Text className="members-empty-desc">分享邀请卡给家人，共同记录宝宝成长</Text>
           </View>
         ) : (
           <View className="members-list">
@@ -181,17 +223,26 @@ export default function FamilyPage() {
       {isOwner && (
         <View className="section-card">
           <Text className="section-title">邀请家人</Text>
-          <Text className="section-desc">分享邀请码给家人，即可共同记录宝宝成长</Text>
-          {inviteCode ? (
-            <View className="invite-code-box">
-              <Text className="invite-code-text">{inviteCode}</Text>
-              <View className="invite-copy-btn" onClick={handleCopyInviteCode}>
-                <Text>复制</Text>
+          <Text className="section-desc">家人点开邀请卡即可加入，无需输入邀请码</Text>
+          {inviteInfo ? (
+            <View className="invite-panel">
+              <View className="invite-code-box">
+                <Text className="invite-code-text">{inviteInfo.inviteCode}</Text>
+                <View className="invite-copy-btn" onClick={handleCopyInviteCode}>
+                  <Text>复制</Text>
+                </View>
+              </View>
+              <Text className="invite-expiry">有效期至 {formatExpiry(inviteInfo.expiresAt)}，卡片可分享给多位家人</Text>
+              <Button className="invite-share-btn" openType="share">
+                <Text className="invite-share-btn-text">微信分享邀请卡</Text>
+              </Button>
+              <View className="invite-regen" onClick={handleRegenerate}>
+                <Text className="invite-regen-text">重新生成（旧卡立即失效）</Text>
               </View>
             </View>
           ) : (
-            <View className="invite-generate-btn" onClick={handleCreateInvite}>
-              <Text>生成邀请码</Text>
+            <View className="invite-generate-btn" onClick={() => prepareInvite()}>
+              <Text>生成邀请卡</Text>
             </View>
           )}
         </View>
@@ -200,8 +251,8 @@ export default function FamilyPage() {
       {/* Join family - hidden if already bound */}
       {!isBound && (
         <View className="section-card">
-          <Text className="section-title">加入家庭</Text>
-          <Text className="section-desc">输入家人的邀请码，即可查看宝宝信息</Text>
+          <Text className="section-title">输入邀请码加入</Text>
+          <Text className="section-desc">如果家人发给你的是邀请码，在这里输入加入</Text>
           <View className="invite-input-row">
             <Input
               className="invite-input"
