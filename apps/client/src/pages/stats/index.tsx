@@ -6,6 +6,8 @@ import { useBabyStore } from '../../stores/babyStore'
 import {
 	useRecordStore,
 	DailyStat,
+	DetailRecord,
+	DetailSummary,
 	HeightWeightTrendPoint,
 	TemperatureTrendPoint,
 } from '../../stores/recordStore'
@@ -74,23 +76,45 @@ export default function StatsPage() {
 		dailyStats,
 		heightWeightTrend,
 		temperatureTrend,
-		latestHeightWeight,
-		latestTemperature,
 		fetchStats,
-		detailItems,
-		detailSummary,
 		fetchDetail,
 		fetchDetailSummary,
 	} = useRecordStore()
 	const [days, setDays] = useState(7)
 	const [activeType, setActiveType] = useState('feeding')
+	// 身高/体重为独立入口，metric 记录当前选中项；非身高体重类型时为 null
+	const [activeMetric, setActiveMetric] = useState<'height' | 'weight' | null>(
+		null,
+	)
+	// 身高体重分支内使用的当前指标（兜底身高）
+	const growthMetric = activeMetric === 'weight' ? 'weight' : 'height'
 	const [selectedDate, setSelectedDate] = useState(formatDate(new Date()))
+	// 当天的明细/汇总保存在本页状态：完整明细页共用 store 的 detailItems（按天数查询），
+	// 若直接读 store，从明细页返回时会把"今日总结"的次数和列表覆盖成明细页的数据
+	const [dayItems, setDayItems] = useState<DetailRecord[]>([])
+	const [daySummary, setDaySummary] = useState<DetailSummary | null>(null)
 	const [growthChartRatio, setGrowthChartRatio] = useState(0.46)
 	const [vaccineRecords, setVaccineRecords] = useState<VaccineRecord[]>([])
 
 	const loadVaccineRecords = async (babyId: string) => {
 		const res = await recordApi.getVaccines(babyId)
 		setVaccineRecords(res.data || [])
+	}
+
+	// 拉取选中日期的明细/汇总，完成后拷贝到本页状态，之后 store 再被谁覆盖都不影响本页展示
+	const loadDayDetail = async (
+		babyId: string,
+		type: string,
+		date: string,
+	) => {
+		const metric =
+			type === 'height_weight' ? activeMetric || undefined : undefined
+		await Promise.all([
+			fetchDetail(babyId, type, { date, metric }),
+			fetchDetailSummary(babyId, type, { date, metric }),
+		])
+		setDayItems(useRecordStore.getState().detailItems)
+		setDaySummary(useRecordStore.getState().detailSummary)
 	}
 
 	// 每次进入统计页都重新拉一次最新的宝宝信息和数据，避免拿到切换宝宝前的旧数据
@@ -104,20 +128,16 @@ export default function StatsPage() {
 				if (baby) {
 					fetchStats(baby.id, days)
 					if (activeType === 'vaccine') loadVaccineRecords(baby.id)
-					else {
-						fetchDetail(baby.id, activeType, { date: selectedDate })
-						fetchDetailSummary(baby.id, activeType, { date: selectedDate })
-					}
+					else loadDayDetail(baby.id, activeType, selectedDate)
 				}
 			})
 	})
 
 	useEffect(() => {
 		if (isLoggedIn && currentBaby && activeType !== 'vaccine') {
-			fetchDetail(currentBaby.id, activeType, { date: selectedDate })
-			fetchDetailSummary(currentBaby.id, activeType, { date: selectedDate })
+			loadDayDetail(currentBaby.id, activeType, selectedDate)
 		}
-	}, [isLoggedIn, currentBaby?.id, activeType, selectedDate])
+	}, [isLoggedIn, currentBaby?.id, activeType, activeMetric, selectedDate])
 
 	useEffect(() => {
 		if (isLoggedIn && currentBaby && activeType === 'vaccine') {
@@ -165,9 +185,12 @@ export default function StatsPage() {
 			return
 		}
 		const t = overrideType || activeType
+		// 身高/体重独立入口，把当前指标带给完整明细页
+		const metricParam =
+			t === 'height_weight' && activeMetric ? `&metric=${activeMetric}` : ''
 		Taro.navigateTo({
-			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}`,
-			})
+			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}${metricParam}`,
+		})
 		}
 
 		const goToVaccineRecord = (item: VaccineScheduleItem) => {
@@ -706,16 +729,14 @@ export default function StatsPage() {
 		displayHeightWeightTrend,
 		days,
 	)
-	const displayHeightWeight =
-		isLoggedIn && currentBaby
-			? latestHeightWeight
-			: MOCK_STATS.latestHeightWeight
-	const displayTemperature =
-		isLoggedIn && currentBaby ? latestTemperature : MOCK_STATS.latestTemperature
-	const displayItems =
-		isLoggedIn && currentBaby ? detailItems : MOCK_DETAIL[activeType].items
+	const displayItems = isLoggedIn && currentBaby ? dayItems : MOCK_DETAIL[activeType].items
 	const summary =
-		isLoggedIn && currentBaby ? detailSummary : MOCK_DETAIL[activeType].summary
+		isLoggedIn && currentBaby ? daySummary : MOCK_DETAIL[activeType].summary
+	// 身高/体重分开记录后，同一类型下只统计与展示当前指标的记录
+	const growthItems =
+		activeType === 'height_weight'
+			? displayItems.filter(item => item[growthMetric] != null)
+			: displayItems
 
 	const avgIntervalText =
 		summary?.avgIntervalMinutes != null
@@ -749,19 +770,30 @@ export default function StatsPage() {
 			{ label: '平均间隔', value: avgIntervalText },
 		]
 	} else if (activeType === 'height_weight') {
-		summaryTiles = [
-			{ label: '总次数', value: `${summary?.count ?? 0}次` },
-			{
-				label: '最新身高',
-				value:
-					summary?.latestHeight != null ? `${summary.latestHeight}cm` : '-',
-			},
-			{
-				label: '最新体重',
-				value:
-					summary?.latestWeight != null ? `${summary.latestWeight}kg` : '-',
-			},
-		]
+		// 后端已按当前指标过滤，汇总次数可覆盖完整结果集。
+		const metricCount = `${summary?.count ?? 0}次`
+		summaryTiles =
+			growthMetric === 'weight'
+				? [
+						{ label: '测量次数', value: metricCount },
+						{
+							label: '最新体重',
+							value:
+								summary?.latestWeight != null
+									? `${summary.latestWeight}kg`
+									: '-',
+						},
+					]
+				: [
+						{ label: '测量次数', value: metricCount },
+						{
+							label: '最新身高',
+							value:
+								summary?.latestHeight != null
+									? `${summary.latestHeight}cm`
+									: '-',
+						},
+					]
 	} else if (activeType === 'temperature') {
 		summaryTiles = [
 			{ label: '总次数', value: `${summary?.count ?? 0}次` },
@@ -827,63 +859,22 @@ export default function StatsPage() {
 						</Text>
 					</View>
 				</View>
-			)}
+				)}
 
-			{/* 最新数据 */}
-			<View className="latest-section">
-				<Text className="section-title">最新数据</Text>
-				<View className="latest-grid">
-					{displayHeightWeight && (
-						<View
-							className="latest-card"
-							onClick={goToFullDetail.bind(null, 'height_weight')}
-						>
-							<Text className="latest-icon">📏</Text>
-							<View className="latest-info">
-								<Text className="latest-value">
-									{displayHeightWeight.height}cm / {displayHeightWeight.weight}
-									kg
-								</Text>
-								<Text className="latest-date">
-									{new Date(displayHeightWeight.date).toLocaleDateString()}
-								</Text>
-							</View>
-						</View>
-					)}
-					{displayTemperature && (
-						<View
-							className="latest-card"
-							onClick={goToFullDetail.bind(null, 'temperature')}
-						>
-							<Text className="latest-icon">🌡️</Text>
-							<View className="latest-info">
-								<Text className="latest-value">
-									{displayTemperature.temperature}°C
-								</Text>
-								<Text className="latest-date">
-									{new Date(displayTemperature.date).toLocaleDateString()}
-								</Text>
-							</View>
-						</View>
-					)}
-					{!displayHeightWeight && !displayTemperature && (
-						<View className="latest-empty">
-							<Text className="latest-empty-text">暂无身高体重和体温记录</Text>
-						</View>
-					)}
-				</View>
-			</View>
-
-			{/* 类型切换 */}
+			{/* 类型切换：身高/体重为独立入口，单行展示 */}
 			<View className="type-tabs">
 				{detailTypeTabs.map(tab => (
 					<View
-						key={tab.type}
-						className={`type-tab ${activeType === tab.type ? 'active' : ''}`}
-						onClick={() => setActiveType(tab.type)}
+						key={`${tab.type}-${tab.metric ?? ''}`}
+						className={`type-tab ${activeType === tab.type && activeMetric === (tab.metric ?? null) ? 'active' : ''}`}
+						onClick={() => {
+							setActiveType(tab.type)
+							setActiveMetric(tab.metric ?? null)
+						}}
 					>
 						<Text className="type-tab-icon">{tab.icon}</Text>
 						<Text className="type-tab-label">{tab.label}</Text>
+						<View className="type-tab-indicator" />
 					</View>
 				))}
 			</View>
@@ -1019,15 +1010,22 @@ export default function StatsPage() {
 						</View>
 					</View>
 
-					{/* 明细卡 */}
-					<View className="detail-card">
-						<View className="detail-card-header">
-							<Text className="section-title">
-								{isToday(selectedDate)
-									? '今日总结'
-									: `${getDateLabel(selectedDate)}总结`}
-							</Text>
-							<View className="detail-link" onClick={() => goToFullDetail()}>
+						{/* 明细卡 */}
+						<View className="detail-card">
+							<View className="detail-card-header">
+								<View className="section-heading">
+									<View className="section-heading-icon summary-heading-icon">
+										<View className="summary-icon-bar summary-icon-bar-short" />
+										<View className="summary-icon-bar summary-icon-bar-medium" />
+										<View className="summary-icon-bar summary-icon-bar-tall" />
+									</View>
+									<Text className="section-heading-title">
+										{isToday(selectedDate)
+											? '今日总结'
+											: `${getDateLabel(selectedDate)}总结`}
+									</Text>
+								</View>
+								<View className="detail-link" onClick={() => goToFullDetail()}>
 								<Text>完整明细 ›</Text>
 							</View>
 						</View>
@@ -1041,13 +1039,13 @@ export default function StatsPage() {
 							))}
 						</View>
 
-						{displayItems.length > 0 ? (
+						{growthItems.length > 0 ? (
 							<View className="timeline">
-								{displayItems.map((item, idx) => (
+								{growthItems.map((item, idx) => (
 									<View key={item.id} className="timeline-item">
 										<View className="timeline-track">
 											<View className="timeline-dot" />
-											{idx < displayItems.length - 1 && (
+											{idx < growthItems.length - 1 && (
 												<View className="timeline-line" />
 											)}
 										</View>
@@ -1056,14 +1054,14 @@ export default function StatsPage() {
 												<Text className="timeline-time">
 													{formatHM(item.startTime)}
 												</Text>
-												<Text className="timeline-interval">
-													{getIntervalText(activeType, item.intervalMinutes)}
-												</Text>
+													<Text className="timeline-interval">
+														{getIntervalText(activeType, item.intervalMinutes)}
+													</Text>
 											</View>
 											<View className="timeline-text-row">
 												<View className="timeline-text-content">
 													<Text className="timeline-text">
-														{getRecordMainText(activeType, item)}
+														{getRecordMainText(activeType, item, growthMetric)}
 													</Text>
 													{item.note && (
 														<Text className="timeline-note">
@@ -1091,15 +1089,28 @@ export default function StatsPage() {
 							</View>
 						) : (
 							<View className="timeline-empty">
-								<Text>这一天还没有记录</Text>
+								<Text>
+									{activeType === 'height_weight'
+										? growthMetric === 'height'
+											? '这一天还没有身高记录'
+											: '这一天还没有体重记录'
+										: '这一天还没有记录'}
+								</Text>
 							</View>
 						)}
 					</View>
 
 					{/* 统计图表 */}
-					{displayDailyStats.length > 0 && (
-						<View className="charts-section">
-							<Text className="section-title">趋势图表</Text>
+						{displayDailyStats.length > 0 && (
+							<View className="charts-section">
+								<View className="section-heading chart-section-heading">
+									<View className="section-heading-icon trend-heading-icon">
+										<View className="trend-icon-line trend-icon-line-left" />
+										<View className="trend-icon-line trend-icon-line-middle" />
+										<View className="trend-icon-line trend-icon-line-right" />
+									</View>
+									<Text className="section-heading-title">趋势图表</Text>
+								</View>
 							<View className="time-range">
 								{[7, 14, 30].map(d => (
 									<View
@@ -1136,31 +1147,27 @@ export default function StatsPage() {
 								)}
 							{activeType === 'height_weight' &&
 								displayHeightWeightSeries.some(
-									point => point.height != null || point.weight != null,
-								) && (
-									<>
-										{renderHeightWeightLineChart(
-											displayHeightWeightSeries,
-											'height',
-											'身高趋势',
-											'cm',
-											'growth-height',
-										)}
-										{renderHeightWeightLineChart(
-											displayHeightWeightSeries,
-											'weight',
-											'体重趋势',
-											'kg',
-											'growth-weight',
-										)}
-									</>
+									point => point[growthMetric] != null,
+								) &&
+								renderHeightWeightLineChart(
+									displayHeightWeightSeries,
+									growthMetric,
+									growthMetric === 'height' ? '身高趋势' : '体重趋势',
+									growthMetric === 'height' ? 'cm' : 'kg',
+									growthMetric === 'height'
+										? 'growth-height'
+										: 'growth-weight',
 								)}
 							{activeType === 'height_weight' &&
 								!displayHeightWeightSeries.some(
-									point => point.height != null || point.weight != null,
+									point => point[growthMetric] != null,
 								) && (
 									<View className="chart-card growth-empty">
-										<Text>所选时间内暂无身高体重记录</Text>
+										<Text>
+											{growthMetric === 'height'
+												? '所选时间内暂无身高记录'
+												: '所选时间内暂无体重记录'}
+										</Text>
 									</View>
 								)}
 							{activeType === 'temperature' &&

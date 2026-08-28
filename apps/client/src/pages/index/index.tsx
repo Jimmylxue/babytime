@@ -36,7 +36,8 @@ const quickActions = [
 const moreActions = [
 	{ type: 'water', icon: '💧', label: '喝水' },
 	{ type: 'bath', icon: '🛁', label: '洗澡' },
-	{ type: 'height_weight', icon: '📏', label: '身高体重' },
+	{ type: 'height_weight', metric: 'height', icon: '📏', label: '身高' },
+	{ type: 'height_weight', metric: 'weight', icon: '⚖️', label: '体重' },
 	{ type: 'medicine', icon: '💊', label: '用药' },
 	{ type: 'outdoor', icon: '🌳', label: '户外活动' },
 ]
@@ -167,7 +168,7 @@ export default function Index() {
 	const lastSleepDuration =
 		sleepRecords.length > 0 ? sleepRecords[0].duration : null
 
-	const navigateToRecord = async (type: string) => {
+	const navigateToRecord = async (type: string, metric?: string) => {
 		if (!isLoggedIn) {
 			needLogin()
 			return
@@ -181,7 +182,9 @@ export default function Index() {
 			return
 		}
 		Taro.navigateTo({
-			url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}`,
+			url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}${
+				metric ? `&metric=${metric}` : ''
+			}`,
 		})
 		setShowMore(false)
 	}
@@ -309,34 +312,38 @@ export default function Index() {
 					<View className="baby-metrics">
 						{latestHeightWeight && (
 							<Fragment>
-								<View className="baby-metric m-weight">
-									<View className="baby-metric-icon">
-										<Text>⚖️</Text>
-									</View>
-									<View className="baby-metric-copy">
-										<Text className="baby-metric-label">体重</Text>
-										<View className="baby-metric-value">
-											<Text className="baby-metric-num">
-												{latestHeightWeight.weight}
-											</Text>
-											<Text className="baby-metric-unit">kg</Text>
+								{latestHeightWeight.weight != null && (
+									<View className="baby-metric m-weight">
+										<View className="baby-metric-icon">
+											<Text>⚖️</Text>
+										</View>
+										<View className="baby-metric-copy">
+											<Text className="baby-metric-label">体重</Text>
+											<View className="baby-metric-value">
+												<Text className="baby-metric-num">
+													{latestHeightWeight.weight}
+												</Text>
+												<Text className="baby-metric-unit">kg</Text>
+											</View>
 										</View>
 									</View>
-								</View>
-								<View className="baby-metric m-height">
-									<View className="baby-metric-icon">
-										<Text>📏</Text>
-									</View>
-									<View className="baby-metric-copy">
-										<Text className="baby-metric-label">身高</Text>
-										<View className="baby-metric-value">
-											<Text className="baby-metric-num">
-												{latestHeightWeight.height}
-											</Text>
-											<Text className="baby-metric-unit">cm</Text>
+								)}
+								{latestHeightWeight.height != null && (
+									<View className="baby-metric m-height">
+										<View className="baby-metric-icon">
+											<Text>📏</Text>
+										</View>
+										<View className="baby-metric-copy">
+											<Text className="baby-metric-label">身高</Text>
+											<View className="baby-metric-value">
+												<Text className="baby-metric-num">
+													{latestHeightWeight.height}
+												</Text>
+												<Text className="baby-metric-unit">cm</Text>
+											</View>
 										</View>
 									</View>
-								</View>
+								)}
 							</Fragment>
 						)}
 						{latestTemperature && (
@@ -560,9 +567,11 @@ export default function Index() {
 							<View className="sheet-grid">
 								{moreActions.map(action => (
 									<View
-										key={action.type}
+										key={`${action.type}-${action.metric ?? ''}`}
 										className="sheet-item"
-										onClick={() => navigateToRecord(action.type)}
+										onClick={() =>
+											navigateToRecord(action.type, action.metric)
+										}
 									>
 										<View className="sheet-item-icon">
 											<Text>{action.icon}</Text>

@@ -106,8 +106,8 @@ interface RecordState {
   fetchRecords: (babyId: string, date?: string) => Promise<void>;
   fetchSummary: (babyId: string) => Promise<void>;
   fetchStats: (babyId: string, days?: number) => Promise<void>;
-  fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number }) => Promise<void>;
-  fetchDetailSummary: (babyId: string, type: string, params: { date?: string; days?: number }) => Promise<void>;
+  fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number; metric?: 'height' | 'weight' }) => Promise<void>;
+  fetchDetailSummary: (babyId: string, type: string, params: { date?: string; days?: number; metric?: 'height' | 'weight' }) => Promise<void>;
   addRecord: (data: any) => Promise<void>;
   updateRecord: (id: string, data: any) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
@@ -164,7 +164,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     }
   },
 
-  fetchDetail: async (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number }) => {
+  fetchDetail: async (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number; metric?: 'height' | 'weight' }) => {
     const page = params.page || 1;
     set({ detailLoading: true });
     try {
@@ -185,7 +185,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     }
   },
 
-  fetchDetailSummary: async (babyId: string, type: string, params: { date?: string; days?: number }) => {
+  fetchDetailSummary: async (babyId: string, type: string, params: { date?: string; days?: number; metric?: 'height' | 'weight' }) => {
     try {
       const res = await recordApi.getDetailSummary(babyId, type, params);
       set({ detailSummary: res.data || null });

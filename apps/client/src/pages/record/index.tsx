@@ -71,7 +71,7 @@ const riskLabels: Record<StoolAnalysis['riskLevel'], string> = {
 
 export default function RecordPage() {
 	const router = useRouter()
-	const { type = 'feeding', babyId, id } = router.params
+	const { type = 'feeding', babyId, id, metric } = router.params
 	const isEdit = !!id
 	const { addRecord, updateRecord } = useRecordStore()
 
@@ -91,8 +91,14 @@ export default function RecordPage() {
 	const [analyzingStool, setAnalyzingStool] = useState(false)
 	const [foodName, setFoodName] = useState('')
 	const [temperature, setTemperature] = useState('')
+	/* 身高体重支持单独记录，两项均为选填，至少填一项 */
 	const [height, setHeight] = useState('')
 	const [weight, setWeight] = useState('')
+	const [lastMeasurement, setLastMeasurement] = useState<{
+		height: number | null
+		weight: number | null
+		date: string
+	} | null>(null)
 	const [medicineName, setMedicineName] = useState('')
 	const [medicineDose, setMedicineDose] = useState('')
 	const [vaccineName, setVaccineName] = useState(
@@ -111,7 +117,19 @@ export default function RecordPage() {
 	const [recordDate, setRecordDate] = useState(formatDate(new Date()))
 	const today = formatDate(new Date())
 
-	const typeInfo = recordTypes[type] || recordTypes.feeding
+	const typeInfo = { ...(recordTypes[type] || recordTypes.feeding) }
+	// 身高体重拆分为独立入口：metric 为 height/weight 时只记录对应一项
+	const growthMetric =
+		type === 'height_weight' && (metric === 'height' || metric === 'weight')
+			? metric
+			: null
+	if (growthMetric === 'height') {
+		typeInfo.title = '身高记录'
+		typeInfo.icon = '📏'
+	} else if (growthMetric === 'weight') {
+		typeInfo.title = '体重记录'
+		typeInfo.icon = '⚖️'
+	}
 	const selectedVaccine = findVaccineScheduleItem(selectedVaccineId)
 	const currentBaby = useBabyStore(state => state.currentBaby)
 	const currentVaccineItems = currentBaby
@@ -135,6 +153,12 @@ export default function RecordPage() {
 	useDidShow(() => {
 		if (isEdit && id) {
 			fetchRecord()
+		} else if (type === 'height_weight' && babyId) {
+			// 新增测量时展示上次测量值，方便对比录入
+			recordApi
+				.getStats(babyId)
+				.then(res => setLastMeasurement(res.data?.latestHeightWeight || null))
+				.catch(() => {})
 		}
 	})
 
@@ -287,6 +311,18 @@ export default function RecordPage() {
 			Taro.showToast({ title: '请选择或填写疫苗名称', icon: 'none' })
 			return
 		}
+		if (growthMetric === 'height' && !height) {
+			Taro.showToast({ title: '请输入身高', icon: 'none' })
+			return
+		}
+		if (growthMetric === 'weight' && !weight) {
+			Taro.showToast({ title: '请输入体重', icon: 'none' })
+			return
+		}
+		if (type === 'height_weight' && !growthMetric && !height && !weight) {
+			Taro.showToast({ title: '身高和体重至少填写一项', icon: 'none' })
+			return
+		}
 		submittingRef.current = true
 		setLoading(true)
 		try {
@@ -335,8 +371,11 @@ export default function RecordPage() {
 					if (temperature) data.temperature = parseFloat(temperature)
 					break
 				case 'height_weight':
-					if (height) data.height = parseFloat(height)
-					if (weight) data.weight = parseFloat(weight)
+					// 拆分入口下只提交当前项，另一项保持 null 不覆盖历史
+					if ((!growthMetric || growthMetric === 'height') && height)
+						data.height = parseFloat(height)
+					if ((!growthMetric || growthMetric === 'weight') && weight)
+						data.weight = parseFloat(weight)
 					break
 				case 'medicine':
 					data.medicineName = medicineName
@@ -678,11 +717,33 @@ export default function RecordPage() {
 					</View>
 				)}
 
-				{/* 身高体重 */}
-				{type === 'height_weight' && (
-					<>
+			{/* 身高体重 */}
+			{type === 'height_weight' && (
+				<>
+					{lastMeasurement && (
+						<View className="last-measurement-tip">
+							<Text>
+								上次测量（{formatDate(lastMeasurement.date)}）：
+								{[
+									growthMetric !== 'weight' &&
+									lastMeasurement.height != null
+										? `身高${lastMeasurement.height}cm`
+										: '',
+									growthMetric !== 'height' &&
+									lastMeasurement.weight != null
+										? `体重${lastMeasurement.weight}kg`
+										: '',
+								]
+									.filter(Boolean)
+									.join('，')}
+							</Text>
+						</View>
+					)}
+					{(growthMetric === 'height' || !growthMetric) && (
 						<View className="form-group">
-							<Text className="form-label">身高 (cm)</Text>
+							<Text className="form-label">
+								身高 (cm{growthMetric ? '' : '，选填'})
+							</Text>
 							<Input
 								className="form-input"
 								type="digit"
@@ -691,8 +752,12 @@ export default function RecordPage() {
 								onInput={e => setHeight(e.detail.value)}
 							/>
 						</View>
+					)}
+					{(growthMetric === 'weight' || !growthMetric) && (
 						<View className="form-group">
-							<Text className="form-label">体重 (kg)</Text>
+							<Text className="form-label">
+								体重 (kg{growthMetric ? '' : '，选填'})
+							</Text>
 							<Input
 								className="form-input"
 								type="digit"
@@ -701,8 +766,9 @@ export default function RecordPage() {
 								onInput={e => setWeight(e.detail.value)}
 							/>
 						</View>
-					</>
-				)}
+					)}
+				</>
+			)}
 
 				{/* 用药相关 */}
 				{type === 'medicine' && (

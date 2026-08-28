@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Card, Col, Row, Segmented, Statistic, Spin, Typography } from 'antd';
+import {
+	CameraOutlined,
+	FileTextOutlined,
+	RobotOutlined,
+	RiseOutlined,
+	SmileOutlined,
+	TeamOutlined,
+	UserAddOutlined,
+	UserOutlined,
+} from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { apiGet } from '../api/client';
 import { GENDER_LABELS, RECORD_TYPE_LABELS } from '../constants';
@@ -13,15 +23,29 @@ const DAYS_OPTIONS = [
 
 const CHART_HEIGHT = 320;
 
-function KpiCard({ title, value, sub }: { title: string; value: number; sub?: string }) {
+function KpiCard({
+	title,
+	value,
+	sub,
+	icon,
+	tone = 'blue',
+}: {
+	title: string;
+	value: number;
+	sub?: string;
+	icon: ReactNode;
+	tone?: 'blue' | 'cyan' | 'green' | 'gold' | 'purple' | 'coral' | 'rose' | 'indigo';
+}) {
 	return (
-		<Card>
-			<Statistic title={title} value={value} />
-			{sub ? (
-				<Typography.Text type="secondary" style={{ fontSize: 12 }}>
-					{sub}
-				</Typography.Text>
-			) : null}
+		<Card className={`dashboard-kpi dashboard-kpi-${tone}`} bordered={false}>
+			<div className="dashboard-kpi-header">
+				<Typography.Text className="dashboard-kpi-title">{title}</Typography.Text>
+				<span className="dashboard-kpi-icon" aria-hidden="true">
+					{icon}
+				</span>
+			</div>
+			<Statistic value={value} />
+			<div className="dashboard-kpi-sub">{sub || '\u00a0'}</div>
 		</Card>
 	);
 }
@@ -137,23 +161,29 @@ export default function Dashboard() {
 	return (
 		<Spin spinning={!overview}>
 			<Row gutter={[16, 16]} className="dashboard-kpis">
-				<Col xs={24} sm={12} md={8} xl={4}>
-					<KpiCard title="累计用户" value={overview?.totalUsers ?? 0} sub={`今日 +${overview?.todayUsers ?? 0} · 近7日 +${overview?.weekNewUsers ?? 0}`} />
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="累计用户" value={overview?.totalUsers ?? 0} sub={`近 7 日新增 ${overview?.weekNewUsers ?? 0}`} icon={<UserOutlined />} />
 				</Col>
-				<Col xs={24} sm={12} md={8} xl={4}>
-					<KpiCard title="累计宝宝" value={overview?.totalBabies ?? 0} sub={`今日 +${overview?.todayBabies ?? 0}`} />
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="累计宝宝" value={overview?.totalBabies ?? 0} sub="已创建的宝宝档案" icon={<SmileOutlined />} tone="cyan" />
 				</Col>
-				<Col xs={24} sm={12} md={8} xl={4}>
-					<KpiCard title="累计记录" value={overview?.totalRecords ?? 0} sub={`今日 +${overview?.todayRecords ?? 0}`} />
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="累计记录" value={overview?.totalRecords ?? 0} sub={`今日新增 ${overview?.todayRecords ?? 0}`} icon={<FileTextOutlined />} tone="green" />
 				</Col>
-				<Col xs={24} sm={12} md={8} xl={4}>
-					<KpiCard title="今日活跃用户" value={overview?.todayActiveUsers ?? 0} sub={`近7日活跃 ${overview?.weekActiveUsers ?? 0}`} />
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="今日活跃用户" value={overview?.todayActiveUsers ?? 0} sub={`近 7 日活跃 ${overview?.weekActiveUsers ?? 0}`} icon={<TeamOutlined />} tone="gold" />
 				</Col>
-				<Col xs={24} sm={12} md={8} xl={4}>
-					<KpiCard title="AI 便便分析" value={overview?.aiAnalysisTotal ?? 0} sub={`今日 +${overview?.aiAnalysisToday ?? 0}`} />
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="AI 便便分析" value={overview?.aiAnalysisTotal ?? 0} sub={`今日新增 ${overview?.aiAnalysisToday ?? 0}`} icon={<RobotOutlined />} tone="purple" />
 				</Col>
-				<Col xs={24} sm={12} md={8} xl={4}>
-					<KpiCard title="累计照片" value={overview?.totalPhotos ?? 0} sub={`家庭成员 ${overview?.familyMembers ?? 0}`} />
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="累计照片" value={overview?.totalPhotos ?? 0} sub={`家庭成员 ${overview?.familyMembers ?? 0}`} icon={<CameraOutlined />} tone="coral" />
+				</Col>
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="今日新增用户" value={overview?.todayUsers ?? 0} sub="今日完成注册的用户" icon={<UserAddOutlined />} tone="rose" />
+				</Col>
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard title="今日新增宝宝" value={overview?.todayBabies ?? 0} sub="今日新建的宝宝档案" icon={<RiseOutlined />} tone="indigo" />
 				</Col>
 			</Row>
 

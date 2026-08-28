@@ -93,6 +93,7 @@ export class RecordController {
     @Query('days') days: string,
     @Query('page') page: string,
     @Query('pageSize') pageSize: string,
+    @Query('metric') metric: string,
     @Request() req,
   ) {
     const detail = await this.recordService.getRecordDetail(req.user.id, babyId, type, {
@@ -100,6 +101,7 @@ export class RecordController {
       days: days ? parseInt(days) : undefined,
       page: page ? parseInt(page) : undefined,
       pageSize: pageSize ? parseInt(pageSize) : undefined,
+      metric,
     });
     return {
       code: 0,
@@ -114,11 +116,13 @@ export class RecordController {
     @Query('type') type: RecordType,
     @Query('date') date: string,
     @Query('days') days: string,
+    @Query('metric') metric: string,
     @Request() req,
   ) {
     const summary = await this.recordService.getRecordDetailSummary(req.user.id, babyId, type, {
       date,
       days: days ? parseInt(days) : undefined,
+      metric,
     });
     return {
       code: 0,

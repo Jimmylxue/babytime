@@ -1,6 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThan } from 'typeorm';
+import {
+  Repository,
+  Between,
+  LessThan,
+  Not,
+  IsNull,
+  FindOptionsWhere,
+} from 'typeorm';
 import { Record, RecordType } from './entities/record.entity';
 import { CreateRecordDto } from './dto/create-record.dto';
 import { UpdateRecordDto } from './dto/update-record.dto';
@@ -16,6 +23,8 @@ const DETAIL_SUPPORTED_TYPES = [
   RecordType.VACCINE,
 ];
 
+type GrowthMetric = 'height' | 'weight';
+
 @Injectable()
 export class RecordService {
   constructor(
@@ -27,6 +36,11 @@ export class RecordService {
   async create(userId: string, createRecordDto: CreateRecordDto) {
     await this.babyService.findOne(createRecordDto.babyId, userId);
     this.validateHeightWeightDate(createRecordDto.type, createRecordDto.startTime);
+    this.validateHeightWeightValues(
+      createRecordDto.type,
+      createRecordDto.height,
+      createRecordDto.weight,
+    );
 
     // 混合喂养时，若未显式传入总奶量，用母乳量+奶粉量归一化，保持 amount 语义为"总奶量"
     if (
@@ -97,6 +111,11 @@ export class RecordService {
     if (updateRecordDto.startTime) {
       this.validateHeightWeightDate(record.type, updateRecordDto.startTime);
     }
+    this.validateHeightWeightValues(
+      record.type,
+      updateRecordDto.height === undefined ? record.height : updateRecordDto.height,
+      updateRecordDto.weight === undefined ? record.weight : updateRecordDto.weight,
+    );
 
     // 混合喂养时，若未显式传入总奶量，用母乳量+奶粉量归一化，保持 amount 语义为"总奶量"
     const feedingMethod = updateRecordDto.feedingMethod ?? record.feedingMethod;
@@ -124,6 +143,33 @@ export class RecordService {
     if (selectedDate > endOfToday) {
       throw new BadRequestException('测量日期不能晚于今天');
     }
+  }
+
+  private validateHeightWeightValues(
+    type: RecordType,
+    height: number | null | undefined,
+    weight: number | null | undefined,
+  ) {
+    if (type === RecordType.HEIGHT_WEIGHT && height == null && weight == null) {
+      throw new BadRequestException('身高和体重至少填写一项');
+    }
+  }
+
+  private parseGrowthMetric(type: RecordType, metric?: string): GrowthMetric | undefined {
+    if (!metric) return undefined;
+    if (
+      type !== RecordType.HEIGHT_WEIGHT ||
+      (metric !== 'height' && metric !== 'weight')
+    ) {
+      throw new BadRequestException('metric 仅支持身高或体重明细查询');
+    }
+    return metric;
+  }
+
+  private getGrowthMetricWhere(metric?: GrowthMetric): FindOptionsWhere<Record> {
+    if (metric === 'height') return { height: Not(IsNull()) };
+    if (metric === 'weight') return { weight: Not(IsNull()) };
+    return {};
   }
 
   async getTodaySummary(userId: string, babyId: string) {
@@ -253,10 +299,17 @@ export class RecordService {
     });
 
     // 获取最新的身高体重和体温
-    const latestHeightWeight = await this.recordRepository.findOne({
-      where: { babyId, type: 'height_weight' as any },
-      order: { startTime: 'DESC' },
-    });
+    // 身高体重支持单独记录，最新身高/体重分别取各自最近一次测量的值
+    const [latestHeightRecord, latestWeightRecord] = await Promise.all([
+      this.recordRepository.findOne({
+        where: { babyId, type: 'height_weight' as any, height: Not(IsNull()) },
+        order: { startTime: 'DESC' },
+      }),
+      this.recordRepository.findOne({
+        where: { babyId, type: 'height_weight' as any, weight: Not(IsNull()) },
+        order: { startTime: 'DESC' },
+      }),
+    ]);
 
     const latestTemperature = await this.recordRepository.findOne({
       where: { babyId, type: 'temperature' as any },
@@ -292,9 +345,20 @@ export class RecordService {
       dailyStats: Object.values(dailyStats),
       heightWeightTrend,
       temperatureTrend,
-      latestHeightWeight: latestHeightWeight
-        ? { height: latestHeightWeight.height, weight: latestHeightWeight.weight, date: latestHeightWeight.startTime }
-        : null,
+      latestHeightWeight:
+        latestHeightRecord || latestWeightRecord
+          ? {
+              height: latestHeightRecord?.height ?? null,
+              weight: latestWeightRecord?.weight ?? null,
+              // 日期取身高/体重中较新那次测量的时间
+              date:
+                !latestWeightRecord ||
+                (latestHeightRecord &&
+                  latestHeightRecord.startTime >= latestWeightRecord.startTime)
+                  ? latestHeightRecord!.startTime
+                  : latestWeightRecord.startTime,
+            }
+          : null,
       latestTemperature: latestTemperature
         ? { temperature: latestTemperature.temperature, date: latestTemperature.startTime }
         : null,
@@ -334,13 +398,20 @@ export class RecordService {
     userId: string,
     babyId: string,
     type: RecordType,
-    options: { date?: string; days?: number; page?: number; pageSize?: number },
+    options: {
+      date?: string;
+      days?: number;
+      page?: number;
+      pageSize?: number;
+      metric?: string;
+    },
   ) {
     await this.babyService.findOne(babyId, userId);
 
     if (!DETAIL_SUPPORTED_TYPES.includes(type)) {
       throw new BadRequestException('该记录类型暂不支持明细查询');
     }
+    const metric = this.parseGrowthMetric(type, options.metric);
 
     let startDate: Date;
     let endDate: Date;
@@ -359,10 +430,11 @@ export class RecordService {
 
     const page = Math.max(1, options.page || 1);
     const pageSize = Math.min(50, Math.max(1, options.pageSize || 20));
-    const where = {
+    const where: FindOptionsWhere<Record> = {
       babyId,
       type,
       startTime: Between(startDate, endDate),
+      ...this.getGrowthMetricWhere(metric),
     };
     const [records, total] = await this.recordRepository.findAndCount({
       where,
@@ -379,6 +451,7 @@ export class RecordService {
         babyId,
         type,
         startTime: LessThan(oldestRecord ? oldestRecord.startTime : startDate),
+        ...this.getGrowthMetricWhere(metric),
       },
       order: { startTime: 'DESC' },
     });
@@ -398,13 +471,14 @@ export class RecordService {
     userId: string,
     babyId: string,
     type: RecordType,
-    options: { date?: string; days?: number },
+    options: { date?: string; days?: number; metric?: string },
   ) {
     await this.babyService.findOne(babyId, userId);
 
     if (!DETAIL_SUPPORTED_TYPES.includes(type)) {
       throw new BadRequestException('该记录类型暂不支持明细查询');
     }
+    const metric = this.parseGrowthMetric(type, options.metric);
 
     let startDate: Date;
     let endDate: Date;
@@ -420,32 +494,48 @@ export class RecordService {
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days + 1, 0, 0, 0, 0);
     }
 
-    const where = {
+    const where: FindOptionsWhere<Record> = {
       babyId,
       type,
       startTime: Between(startDate, endDate),
+      ...this.getGrowthMetricWhere(metric),
     };
-    const aggregate = await this.recordRepository
+    const aggregate = this.recordRepository
       .createQueryBuilder('record')
       .select('COUNT(record.id)', 'count')
       .addSelect('COALESCE(SUM(record.amount), 0)', 'totalAmount')
       .addSelect('COALESCE(SUM(record.duration), 0)', 'totalDuration')
       .where('record.baby_id = :babyId', { babyId })
       .andWhere('record.type = :type', { type })
-      .andWhere('record.start_time BETWEEN :startDate AND :endDate', { startDate, endDate })
-      .getRawOne();
+      .andWhere('record.start_time BETWEEN :startDate AND :endDate', { startDate, endDate });
+    if (metric) {
+      aggregate.andWhere(`record.${metric} IS NOT NULL`);
+    }
+    const aggregateResult = await aggregate.getRawOne();
 
-    const summary: any = { count: Number(aggregate.count) };
+    const summary: any = { count: Number(aggregateResult.count) };
     if (type === RecordType.FEEDING) {
-      summary.totalAmount = Number(aggregate.totalAmount);
+      summary.totalAmount = Number(aggregateResult.totalAmount);
     } else if (type === RecordType.SLEEP) {
-      summary.totalDuration = Number(aggregate.totalDuration);
+      summary.totalDuration = Number(aggregateResult.totalDuration);
     } else if (type === RecordType.HEIGHT_WEIGHT) {
-      const latest = await this.recordRepository.findOne({ where, order: { startTime: 'DESC' } });
-      if (latest) {
-        summary.latestHeight = latest.height ?? null;
-        summary.latestWeight = latest.weight ?? null;
-      }
+      // 单指标查询只返回当前指标的最新值；未传 metric 时保持兼容，分别返回两项。
+      const [latestHeight, latestWeight] = await Promise.all([
+        metric === 'weight'
+          ? Promise.resolve(null)
+          : this.recordRepository.findOne({
+              where: { ...where, height: Not(IsNull()) },
+              order: { startTime: 'DESC' },
+            }),
+        metric === 'height'
+          ? Promise.resolve(null)
+          : this.recordRepository.findOne({
+              where: { ...where, weight: Not(IsNull()) },
+              order: { startTime: 'DESC' },
+            }),
+      ]);
+      summary.latestHeight = latestHeight?.height ?? null;
+      summary.latestWeight = latestWeight?.weight ?? null;
     } else if (type === RecordType.TEMPERATURE) {
       const latest = await this.recordRepository.findOne({ where, order: { startTime: 'DESC' } });
       if (latest) {
@@ -455,6 +545,8 @@ export class RecordService {
 
     // 对每条记录关联其上一条同类型记录，仅由数据库返回平均值。
     // 睡眠按上次醒来时间计算；跨天或时间倒流的记录不纳入平均值，规则与列表一致。
+    const metricSql = metric ? ` AND candidate.${metric} IS NOT NULL` : '';
+    const currentMetricSql = metric ? ` AND current_record.${metric} IS NOT NULL` : '';
     const [intervalAggregate] = await this.recordRepository.query(
       `SELECT AVG(
         CASE
@@ -490,12 +582,14 @@ export class RecordService {
         WHERE candidate.baby_id = current_record.baby_id
           AND candidate.type = current_record.type
           AND candidate.start_time < current_record.start_time
+          ${metricSql}
         ORDER BY candidate.start_time DESC
         LIMIT 1
       )
       WHERE current_record.baby_id = ?
         AND current_record.type = ?
-        AND current_record.start_time BETWEEN ? AND ?`,
+        AND current_record.start_time BETWEEN ? AND ?
+        ${currentMetricSql}`,
       [type, type, type, babyId, type, startDate, endDate],
     );
     summary.avgIntervalMinutes = intervalAggregate.avgIntervalMinutes == null

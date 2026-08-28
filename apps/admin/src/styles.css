@@ -28,10 +28,91 @@ body {
 	margin-bottom: 16px;
 }
 
-.dashboard-kpis .ant-card {
+.dashboard-kpis .dashboard-kpi {
 	height: 100%;
+	overflow: hidden;
+	border: 1px solid #e8edf4;
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgb(31 45 61 / 4%);
+	transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
+
+.dashboard-kpis .dashboard-kpi:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 20px rgb(31 45 61 / 9%);
+}
+
+.dashboard-kpi .ant-card-body {
+	min-height: 138px;
+	padding: 18px 20px 16px;
+	display: flex;
+	flex-direction: column;
+}
+
+.dashboard-kpi-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+
+.dashboard-kpi-title {
+	color: #5b6472;
+	font-size: 14px;
+}
+
+.dashboard-kpi .ant-statistic {
+	line-height: 1;
+}
+
+.dashboard-kpi .ant-statistic-content {
+	color: #202938;
+	font-size: 30px;
+	font-weight: 650;
+	line-height: 1.15;
+}
+
+.dashboard-kpi-sub {
+	min-height: 18px;
+	margin-top: auto;
+	padding-top: 12px;
+	color: #8a94a6;
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.dashboard-kpi-icon {
+	width: 34px;
+	height: 34px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 34px;
+	border-radius: 8px;
+	font-size: 17px;
+}
+
+.dashboard-kpi-blue .dashboard-kpi-icon { color: #1677ff; background: #eaf3ff; }
+.dashboard-kpi-cyan .dashboard-kpi-icon { color: #08979c; background: #e6fffb; }
+.dashboard-kpi-green .dashboard-kpi-icon { color: #389e0d; background: #f6ffed; }
+.dashboard-kpi-gold .dashboard-kpi-icon { color: #d48806; background: #fff7e6; }
+.dashboard-kpi-purple .dashboard-kpi-icon { color: #722ed1; background: #f9f0ff; }
+.dashboard-kpi-coral .dashboard-kpi-icon { color: #d46b08; background: #fff2e8; }
+.dashboard-kpi-rose .dashboard-kpi-icon { color: #cf1322; background: #fff1f0; }
+.dashboard-kpi-indigo .dashboard-kpi-icon { color: #2f54eb; background: #f0f5ff; }
 
 .chart-card .ant-card-head-title {
 	font-weight: 600;
+}
+
+@media (max-width: 575px) {
+	.dashboard-kpi .ant-card-body {
+		min-height: 126px;
+		padding: 16px;
+	}
+
+	.dashboard-kpi .ant-statistic-content {
+		font-size: 28px;
+	}
 }

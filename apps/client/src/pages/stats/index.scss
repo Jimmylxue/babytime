@@ -43,98 +43,54 @@
   }
 }
 
-// 最新数据
-.latest-section {
-  margin-bottom: 40px;
-  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
-}
-
-.latest-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.latest-card {
-  background: #fff;
-  border-radius: 32px;
-  padding: 32px 28px;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
-}
-
-.latest-icon {
-  font-size: 48px;
-  margin-right: 24px;
-  animation: float 4s ease-in-out infinite;
-}
-
-.latest-info {
-  flex: 1;
-}
-
-.latest-value {
-  font-size: 36px;
-  font-weight: 700;
-  color: #2D2A2E;
-  display: block;
-}
-
-.latest-date {
-  font-size: 24px;
-  color: #A8A59E;
-  margin-top: 8px;
-  display: block;
-}
-
-.latest-empty {
-  background: #fff;
-  border-radius: 32px;
-  padding: 48px;
-  text-align: center;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
-}
-
-.latest-empty-text {
-  font-size: 26px;
-  color: #A8A59E;
-}
-
-// 类型切换 Tab
+// 类型切换 Tab：单行展示，身高和体重作为独立项并列。
 .type-tabs {
   display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
   border-radius: 28px;
-  padding: 10px;
+  padding: 12px;
+  height: 142px;
+  box-sizing: border-box;
   margin-bottom: 24px;
-  gap: 6px;
   box-shadow: 0 4px 16px rgba(130, 110, 90, 0.03);
   border: 1px solid #F0EDE6;
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 .type-tab {
-  flex: 1;
+  flex: 1 0 0;
+  width: auto;
   min-width: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  height: 88px;
+  height: 96px;
   border-radius: 20px;
-  transition: all 0.3s ease;
+  position: relative;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 
   &.active {
-    background: linear-gradient(135deg, #FFA5B4, #FFC4D0);
-    box-shadow: 0 4px 12px rgba(255, 165, 180, 0.3);
+    height: 116px;
+    background: linear-gradient(180deg, #FCD2DB 0%, #FCE8ED 53%, #FFFFFF 100%);
+    box-shadow: 0 6px 14px rgba(255, 143, 169, 0.16);
 
     .type-tab-label {
-      color: #fff;
+      color: #F26E88;
       font-weight: 700;
+    }
+
+    .type-tab-indicator {
+      opacity: 1;
+      transform: translateX(-50%) scaleX(1);
     }
   }
 }
@@ -151,7 +107,77 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  transition: color 0.2s ease;
 }
+
+.type-tab-indicator {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 28px;
+  height: 6px;
+  border-radius: 6px;
+  background: #F58AA1;
+  box-shadow: 0 2px 5px rgba(245, 138, 161, 0.28);
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.5);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-heading-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2D2A2E;
+  line-height: 40px;
+  margin: 0;
+}
+
+.section-heading-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #FFF0F3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  box-sizing: border-box;
+  padding: 10px 8px;
+  flex-shrink: 0;
+}
+
+.summary-icon-bar {
+  width: 5px;
+  border-radius: 5px 5px 1px 1px;
+  background: #F58AA1;
+}
+
+.summary-icon-bar-short { height: 8px; }
+.summary-icon-bar-medium { height: 13px; }
+.summary-icon-bar-tall { height: 18px; }
+
+.trend-heading-icon {
+  align-items: center;
+  gap: 0;
+  padding: 0 8px;
+}
+
+.trend-icon-line {
+  width: 8px;
+  height: 3px;
+  background: #F58AA1;
+  border-radius: 3px;
+}
+
+.trend-icon-line-left { transform: rotate(42deg) translateY(3px); }
+.trend-icon-line-middle { width: 10px; transform: rotate(-48deg); }
+.trend-icon-line-right { transform: rotate(42deg) translateY(-3px); }
 
 // 日期切换
 .date-nav {
@@ -226,9 +252,6 @@
   justify-content: space-between;
   margin-bottom: 24px;
 
-  .section-title {
-    margin-bottom: 0;
-  }
 }
 
 .detail-link {
@@ -379,17 +402,31 @@
 
 // 图表区域
 .charts-section {
+  background: #fff;
+  border-radius: 36px;
+  padding: 32px;
   margin-bottom: 40px;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
+.chart-section-heading {
+  margin-bottom: 24px;
+}
+
 .chart-card {
-  background: #fff;
-  border-radius: 32px;
-  padding: 32px;
-  margin-bottom: 32px;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.chart-card + .chart-card {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px dashed #F0EDE6;
 }
 
 .chart-title {

@@ -9,16 +9,21 @@ import './index.scss';
 
 export default function RecordDetailPage() {
   const router = useRouter();
-  const { babyId, type = 'feeding' } = router.params;
+  const { babyId, type = 'feeding', metric } = router.params;
+  // 身高/体重独立入口，metric 决定当前展示哪项指标
+  const growthMetric = metric === 'weight' ? 'weight' : metric === 'height' ? 'height' : null;
   const { detailItems, detailSummary, detailPagination, detailLoading, fetchDetail, fetchDetailSummary, deleteRecord } = useRecordStore();
   const [days, setDays] = useState(7);
 
-  const typeInfo = detailTypeTabs.find((t) => t.type === type) || detailTypeTabs[0];
+  const typeInfo =
+    detailTypeTabs.find(
+      (t) => t.type === type && (t.metric ?? null) === growthMetric,
+    ) || detailTypeTabs.find((t) => t.type === type) || detailTypeTabs[0];
 
   const loadFirstPage = (selectedDays = days) => {
     if (babyId) {
-      fetchDetail(babyId, type, { days: selectedDays, page: 1, pageSize: 20 });
-      fetchDetailSummary(babyId, type, { days: selectedDays });
+      fetchDetail(babyId, type, { days: selectedDays, page: 1, pageSize: 20, metric: growthMetric || undefined });
+      fetchDetailSummary(babyId, type, { days: selectedDays, metric: growthMetric || undefined });
     }
   };
 
@@ -34,14 +39,15 @@ export default function RecordDetailPage() {
 
   const loadMore = () => {
     if (!babyId || detailLoading || !detailPagination || detailPagination.page >= detailPagination.totalPages) return;
-    fetchDetail(babyId, type, { days, page: detailPagination.page + 1, pageSize: detailPagination.pageSize });
+    fetchDetail(babyId, type, { days, page: detailPagination.page + 1, pageSize: detailPagination.pageSize, metric: growthMetric || undefined });
   };
 
   // 点击一行记录，弹出编辑/删除操作面板
   const handleRowClick = (item: DetailRecord) => {
     Taro.showActionSheet({ itemList: ['编辑', '删除'] }).then((res) => {
       if (res.tapIndex === 0) {
-        Taro.navigateTo({ url: `/pages/record/index?type=${type}&babyId=${babyId}&id=${item.id}` });
+        const metricParam = growthMetric ? `&metric=${growthMetric}` : '';
+        Taro.navigateTo({ url: `/pages/record/index?type=${type}&babyId=${babyId}&id=${item.id}${metricParam}` });
       } else if (res.tapIndex === 1) {
         handleDelete(item.id);
       }
@@ -101,18 +107,22 @@ export default function RecordDetailPage() {
             <Text className="summary-bar-label">总时长</Text>
           </View>
         )}
-        {type === 'height_weight' && summary?.latestHeight != null && (
-          <>
+        {type === 'height_weight' &&
+          growthMetric !== 'weight' &&
+          summary?.latestHeight != null && (
             <View className="summary-bar-item">
               <Text className="summary-bar-value">{summary.latestHeight}cm</Text>
               <Text className="summary-bar-label">最新身高</Text>
             </View>
+          )}
+        {type === 'height_weight' &&
+          growthMetric !== 'height' &&
+          summary?.latestWeight != null && (
             <View className="summary-bar-item">
-              <Text className="summary-bar-value">{summary.latestWeight ?? '-'}kg</Text>
+              <Text className="summary-bar-value">{summary.latestWeight}kg</Text>
               <Text className="summary-bar-label">最新体重</Text>
             </View>
-          </>
-        )}
+          )}
         {type === 'temperature' && summary?.latestTemperature != null && (
           <View className="summary-bar-item">
             <Text className="summary-bar-value">{summary.latestTemperature}°C</Text>
@@ -141,7 +151,7 @@ export default function RecordDetailPage() {
                   </View>
                   <View className="table-cell cell-detail">
                     <View className="cell-detail-content">
-                      <Text>{getRecordMainText(type, item)}</Text>
+                      <Text>{getRecordMainText(type, item, growthMetric)}</Text>
                       {type === 'diaper' && item.diaperAnalysis?.summary && (
                         <Text className={`cell-analysis ${item.diaperAnalysis.riskLevel || 'unknown'}`}>
                           {item.diaperAnalysis.summary}

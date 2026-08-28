@@ -1,11 +1,19 @@
 import { formatDuration, formatDurationLong } from './date'
 
-// 支持"明细+间隔"展示的记录类型
-export const detailTypeTabs = [
+// 支持"明细+间隔"展示的记录类型；身高/体重为独立入口，用 metric 区分（type 同为 height_weight）
+export interface DetailTypeTab {
+	type: string
+	metric?: 'height' | 'weight'
+	label: string
+	icon: string
+}
+
+export const detailTypeTabs: DetailTypeTab[] = [
 	{ type: 'feeding', label: '喂奶', icon: '🍼' },
 	{ type: 'diaper', label: '尿布', icon: '💩' },
 	{ type: 'sleep', label: '睡觉', icon: '😴' },
-	{ type: 'height_weight', label: '身高体重', icon: '📏' },
+	{ type: 'height_weight', metric: 'height', label: '身高', icon: '📏' },
+	{ type: 'height_weight', metric: 'weight', label: '体重', icon: '⚖️' },
 	{ type: 'temperature', label: '体温', icon: '🌡️' },
 	{ type: 'vaccine', label: '疫苗', icon: '💉' },
 ]
@@ -21,8 +29,12 @@ export const diaperStatusLabel: Record<string, string> = {
 	both: '都有',
 }
 
-/** 某条明细记录的主要展示文案，如 "母乳 150ml" / "混合 · 母乳80ml + 奶粉60ml" / "尿了" / "睡了 1小时30分" */
-export function getRecordMainText(type: string, item: any): string {
+/** 某条明细记录的主要展示文案，如 "母乳 150ml" / "混合 · 母乳80ml + 奶粉60ml" / "尿了" / "睡了 1小时30分"；身高体重可传 metric 只展示对应一项 */
+export function getRecordMainText(
+	type: string,
+	item: any,
+	metric?: string | null,
+): string {
 	if (type === 'feeding') {
 		if (item.feedingMethod === 'mixed') {
 			return `混合 · 母乳${item.breastAmount || 0}ml + 奶粉${item.formulaAmount || 0}ml`
@@ -38,8 +50,8 @@ export function getRecordMainText(type: string, item: any): string {
 	}
 	if (type === 'height_weight') {
 		const parts: string[] = []
-		if (item.height != null) parts.push(`${item.height}cm`)
-		if (item.weight != null) parts.push(`${item.weight}kg`)
+		if (item.height != null && metric !== 'weight') parts.push(`${item.height}cm`)
+		if (item.weight != null && metric !== 'height') parts.push(`${item.weight}kg`)
 		return parts.join(' / ') || '-'
 	}
 	if (type === 'temperature') {
