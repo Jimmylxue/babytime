@@ -1,8 +1,10 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
+import { useBabyStore } from '../../stores/babyStore'
 import { userApi } from '../../utils/request'
+import babyFacePink from '../../assets/icons/baby-face-pink.svg'
 import './index.scss'
 
 export default function LoginPage() {
@@ -19,7 +21,6 @@ export default function LoginPage() {
 			const loginRes = await Taro.login()
 			const { code } = loginRes
 
-			console.log(loginRes)
 			const res = await userApi.login(code)
 
 			Taro.setStorageSync('token', res.data.token)
@@ -33,8 +34,19 @@ export default function LoginPage() {
 
 			Taro.showToast({ title: '登录成功', icon: 'success' })
 
-			setTimeout(() => {
-				Taro.switchTab({ url: '/pages/index/index' })
+			setTimeout(async () => {
+				// 新用户还没有宝宝档案时，先进引导页创建
+				try {
+					await useBabyStore.getState().fetchBabies()
+					const hasBaby = useBabyStore.getState().babies.length > 0
+					if (hasBaby) {
+						Taro.switchTab({ url: '/pages/index/index' })
+					} else {
+						Taro.redirectTo({ url: '/pages/onboarding/index' })
+					}
+				} catch {
+					Taro.switchTab({ url: '/pages/index/index' })
+				}
 			}, 1500)
 		} catch (error) {
 			Taro.showToast({ title: '登录失败', icon: 'none' })
@@ -53,27 +65,41 @@ export default function LoginPage() {
 
 	return (
 		<View className="login-page">
+			{/* 背景装饰 */}
+			<View className="login-deco login-deco-a" />
+			<View className="login-deco login-deco-b" />
+			<View className="login-deco login-deco-c" />
+
 			<View className="login-content">
 				<View className="logo-section">
 					<View className="logo-circle">
-						<Text className="logo-icon">👶</Text>
+						<Image className="logo-icon-img" src={babyFacePink} />
 					</View>
 					<Text className="app-title">育娃手记</Text>
 					<Text className="app-subtitle">记录宝宝成长的每一天</Text>
 				</View>
 
 				<View className="features">
-					<View className="feature-item">
-						<Text className="feature-icon">📝</Text>
-						<Text className="feature-text">3秒快速记录</Text>
+					<View className="feature-card">
+						<View className="feature-icon-wrap fi-1">
+							<Text>📝</Text>
+						</View>
+						<Text className="feature-text">快速记录</Text>
+						<Text className="feature-desc">吃睡玩一键记</Text>
 					</View>
-					<View className="feature-item">
-						<Text className="feature-icon">📈</Text>
-						<Text className="feature-text">数据统计分析</Text>
+					<View className="feature-card">
+						<View className="feature-icon-wrap fi-2">
+							<Text>📈</Text>
+						</View>
+						<Text className="feature-text">成长统计</Text>
+						<Text className="feature-desc">趋势一目了然</Text>
 					</View>
-					<View className="feature-item">
-						<Text className="feature-icon">👶</Text>
-						<Text className="feature-text">支持多宝宝</Text>
+					<View className="feature-card">
+						<View className="feature-icon-wrap fi-3">
+							<Text>👨‍👩‍👧</Text>
+						</View>
+						<Text className="feature-text">家庭共享</Text>
+						<Text className="feature-desc">全家一起看娃</Text>
 					</View>
 				</View>
 
@@ -81,6 +107,7 @@ export default function LoginPage() {
 					className={`login-btn ${!agreed ? 'login-btn-disabled' : ''}`}
 					onClick={handleLogin}
 				>
+					<Text className="login-btn-icon">💬</Text>
 					<Text className="login-btn-text">
 						{loading ? '登录中...' : '微信一键登录'}
 					</Text>

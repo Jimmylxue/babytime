@@ -740,3 +740,76 @@
   color: #fff;
   box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
 }
+
+// 未登录：示例数据提示横幅
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FFF7E8;
+  border: 2px solid rgba(255, 196, 163, 0.5);
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.demo-banner-emoji {
+  font-size: 28px;
+}
+
+.demo-banner-text {
+  flex: 1;
+  font-size: 24px;
+  color: #8A6D3B;
+  line-height: 1.4;
+}
+
+.demo-banner-btn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #FFA5B4, #FFC4A3);
+  border-radius: 28px;
+  padding: 10px 26px;
+  box-shadow: 0 6px 14px rgba(255, 165, 180, 0.3);
+}
+
+.demo-banner-btn-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+// 宝宝名字旁的示例徽章
+.baby-demo-badge {
+  background: rgba(45, 42, 46, 0.1);
+  border-radius: 10px;
+  padding: 4px 12px;
+  margin-left: 12px;
+}
+
+.baby-demo-badge-text {
+  font-size: 20px;
+  color: #8E8B82;
+}
+
+
+// 宝宝头像占位图标（SVG）
+.avatar-baby-icon {
+  width: 60px;
+  height: 60px;
+}
+
+// 未建档时的「去创建」按钮
+.baby-create-btn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #FFA5B4, #FFC4A3);
+  border-radius: 32px;
+  padding: 14px 28px;
+  box-shadow: 0 8px 18px rgba(255, 165, 180, 0.3);
+}
+
+.baby-create-btn-text {
+  font-size: 26px;
+  font-weight: 700;
+  color: #FFFFFF;
+}

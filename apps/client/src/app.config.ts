@@ -10,6 +10,7 @@ export default defineAppConfig({
     'pages/record-detail/index',
     'pages/photo/index',
     'pages/baby-edit/index',
+    'pages/onboarding/index',
     'pages/family/index',
     'pages/agreement/index',
     'pages/privacy/index',

@@ -3,7 +3,7 @@ import type { TodaySummary, DailyStat } from '../stores/recordStore'
 
 export const MOCK_BABY: Baby = {
   id: 'mock-baby-001',
-  name: '小宝',
+  name: '示例宝宝',
   gender: 'male',
   birthday: '2025-11-10',
   createdAt: '2025-11-10T00:00:00.000Z',

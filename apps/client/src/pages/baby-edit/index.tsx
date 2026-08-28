@@ -4,6 +4,8 @@ import { useState, useMemo, useRef } from 'react';
 import { useBabyStore } from '../../stores/babyStore';
 import { babyApi } from '../../utils/request';
 import { chooseAndUploadImage } from '../../utils/upload';
+import babyFacePink from '../../assets/icons/baby-face-pink.svg';
+import babyFaceBlue from '../../assets/icons/baby-face-blue.svg';
 import './index.scss';
 
 export default function BabyEditPage() {
@@ -108,7 +110,10 @@ export default function BabyEditPage() {
             <Image className="avatar-img" src={avatar} mode="aspectFill" />
           ) : (
             <View className={`avatar-placeholder ${gender}`}>
-              <Text className="avatar-icon">{gender === 'male' ? '👦' : '👧'}</Text>
+              <Image
+                className="avatar-icon-img"
+                src={gender === 'male' ? babyFaceBlue : babyFacePink}
+              />
             </View>
           )}
           <View className="avatar-badge">
@@ -137,14 +142,14 @@ export default function BabyEditPage() {
               className={`gender-option ${gender === 'male' ? 'active' : ''}`}
               onClick={() => setGender('male')}
             >
-              <Text className="gender-icon">👦</Text>
+              <Image className="gender-icon-img" src={babyFaceBlue} />
               <Text>男宝</Text>
             </View>
             <View
               className={`gender-option ${gender === 'female' ? 'active' : ''}`}
               onClick={() => setGender('female')}
             >
-              <Text className="gender-icon">👧</Text>
+              <Image className="gender-icon-img" src={babyFacePink} />
               <Text>女宝</Text>
             </View>
           </View>

@@ -14,6 +14,12 @@ import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi } from '../../utils/request'
 import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock'
+import babyFacePink from '../../assets/icons/baby-face-pink.svg'
+import babyFaceBlue from '../../assets/icons/baby-face-blue.svg'
+import {
+	hasAutoRedirectedToOnboarding,
+	markAutoRedirectedToOnboarding,
+} from '../../utils/onboarding'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -100,6 +106,10 @@ export default function Index() {
 				if (baby) {
 					fetchSummary(baby.id)
 					fetchStats(baby.id)
+				} else if (!hasAutoRedirectedToOnboarding()) {
+					// 已登录但没有宝宝档案，进引导页创建
+					markAutoRedirectedToOnboarding()
+					Taro.navigateTo({ url: '/pages/onboarding/index' })
 				}
 			})
 		}
@@ -147,7 +157,7 @@ export default function Index() {
 			return
 		}
 		if (!currentBaby) {
-			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
+			Taro.navigateTo({ url: '/pages/onboarding/index' })
 			return
 		}
 		if (type === 'photo') {
@@ -167,7 +177,7 @@ export default function Index() {
 			return
 		}
 		if (!currentBaby) {
-			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
+			Taro.navigateTo({ url: '/pages/onboarding/index' })
 			return
 		}
 		Taro.navigateTo({
@@ -182,7 +192,7 @@ export default function Index() {
 			return
 		}
 		if (!currentBaby) {
-			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
+			Taro.navigateTo({ url: '/pages/onboarding/index' })
 			return
 		}
 		Taro.navigateTo({
@@ -199,8 +209,29 @@ export default function Index() {
 
 	return (
 		<View className="page">
+			{/* 未登录：示例数据提示 */}
+			{!isLoggedIn && (
+				<View className="demo-banner">
+					<Text className="demo-banner-emoji">👀</Text>
+					<Text className="demo-banner-text">示例数据预览，登录后记录宝宝的成长</Text>
+					<View
+						className="demo-banner-btn"
+						onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
+					>
+						<Text className="demo-banner-btn-text">去登录</Text>
+					</View>
+				</View>
+			)}
+
 			{/* 宝宝档案 */}
-			<View className="baby-card">
+			<View
+				className="baby-card"
+				onClick={
+					isLoggedIn && !currentBaby
+						? () => Taro.navigateTo({ url: '/pages/onboarding/index' })
+						: undefined
+				}
+			>
 				<View className="baby-deco baby-deco-a" />
 				<View className="baby-deco baby-deco-b" />
 				<View className="baby-main">
@@ -212,14 +243,29 @@ export default function Index() {
 								mode="aspectFill"
 							/>
 						) : (
-							<Text>{displayBaby?.gender === 'male' ? '👦' : '👧'}</Text>
+							<Image
+								className="avatar-baby-icon"
+								src={
+									displayBaby?.gender === 'male'
+										? babyFaceBlue
+										: babyFacePink
+								}
+							/>
 						)}
 					</View>
 					<View className="baby-info">
 						<View className="baby-name-row">
 							<Text className="baby-name">
-								{displayBaby?.name || '未添加宝贝'}
+								{displayBaby?.name ||
+									(isLoggedIn && !currentBaby
+										? '为宝宝建立专属档案'
+										: '未添加宝贝')}
 							</Text>
+							{!isLoggedIn && displayBaby && (
+								<View className="baby-demo-badge">
+									<Text className="baby-demo-badge-text">示例</Text>
+								</View>
+							)}
 							{displayBaby && (
 								<View className={`baby-gender ${displayBaby.gender}`}>
 									<Text className="baby-gender-icon">
@@ -229,11 +275,18 @@ export default function Index() {
 							)}
 						</View>
 						<Text className="baby-age">
-							{displayAge
-								? `${displayAge.months}个月 ${displayAge.days}天`
-								: '添加宝宝档案后开始记录'}
+							{isLoggedIn && !currentBaby
+								? '记录吃奶、睡觉、换尿布，解锁成长统计'
+								: displayAge
+									? `${displayAge.months}个月 ${displayAge.days}天`
+									: '添加宝宝档案后开始记录'}
 						</Text>
 					</View>
+					{isLoggedIn && !currentBaby && (
+						<View className="baby-create-btn">
+							<Text className="baby-create-btn-text">去创建</Text>
+						</View>
+					)}
 				</View>
 
 				{(latestHeightWeight || latestTemperature) && (

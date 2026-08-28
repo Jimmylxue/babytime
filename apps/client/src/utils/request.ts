@@ -82,7 +82,7 @@ export const userApi = {
 			needToken: false, // 登录接口不需要 token
 		}),
 	getProfile: () => request<any>({ url: '/user/profile' }),
-	updateProfile: (data: { nickname?: string; avatar?: string }) =>
+	updateProfile: (data: { nickname?: string; avatar?: string; role?: string }) =>
 		request<any>({ url: '/user/update', method: 'POST', data }),
 }
 

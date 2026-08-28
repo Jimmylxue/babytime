@@ -2,6 +2,8 @@ import { View, Text, Image } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useBabyStore, Baby } from '../../stores/babyStore';
 import { calculateAge, formatDate } from '../../utils/date';
+import babyFacePink from '../../assets/icons/baby-face-pink.svg';
+import babyFaceBlue from '../../assets/icons/baby-face-blue.svg';
 import './index.scss';
 
 definePageConfig({
@@ -55,7 +57,7 @@ export default function BabyPage() {
       <View className="baby-list">
         {babies.length === 0 ? (
           <View className="empty-state">
-            <Text className="empty-icon">👶</Text>
+            <Image className="empty-icon-img" src={babyFacePink} />
             <Text className="empty-text">还没有添加宝贝</Text>
             <Text className="empty-desc">点击右上角 + 号添加</Text>
           </View>
@@ -69,7 +71,10 @@ export default function BabyPage() {
                     {baby.avatar ? (
                       <Image className="avatar-img" src={baby.avatar} mode="aspectFill" />
                     ) : (
-                      <Text>{baby.gender === 'male' ? '👦' : '👧'}</Text>
+                      <Image
+                        className="avatar-baby-icon"
+                        src={baby.gender === 'male' ? babyFaceBlue : babyFacePink}
+                      />
                     )}
                   </View>
                   <View className="baby-detail">

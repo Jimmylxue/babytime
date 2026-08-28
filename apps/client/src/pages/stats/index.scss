@@ -698,3 +698,40 @@
 .vaccine-custom-list-title { margin-bottom: 8px; color: #4B4747; font-size: 26px; font-weight: 700; }
 .vaccine-custom-list-item { display: flex; justify-content: space-between; padding: 16px 0; border-top: 1px solid #F2EEE8; color: #77716B; font-size: 22px; }
 .vaccine-plan-empty { padding: 64px 0; color: #A8A59E; font-size: 24px; text-align: center; }
+
+// 示例数据提示横幅（未登录 / 未创建宝宝）
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FFF7E8;
+  border: 2px solid rgba(255, 196, 163, 0.5);
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.demo-banner-emoji {
+  font-size: 28px;
+}
+
+.demo-banner-text {
+  flex: 1;
+  font-size: 24px;
+  color: #8A6D3B;
+  line-height: 1.4;
+}
+
+.demo-banner-btn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #FFA5B4, #FFC4A3);
+  border-radius: 28px;
+  padding: 10px 26px;
+  box-shadow: 0 6px 14px rgba(255, 165, 180, 0.3);
+}
+
+.demo-banner-btn-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #FFFFFF;
+}

@@ -5,6 +5,12 @@ import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { userApi } from '../../utils/request'
 import { chooseAndUploadImage } from '../../utils/upload'
+import babyIcon from '../../assets/icons/baby.svg'
+import familyIcon from '../../assets/icons/family.svg'
+import agreementIcon from '../../assets/icons/agreement.svg'
+import privacyIcon from '../../assets/icons/privacy.svg'
+import logoutIcon from '../../assets/icons/logout.svg'
+import parentIcon from '../../assets/icons/parent.svg'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -17,9 +23,15 @@ export default function MinePage() {
 	const [editRole, setEditRole] = useState('')
 
 	useDidShow(() => {
-		fetchProfile()
-		fetchBabies()
+		if (isLoggedIn) {
+			fetchProfile()
+			fetchBabies()
+		}
 	})
+
+	const goLogin = () => {
+		Taro.navigateTo({ url: '/pages/login/index' })
+	}
 
 	const fetchProfile = async () => {
 		try {
@@ -101,26 +113,38 @@ export default function MinePage() {
 	if (!isLoggedIn) {
 		return (
 			<View className="mine-page">
-				{/* 未登录引导 */}
-				<View className="mine-hd" onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}>
-					<View className="mine-avatar">
-						<Text className="mine-avatar-emoji">👨‍🍼</Text>
+				{/* 未登录：Hero 引导卡 */}
+				<View className="mine-hero">
+					<View className="mine-deco mine-deco-a" />
+					<View className="mine-deco mine-deco-b" />
+					<View className="mine-user" onClick={goLogin}>
+						<View className="mine-avatar">
+							<Image className="mine-avatar-icon" src={parentIcon} />
+						</View>
+						<View className="mine-info">
+							<Text className="mine-name">未登录</Text>
+							<Text className="mine-edit-tip">登录后开启记录之旅 ›</Text>
+						</View>
 					</View>
-					<View className="mine-info">
-						<Text className="mine-name">点击登录</Text>
-						<Text className="mine-edit-tip">登录后享受完整功能 ›</Text>
-					</View>
-				</View>
 
-				<View className="mine-card">
-					<View className="mine-item" onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}>
-						<View className="mi-icon mi-icon-1">
-							<Text>🔑</Text>
+					{/* 卖点 */}
+					<View className="mine-perks">
+						<View className="perk">
+							<Text className="perk-icon">☁️</Text>
+							<Text className="perk-text">云端记录</Text>
 						</View>
-						<Text className="mi-text">立即登录</Text>
-						<View className="mi-right">
-							<Text className="mi-arrow">›</Text>
+						<View className="perk">
+							<Text className="perk-icon">📈</Text>
+							<Text className="perk-text">成长统计</Text>
 						</View>
+						<View className="perk">
+							<Text className="perk-icon">👨‍👩‍👧</Text>
+							<Text className="perk-text">家庭共享</Text>
+						</View>
+					</View>
+
+					<View className="mine-login-btn" onClick={goLogin}>
+						<Text className="mine-login-btn-text">微信一键登录</Text>
 					</View>
 				</View>
 
@@ -137,40 +161,49 @@ export default function MinePage() {
 	return (
 		<View className="mine-page">
 			{/* 个人信息头部 - 点击打开编辑 */}
-			<View className="mine-hd" onClick={handleOpenEdit}>
-				<View className="mine-avatar">
-					{userInfo?.avatar ? (
-						<Image
-							className="mine-avatar-img"
-							src={userInfo.avatar}
-							mode="aspectFill"
-						/>
-					) : (
-						<Text className="mine-avatar-emoji">👨‍🍼</Text>
-					)}
-					<View className="mine-avatar-badge">
-						<Text className="mine-avatar-badge-icon">📷</Text>
+			<View className="mine-hero">
+				<View className="mine-deco mine-deco-a" />
+				<View className="mine-deco mine-deco-b" />
+				<View className="mine-user" onClick={handleOpenEdit}>
+					<View className="mine-avatar">
+						{userInfo?.avatar ? (
+							<Image
+								className="mine-avatar-img"
+								src={userInfo.avatar}
+								mode="aspectFill"
+							/>
+						) : (
+							<Image className="mine-avatar-icon" src={parentIcon} />
+						)}
+						<View className="mine-avatar-badge">
+							<Text className="mine-avatar-badge-icon">📷</Text>
+						</View>
 					</View>
-				</View>
-				<View className="mine-info">
-					<Text className="mine-name">
-						{userInfo?.nickname || '点击设置昵称'}
-					</Text>
-					{userInfo?.role && (
-						<Text className="mine-role">{getRoleText(userInfo.role)}</Text>
-					)}
-					<Text className="mine-edit-tip">点击编辑个人信息 ›</Text>
+					<View className="mine-info">
+						<Text className="mine-name">
+							{userInfo?.nickname || '点击设置昵称'}
+						</Text>
+						<View className="mine-meta">
+							{userInfo?.role && (
+								<Text className="mine-role">{getRoleText(userInfo.role)}</Text>
+							)}
+							<Text className="mine-edit-tip">编辑资料 ›</Text>
+						</View>
+					</View>
 				</View>
 			</View>
 
 			{/* 宝贝与家庭 */}
+			<View className="mine-section-label">
+				<Text>宝贝与家庭</Text>
+			</View>
 			<View className="mine-card">
 				<View
 					className="mine-item"
 					onClick={() => Taro.navigateTo({ url: '/pages/baby/index' })}
 				>
 					<View className="mi-icon mi-icon-1">
-						<Text>👶</Text>
+						<Image className="mi-icon-img" src={babyIcon} />
 					</View>
 					<Text className="mi-text">宝贝信息</Text>
 					<View className="mi-right">
@@ -182,7 +215,7 @@ export default function MinePage() {
 				</View>
 				<View className="mine-item" onClick={() => Taro.navigateTo({ url: '/pages/family/index' })}>
 					<View className="mi-icon mi-icon-2">
-						<Text>👨‍👩‍👧</Text>
+						<Image className="mi-icon-img" src={familyIcon} />
 					</View>
 					<Text className="mi-text">家庭成员</Text>
 					<View className="mi-right">
@@ -191,11 +224,42 @@ export default function MinePage() {
 				</View>
 			</View>
 
-			{/* 其他 */}
+			{/* 通用 */}
+			<View className="mine-section-label">
+				<Text>通用</Text>
+			</View>
+			<View className="mine-card">
+				<View
+					className="mine-item"
+					onClick={() => Taro.navigateTo({ url: '/pages/agreement/index' })}
+				>
+					<View className="mi-icon mi-icon-3">
+						<Image className="mi-icon-img" src={agreementIcon} />
+					</View>
+					<Text className="mi-text">用户协议</Text>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</View>
+				<View
+					className="mine-item"
+					onClick={() => Taro.navigateTo({ url: '/pages/privacy/index' })}
+				>
+					<View className="mi-icon mi-icon-4">
+						<Image className="mi-icon-img" src={privacyIcon} />
+					</View>
+					<Text className="mi-text">隐私政策</Text>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</View>
+			</View>
+
+			{/* 退出登录 */}
 			<View className="mine-card">
 				<View className="mine-item" onClick={handleLogout}>
 					<View className="mi-icon mi-icon-danger">
-						<Text>🚪</Text>
+						<Image className="mi-icon-img" src={logoutIcon} />
 					</View>
 					<Text className="mi-text mi-text-danger">退出登录</Text>
 					<View className="mi-right">

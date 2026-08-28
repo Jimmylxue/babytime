@@ -803,6 +803,32 @@ export default function StatsPage() {
 
 	return (
 		<View className="page">
+			{/* 未登录或未创建宝宝时，正在展示示例数据 */}
+			{(!isLoggedIn || !currentBaby) && (
+				<View className="demo-banner">
+					<Text className="demo-banner-emoji">👀</Text>
+					<Text className="demo-banner-text">
+						{isLoggedIn
+							? '示例数据预览，创建宝宝档案后展示真实统计'
+							: '示例数据预览，登录后记录宝宝的成长'}
+					</Text>
+					<View
+						className="demo-banner-btn"
+						onClick={() =>
+							Taro.navigateTo({
+								url: isLoggedIn
+									? '/pages/onboarding/index'
+									: '/pages/login/index',
+							})
+						}
+					>
+						<Text className="demo-banner-btn-text">
+							{isLoggedIn ? '去创建' : '去登录'}
+						</Text>
+					</View>
+				</View>
+			)}
+
 			{/* 最新数据 */}
 			<View className="latest-section">
 				<Text className="section-title">最新数据</Text>

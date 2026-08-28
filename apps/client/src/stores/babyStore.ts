@@ -17,7 +17,12 @@ interface BabyState {
   loading: boolean;
   fetchBabies: () => Promise<void>;
   setCurrentBaby: (baby: Baby) => void;
-  addBaby: (baby: { name: string; gender: 'male' | 'female'; birthday: string }) => Promise<void>;
+  addBaby: (baby: {
+    name: string;
+    gender: 'male' | 'female';
+    birthday: string;
+    avatar?: string;
+  }) => Promise<Baby>;
   updateBaby: (id: string, data: Partial<Baby>) => Promise<void>;
   deleteBaby: (id: string) => Promise<void>;
 }
@@ -60,6 +65,7 @@ export const useBabyStore = create<BabyState>((set, get) => ({
       babies: [newBaby, ...state.babies],
       currentBaby: state.babies.length === 0 ? newBaby : state.currentBaby,
     }));
+    return newBaby;
   },
 
   updateBaby: async (id, data) => {
