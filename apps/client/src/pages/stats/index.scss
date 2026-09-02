@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  background: #FFFDF9;
+  background: #FFFAF9;
   padding: 32px 24px 140px;
 }
 
@@ -282,7 +282,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #FFFDF9;
+  background: #FFFAF9;
   border-radius: 20px;
   padding: 20px 12px;
 }
@@ -771,4 +771,73 @@
   font-size: 24px;
   font-weight: 700;
   color: #FFFFFF;
+}
+
+// 总结卡片「较昨日」对比
+.summary-tile-delta {
+  margin-top: 8px;
+  font-size: 20px;
+  color: #B8B5AC;
+}
+
+// 身高体重：趋势/成长曲线视图切换
+.growth-view-toggle {
+  margin-left: auto;
+  display: flex;
+  background: #F7F5F0;
+  border-radius: 28px;
+  padding: 4px;
+}
+
+.gvt-item {
+  padding: 8px 22px;
+  border-radius: 24px;
+  font-size: 23px;
+  color: #8E8B82;
+
+  &.active {
+    background: #FFFFFF;
+    color: #FF8FA9;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(45, 42, 46, 0.08);
+  }
+}
+
+// 图表卡片右上角：保存/分享按钮
+.chart-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.chart-action-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #FFF0F4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-action-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.who-disclaimer {
+  display: block;
+  margin-top: 16px;
+  font-size: 21px;
+  color: #B8B5AC;
+  line-height: 1.5;
+}
+
+// 图表分享海报的离屏画布：负偏移移出屏幕
+// 导出直接取整张位图（不依赖 CSS 尺寸），画布显示在哪、多大都不影响结果
+// 宽高必须用内联样式，scss 的 px 会被 Taro 编译成 rpx
+.poster-canvas-wrap {
+  position: fixed;
+  top: 0;
+  left: -9999px;
 }

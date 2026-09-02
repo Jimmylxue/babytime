@@ -81,6 +81,9 @@ export interface DetailSummary {
   totalAmount?: number;
   totalDuration?: number;
   avgIntervalMinutes: number | null;
+  latestHeight?: number | null;
+  latestWeight?: number | null;
+  latestTemperature?: number | null;
 }
 
 export interface DetailPagination {

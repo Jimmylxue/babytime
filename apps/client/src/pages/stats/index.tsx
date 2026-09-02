@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Picker, Image } from '@tarojs/components'
+import {View, Text, ScrollView, Picker, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../stores/authStore'
@@ -32,6 +32,15 @@ import {
 	VaccineScheduleItem,
 } from '../../utils/vaccineSchedule'
 import TabBar from '../../components/TabBar'
+import LineChart, { LineChartPoint } from '../../components/LineChart'
+import BarChart from '../../components/BarChart'
+import GrowthCurveChart from '../../components/GrowthCurveChart'
+import {
+	deliverChartPoster,
+	ChartPosterOptions,
+} from '../../utils/chartExport'
+import downloadIcon from '../../assets/icons/download.svg'
+import shareIcon from '../../assets/icons/share.svg'
 import './index.scss'
 
 function isToday(dateStr: string): boolean {
@@ -93,6 +102,14 @@ export default function StatsPage() {
 	// 若直接读 store，从明细页返回时会把"今日总结"的次数和列表覆盖成明细页的数据
 	const [dayItems, setDayItems] = useState<DetailRecord[]>([])
 	const [daySummary, setDaySummary] = useState<DetailSummary | null>(null)
+	// 前一日汇总，用于总结卡片的「较昨日」对比
+	const [prevDaySummary, setPrevDaySummary] = useState<DetailSummary | null>(
+		null,
+	)
+	// 身高体重页签的视图：近 N 天趋势 / WHO 成长曲线
+	const [growthView, setGrowthView] = useState<'trend' | 'who'>('trend')
+	// 成长曲线用全量身高体重历史（stats 接口无 days 上限）
+	const [whoSeries, setWhoSeries] = useState<HeightWeightTrendPoint[]>([])
 	const [growthChartRatio, setGrowthChartRatio] = useState(0.46)
 	const [vaccineRecords, setVaccineRecords] = useState<VaccineRecord[]>([])
 
@@ -109,11 +126,19 @@ export default function StatsPage() {
 	) => {
 		const metric =
 			type === 'height_weight' ? activeMetric || undefined : undefined
-		await Promise.all([
-			fetchDetail(babyId, type, { date, metric }),
-			fetchDetailSummary(babyId, type, { date, metric }),
-		])
+		// store 的 detailSummary 是单值，前一日和当日只能串行取：先取前一日（较昨日对比用），再取当日覆盖
+		await fetchDetail(babyId, type, { date, metric })
 		setDayItems(useRecordStore.getState().detailItems)
+		try {
+			await fetchDetailSummary(babyId, type, {
+				date: shiftDate(date, -1),
+				metric,
+			})
+			setPrevDaySummary(useRecordStore.getState().detailSummary)
+		} catch {
+			setPrevDaySummary(null)
+		}
+		await fetchDetailSummary(babyId, type, { date, metric })
 		setDaySummary(useRecordStore.getState().detailSummary)
 	}
 
@@ -147,8 +172,27 @@ export default function StatsPage() {
 		}
 	}, [isLoggedIn, currentBaby?.id, activeType])
 
+	// 进入「成长曲线」视图时拉取全量身高体重历史
 	useEffect(() => {
-		if (activeType !== 'height_weight' && activeType !== 'temperature') return
+		if (
+			!isLoggedIn ||
+			!currentBaby ||
+			activeType !== 'height_weight' ||
+			growthView !== 'who'
+		) {
+			return
+		}
+		recordApi
+			.getStats(currentBaby.id, 1100)
+			.then(res => {
+				setWhoSeries(res.data?.heightWeightTrend || [])
+			})
+			.catch(() => setWhoSeries([]))
+	}, [isLoggedIn, currentBaby?.id, activeType, growthView])
+
+	useEffect(() => {
+		// 宽高比只被温度趋势图使用（身高/体重已改为 Canvas 绘制）
+		if (activeType !== 'temperature') return
 		Taro.nextTick(() => {
 			Taro.createSelectorQuery()
 				.select('.line-chart')
@@ -221,9 +265,62 @@ export default function StatsPage() {
 			}
 		}
 
-	const getMaxValue = (stats: DailyStat[], key: keyof DailyStat) => {
-		return Math.max(...stats.map(s => (s[key] as number) || 0), 1)
+	// 海报头部统计周期文案
+	const dateRangeText = (() => {
+		const end = new Date()
+		const start = new Date()
+		start.setDate(end.getDate() - days + 1)
+		const f = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
+		return `${f(start)} - ${f(end)}`
+	})()
+	const genderText = currentBaby
+		? currentBaby.gender === 'male'
+			? '男宝'
+			: '女宝'
+		: undefined
+
+	// 生成带宝宝信息的分享海报，并保存/分享
+	const handleChartExport = async (
+		opts: ChartPosterOptions,
+		action: 'save' | 'share',
+	) => {
+		try {
+			await deliverChartPoster(opts, action)
+		} catch (error) {
+			Taro.showToast({ title: '操作失败，请重试', icon: 'none' })
+		}
 	}
+
+	// 成长曲线的实测点：全量历史中的真实测量值换算为月龄
+	const babyCurvePoints =
+		currentBaby && growthView === 'who'
+			? whoSeries
+					.filter(point => point[growthMetric] != null)
+					.map(point => ({
+						ageMonths:
+							(new Date(point.date).getTime() -
+								new Date(currentBaby.birthday).getTime()) /
+							(30.4375 * 24 * 3600 * 1000),
+						value: point[growthMetric] as number,
+					}))
+			: []
+
+	const renderChartActions = (posterOpts: ChartPosterOptions) => (
+		<View className="chart-actions">
+			<View
+				className="chart-action-btn"
+				onClick={() => handleChartExport(posterOpts, 'share')}
+			>
+				<Image className="chart-action-icon" src={shareIcon} />
+			</View>
+			<View
+				className="chart-action-btn"
+				onClick={() => handleChartExport(posterOpts, 'save')}
+			>
+				<Image className="chart-action-icon" src={downloadIcon} />
+			</View>
+		</View>
+	)
 
 	const renderBarChart = (
 		stats: DailyStat[],
@@ -231,38 +328,123 @@ export default function StatsPage() {
 		label: string,
 		unit: string = '',
 	) => {
-		const maxValue = getMaxValue(stats, key)
 		const dayLabels = ['日', '一', '二', '三', '四', '五', '六']
+		// 单位放到标题里，柱顶只留数字，避免相邻标签拥挤
+		const points = stats.map(stat => {
+			const value = (stat[key] as number) || 0
+			let display = ''
+			if (value > 0) {
+				if (unit === '时') {
+					// 睡眠分钟数转为小时，去掉多余的 .0
+					display = (value / 60).toFixed(1).replace(/\.0$/, '')
+				} else {
+					display = `${value}`
+				}
+			}
+			return {
+				value,
+				display,
+				label: dayLabels[new Date(stat.date).getDay()],
+			}
+		})
+		// 「次数」类标题本身已含单位，不再重复；奶量/时长把单位标在标题上
+		const titleSuffix =
+			unit && unit !== '次' ? ` (${unit === '时' ? '小时' : unit})` : ''
+
+		const total = displayDailyStats.reduce(
+			(sum, stat) => sum + ((stat[key] as number) || 0),
+			0,
+		)
+		const avgPerDay = (total / days).toFixed(1)
+		// 日期范围直接取自数据首尾，保证与图表内容永远一致
+		// 兼容 YYYY-MM-DD 与 ISO 带时间两种格式
+		const fmtShort = (d: string) => {
+			if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+				const [, m, dd] = d.split('-')
+				return `${+m}/${+dd}`
+			}
+			const date = new Date(d)
+			return `${date.getMonth() + 1}/${date.getDate()}`
+		}
+		const dataRangeText = stats.length
+			? `${fmtShort(stats[0].date)} – ${fmtShort(stats[stats.length - 1].date)}`
+			: dateRangeText
+		const rangeWord = days === 7 ? '本周' : `近${days}天`
+
+		let metaTexts: string[]
+		let reviewText: string
+		if (key === 'totalMilk') {
+			metaTexts = [`近${days}天共 ${total}ml`, `日均 ${Math.round(total / days)}ml`]
+			reviewText = `${rangeWord}奶量稳定，日均 ${Math.round(total / days)}ml，宝宝吃得棒棒哒！`
+		} else if (key === 'sleepTotal') {
+			metaTexts = [`近${days}天共 ${formatDurationLong(total)}`]
+			reviewText = `${rangeWord}累计睡眠 ${formatDurationLong(total)}，睡得好的宝宝才能长得好～`
+		} else if (key === 'diaperCount') {
+			metaTexts = [`近${days}天共 ${total} 次`]
+			reviewText = `${rangeWord}共更换尿布 ${total} 次，小屁屁保持干爽，照顾得很细心～`
+		} else {
+			metaTexts = [`近${days}天共 ${total} 次`, `日均 ${avgPerDay} 次`]
+			reviewText = `${rangeWord}喂奶规律，日均 ${avgPerDay} 次，宝宝吃得棒棒哒！`
+		}
+
+		// 7 天：日粒度柱状图；14/30 天柱子会互相重叠，改用趋势折线表达
+		const posterOpts: ChartPosterOptions =
+			days <= 7
+				? {
+						kind: 'bar',
+						title: `${label}${titleSuffix}`,
+						babyName: currentBaby?.name,
+						avatarUrl: currentBaby?.avatar,
+						genderText,
+						rangeText: dataRangeText,
+						metaTexts,
+						reviewTitle: '本周小结',
+						reviewText,
+						data: {
+							points,
+							color: '#FF8FA9',
+							showYAxis: true,
+							unit: unit === '时' ? '小时' : unit || undefined,
+							barWidth: 18,
+						},
+					}
+				: {
+						kind: 'line',
+						title: `${label}${titleSuffix}`,
+						babyName: currentBaby?.name,
+						avatarUrl: currentBaby?.avatar,
+						genderText,
+						rangeText: dataRangeText,
+						metaTexts,
+						reviewTitle: `近${days}天小结`,
+						reviewText,
+						data: {
+							points: stats.map(stat => {
+								const value = (stat[key] as number) || 0
+								const [, m, dd] = stat.date.split('-')
+								return {
+									value,
+									label: `${+m}/${+dd}`,
+									measured: value > 0,
+								}
+							}),
+							unit: unit === '时' ? '小时' : unit,
+							minSpan: key === 'totalMilk' ? 50 : 1,
+							color: '#FF8FA9',
+						},
+					}
 
 		return (
 			<View className="chart-card">
-				<Text className="chart-title">{label}</Text>
+				<View className="growth-chart-header">
+					<Text className="chart-title">
+						{label}
+						{titleSuffix}
+					</Text>
+					{renderChartActions(posterOpts)}
+				</View>
 				<ScrollView scrollX className="chart-scroll-view" showScrollbar={false}>
-					<View className="chart-container">
-						{stats.map(stat => {
-							const value = (stat[key] as number) || 0
-							const height = maxValue > 0 ? (value / maxValue) * 100 : 0
-							const date = new Date(stat.date)
-							const dayName = dayLabels[date.getDay()]
-
-							return (
-								<View key={stat.date} className="bar-group">
-									<View className="bar-wrapper">
-										<View className="bar" style={{ height: `${height}%` }}>
-											{value > 0 && (
-												<Text className="bar-value">
-													{unit === '时'
-														? formatDuration(value)
-														: `${value}${unit}`}
-												</Text>
-											)}
-										</View>
-									</View>
-									<Text className="bar-label">{dayName}</Text>
-								</View>
-							)
-						})}
-					</View>
+					<BarChart canvasId={`bar-${key}-chart`} points={points} />
 				</ScrollView>
 			</View>
 		)
@@ -358,12 +540,20 @@ export default function StatsPage() {
 		})
 	}
 
+	const fmtShort2 = (d: string) => {
+		if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+			const [, m, dd] = d.split('-')
+			return `${+m}/${+dd}`
+		}
+		const date = new Date(d)
+		return `${date.getMonth() + 1}/${date.getDate()}`
+	}
+
 	const renderHeightWeightLineChart = (
 		points: HeightWeightTrendPoint[],
 		key: 'height' | 'weight',
 		label: string,
 		unit: string,
-		lineClassName: string,
 	) => {
 		const values = points
 			.map(point => point[key])
@@ -378,97 +568,67 @@ export default function StatsPage() {
 		)
 		const lowerBound = minValue - padding
 		const upperBound = maxValue + padding
-		const range = upperBound - lowerBound || 1
-		const plotPoints = points
-			.map((point, index) => {
-				const value = point[key]
-				if (value == null) return null
-				return {
-					...point,
-					value,
-					x: points.length === 1 ? 50 : (index / (points.length - 1)) * 100,
-					y: ((value - lowerBound) / range) * 100,
-				}
-			})
-			.filter((point): point is NonNullable<typeof point> => point != null)
 
-		return (
-			<View className="chart-card growth-chart-card">
-				<View className="growth-chart-header">
-					<Text className="chart-title">{label}</Text>
-					<Text className="growth-chart-range">
-						{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}
-						{unit}
-					</Text>
-				</View>
-				<View className="growth-chart line-chart">
-					<View className="growth-grid-line growth-grid-line-top" />
-					<View className="growth-grid-line growth-grid-line-middle" />
-					<View className="growth-grid-line growth-grid-line-bottom" />
-					{points.map((point, index) => {
-						const showDate =
-							points.length <= 7 ||
-							index === 0 ||
-							index === points.length - 1 ||
-							index % Math.ceil(points.length / 6) === 0
-						return (
-							showDate && (
-								<Text
-									key={`${point.date}-date-${key}`}
-									className="growth-date"
-									style={{
-										left: `${points.length === 1 ? 50 : (index / (points.length - 1)) * 100}%`,
-									}}
-								>
-									{formatDate(point.date).slice(5)}
-								</Text>
-							)
-						)
-					})}
-					{plotPoints.map((point, index) => {
-						const previous = plotPoints[index - 1]
-						const dx = previous ? point.x - previous.x : 0
-						const dy = previous ? point.y - previous.y : 0
-						const angle = previous
-							? -Math.atan2(dy * growthChartRatio, dx) * (180 / Math.PI)
-							: 0
-						const length = previous
-							? Math.sqrt(
-									dx * dx + dy * growthChartRatio * (dy * growthChartRatio),
-								)
-							: 0
-						const measured =
+		const lastValue = points[points.length - 1][key] as number
+		const metricLabel = key === 'height' ? '身高' : '体重'
+		const firstMeasured = points.find(
+			point =>
+				key === 'height'
+					? (point as GrowthSeriesPoint).heightMeasured
+					: (point as GrowthSeriesPoint).weightMeasured,
+		)?.[key] as number | undefined
+		const reviewText =
+			firstMeasured != null
+				? `近${days}天${metricLabel}从 ${firstMeasured.toFixed(1)}${unit} 到 ${lastValue.toFixed(1)}${unit}，宝宝在稳稳长大～`
+				: `近${days}天${metricLabel}最新 ${lastValue.toFixed(1)}${unit}，宝宝在稳稳长大～`
+		const whoRangeText = displayHeightWeightSeries.length
+			? `${fmtShort2(displayHeightWeightSeries[0].date)} – ${fmtShort2(displayHeightWeightSeries[displayHeightWeightSeries.length - 1].date)}`
+			: dateRangeText
+		const posterOpts: ChartPosterOptions = {
+			kind: 'line',
+			title: label,
+			babyName: currentBaby?.name,
+			avatarUrl: currentBaby?.avatar,
+			genderText,
+			rangeText: whoRangeText,
+			metaTexts: [`近${days}天`, `最新 ${lastValue.toFixed(1)}${unit}`],
+			reviewTitle: `近${days}天小结`,
+			reviewText,
+			data: {
+				points: points.map(point => {
+					const d = new Date(point.date)
+					return {
+						value: point[key] as number,
+						label: `${d.getMonth() + 1}/${d.getDate()}`,
+						measured:
 							key === 'height'
 								? (point as GrowthSeriesPoint).heightMeasured
-								: (point as GrowthSeriesPoint).weightMeasured
-						return (
-							<View key={`${point.date}-${key}`}>
-								{previous && (
-									<View
-										className={`growth-line ${lineClassName}`}
-										style={{
-											left: `${previous.x}%`,
-											bottom: `${previous.y}%`,
-											width: `${length}%`,
-											transform: `rotate(${angle}deg)`,
-										}}
-									/>
-								)}
-								{measured && (
-									<View
-										className={`growth-point ${lineClassName}`}
-										style={{ left: `${point.x}%`, bottom: `${point.y}%` }}
-									>
-										<Text className="growth-value">
-											{point.value}
-											{unit}
-										</Text>
-									</View>
-								)}
-							</View>
-						)
-					})}
+								: (point as GrowthSeriesPoint).weightMeasured,
+					}
+				}),
+				unit,
+				minSpan: key === 'height' ? 1 : 0.2,
+			},
+		}
+
+		return (
+			<View className='chart-card growth-chart-card'>
+				<View className='growth-chart-header'>
+					<Text className='chart-title'>{label}</Text>
+					<View className='chart-actions'>
+						<Text className='growth-chart-range'>
+							{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}
+							{unit}
+						</Text>
+						{renderChartActions(posterOpts)}
+					</View>
 				</View>
+				<LineChart
+					canvasId={`growth-${key}-chart`}
+					unit={unit}
+					minSpan={key === 'height' ? 1 : 0.2}
+					points={posterOpts.data.points as LineChartPoint[]}
+				/>
 			</View>
 		)
 	}
@@ -743,12 +903,42 @@ export default function StatsPage() {
 			? formatDuration(summary.avgIntervalMinutes)
 			: '-'
 
-	let summaryTiles: { label: string; value: string }[]
+	// 「较昨日」对比文案：昨日无数据或今日昨日都为 0 时不展示
+	const buildDelta = (
+		today: number | null | undefined,
+		yesterday: number | null | undefined,
+		format: (abs: number) => string = n => `${n}`,
+	): string | undefined => {
+		if (prevDaySummary == null) return undefined
+		if (today == null || yesterday == null) return undefined
+		if (today === 0 && yesterday === 0) return undefined
+		const diff = today - yesterday
+		if (diff === 0) return '较昨日 持平'
+		return `较昨日 ${diff > 0 ? '+' : '-'}${format(Math.abs(diff))}`
+	}
+
+	let summaryTiles: { label: string; value: string; delta?: string }[]
 	if (activeType === 'feeding') {
 		summaryTiles = [
-			{ label: '总次数', value: `${summary?.count ?? 0}次` },
-			{ label: '总奶量', value: `${summary?.totalAmount ?? 0}ml` },
-			{ label: '平均间隔', value: avgIntervalText },
+			{
+				label: '总次数',
+				value: `${summary?.count ?? 0}次`,
+				delta: buildDelta(summary?.count, prevDaySummary?.count),
+			},
+			{
+				label: '总奶量',
+				value: `${summary?.totalAmount ?? 0}ml`,
+				delta: buildDelta(summary?.totalAmount, prevDaySummary?.totalAmount, n => `${n}ml`),
+			},
+			{
+				label: '平均间隔',
+				value: avgIntervalText,
+				delta: buildDelta(
+					summary?.avgIntervalMinutes,
+					prevDaySummary?.avgIntervalMinutes,
+					formatDuration,
+				),
+			},
 		]
 	} else if (activeType === 'diaper') {
 		const breakdown = displayItems.reduce(
@@ -765,9 +955,21 @@ export default function StatsPage() {
 		if (breakdown.dirty > 0) breakdownParts.push(`拉${breakdown.dirty}`)
 		if (breakdown.both > 0) breakdownParts.push(`都有${breakdown.both}`)
 		summaryTiles = [
-			{ label: '总次数', value: `${summary?.count ?? 0}次` },
+			{
+				label: '总次数',
+				value: `${summary?.count ?? 0}次`,
+				delta: buildDelta(summary?.count, prevDaySummary?.count),
+			},
 			{ label: '类型分布', value: breakdownParts.join(' ') || '-' },
-			{ label: '平均间隔', value: avgIntervalText },
+			{
+				label: '平均间隔',
+				value: avgIntervalText,
+				delta: buildDelta(
+					summary?.avgIntervalMinutes,
+					prevDaySummary?.avgIntervalMinutes,
+					formatDuration,
+				),
+			},
 		]
 	} else if (activeType === 'height_weight') {
 		// 后端已按当前指标过滤，汇总次数可覆盖完整结果集。
@@ -775,45 +977,97 @@ export default function StatsPage() {
 		summaryTiles =
 			growthMetric === 'weight'
 				? [
-						{ label: '测量次数', value: metricCount },
+						{
+							label: '测量次数',
+							value: metricCount,
+							delta: buildDelta(summary?.count, prevDaySummary?.count),
+						},
 						{
 							label: '最新体重',
 							value:
 								summary?.latestWeight != null
 									? `${summary.latestWeight}kg`
 									: '-',
+							delta: buildDelta(
+								summary?.latestWeight,
+								prevDaySummary?.latestWeight,
+								n => `${n.toFixed(1)}kg`,
+							),
 						},
 					]
 				: [
-						{ label: '测量次数', value: metricCount },
+						{
+							label: '测量次数',
+							value: metricCount,
+							delta: buildDelta(summary?.count, prevDaySummary?.count),
+						},
 						{
 							label: '最新身高',
 							value:
 								summary?.latestHeight != null
 									? `${summary.latestHeight}cm`
 									: '-',
+							delta: buildDelta(
+								summary?.latestHeight,
+								prevDaySummary?.latestHeight,
+								n => `${n.toFixed(1)}cm`,
+							),
 						},
 					]
 	} else if (activeType === 'temperature') {
 		summaryTiles = [
-			{ label: '总次数', value: `${summary?.count ?? 0}次` },
+			{
+				label: '总次数',
+				value: `${summary?.count ?? 0}次`,
+				delta: buildDelta(summary?.count, prevDaySummary?.count),
+			},
 			{
 				label: '最新体温',
 				value:
 					summary?.latestTemperature != null
 						? `${summary.latestTemperature}°C`
 						: '-',
+				delta: buildDelta(
+					summary?.latestTemperature,
+					prevDaySummary?.latestTemperature,
+					n => `${n.toFixed(1)}℃`,
+				),
 			},
-			{ label: '平均间隔', value: avgIntervalText },
+			{
+				label: '平均间隔',
+				value: avgIntervalText,
+				delta: buildDelta(
+					summary?.avgIntervalMinutes,
+					prevDaySummary?.avgIntervalMinutes,
+					formatDuration,
+				),
+			},
 		]
 	} else {
 		summaryTiles = [
-			{ label: '总次数', value: `${summary?.count ?? 0}次` },
+			{
+				label: '总次数',
+				value: `${summary?.count ?? 0}次`,
+				delta: buildDelta(summary?.count, prevDaySummary?.count),
+			},
 			{
 				label: '总时长',
 				value: formatDurationLong(summary?.totalDuration ?? 0),
+				delta: buildDelta(
+					summary?.totalDuration,
+					prevDaySummary?.totalDuration,
+					formatDuration,
+				),
 			},
-			{ label: '平均清醒间隔', value: avgIntervalText },
+			{
+				label: '平均清醒间隔',
+				value: avgIntervalText,
+				delta: buildDelta(
+					summary?.avgIntervalMinutes,
+					prevDaySummary?.avgIntervalMinutes,
+					formatDuration,
+				),
+			},
 		]
 	}
 
@@ -1035,6 +1289,9 @@ export default function StatsPage() {
 								<View key={tile.label} className="summary-tile">
 									<Text className="summary-tile-value">{tile.value}</Text>
 									<Text className="summary-tile-label">{tile.label}</Text>
+									{tile.delta && (
+										<Text className="summary-tile-delta">{tile.delta}</Text>
+									)}
 								</View>
 							))}
 						</View>
@@ -1110,18 +1367,36 @@ export default function StatsPage() {
 										<View className="trend-icon-line trend-icon-line-right" />
 									</View>
 									<Text className="section-heading-title">趋势图表</Text>
+									{activeType === 'height_weight' && (
+										<View className="growth-view-toggle">
+											<View
+												className={`gvt-item ${growthView === 'trend' ? 'active' : ''}`}
+												onClick={() => setGrowthView('trend')}
+											>
+												<Text>趋势</Text>
+											</View>
+											<View
+												className={`gvt-item ${growthView === 'who' ? 'active' : ''}`}
+												onClick={() => setGrowthView('who')}
+											>
+												<Text>成长曲线</Text>
+											</View>
+										</View>
+									)}
 								</View>
-							<View className="time-range">
-								{[7, 14, 30].map(d => (
-									<View
-										key={d}
-										className={`range-item ${days === d ? 'active' : ''}`}
-										onClick={() => handleDaysChange(d)}
-									>
-										<Text>{d}天</Text>
-									</View>
-								))}
-							</View>
+							{(activeType !== 'height_weight' || growthView === 'trend') && (
+								<View className="time-range">
+									{[7, 14, 30].map(d => (
+										<View
+											key={d}
+											className={`range-item ${days === d ? 'active' : ''}`}
+											onClick={() => handleDaysChange(d)}
+										>
+											<Text>{d}天</Text>
+										</View>
+									))}
+								</View>
+							)}
 							{activeType === 'feeding' &&
 								renderBarChart(
 									displayDailyStats,
@@ -1146,19 +1421,18 @@ export default function StatsPage() {
 									'时',
 								)}
 							{activeType === 'height_weight' &&
+								growthView === 'trend' &&
 								displayHeightWeightSeries.some(
 									point => point[growthMetric] != null,
 								) &&
-								renderHeightWeightLineChart(
-									displayHeightWeightSeries,
-									growthMetric,
-									growthMetric === 'height' ? '身高趋势' : '体重趋势',
-									growthMetric === 'height' ? 'cm' : 'kg',
-									growthMetric === 'height'
-										? 'growth-height'
-										: 'growth-weight',
-								)}
+							renderHeightWeightLineChart(
+								displayHeightWeightSeries,
+								growthMetric,
+								growthMetric === 'height' ? '身高趋势' : '体重趋势',
+								growthMetric === 'height' ? 'cm' : 'kg',
+							)}
 							{activeType === 'height_weight' &&
+								growthView === 'trend' &&
 								!displayHeightWeightSeries.some(
 									point => point[growthMetric] != null,
 								) && (
@@ -1167,6 +1441,43 @@ export default function StatsPage() {
 											{growthMetric === 'height'
 												? '所选时间内暂无身高记录'
 												: '所选时间内暂无体重记录'}
+										</Text>
+									</View>
+								)}
+							{activeType === 'height_weight' &&
+								growthView === 'who' &&
+								currentBaby && (
+									<View className="chart-card growth-chart-card">
+										<View className="growth-chart-header">
+											<Text className="chart-title">
+												{growthMetric === 'height' ? '身高' : '体重'}成长曲线
+											</Text>
+											{renderChartActions({
+												kind: 'growth',
+												title: `${growthMetric === 'height' ? '身高' : '体重'}成长曲线`,
+												babyName: currentBaby.name,
+												avatarUrl: currentBaby.avatar,
+												genderText,
+												rangeText: '0-36月龄',
+												metaTexts: ['WHO 生长标准', `共 ${babyCurvePoints.length} 次测量`],
+												reviewTitle: '成长小结',
+												reviewText: '对照 WHO 生长标准，看见宝宝成长的每一步～',
+												data: {
+													metric: growthMetric,
+													gender: currentBaby.gender,
+													points: babyCurvePoints,
+												},
+											})}
+										</View>
+										<GrowthCurveChart
+											canvasId="growth-who-chart"
+											metric={growthMetric}
+											gender={currentBaby.gender}
+											babyName={currentBaby.name}
+											points={babyCurvePoints}
+										/>
+										<Text className="who-disclaimer">
+											参考线为 WHO《儿童生长标准》P3~P97，仅供日常参考，具体以儿保医生评估为准
 										</Text>
 									</View>
 								)}
@@ -1183,6 +1494,19 @@ export default function StatsPage() {
 					)}
 				</>
 			)}
+
+			{/* 图表分享海报的离屏画布（尺寸用内联样式，避免 px 被 Taro 转成 rpx） */}
+			<View
+				className="poster-canvas-wrap"
+				style={{ width: '340px', height: '560px' }}
+			>
+				<Canvas
+					type="2d"
+					id="chart-poster-canvas"
+					className="poster-canvas"
+					style={{ width: '340px', height: '560px' }}
+				/>
+			</View>
 
 			<TabBar />
 		</View>

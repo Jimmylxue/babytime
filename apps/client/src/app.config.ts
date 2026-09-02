@@ -20,7 +20,7 @@ export default defineAppConfig({
     custom: true,
     color: '#A8A59E',
     selectedColor: '#FFA5B4',
-    backgroundColor: '#FFFDF9',
+    backgroundColor: '#FFFAF9',
     borderStyle: 'white',
     list: [
       {
@@ -39,7 +39,7 @@ export default defineAppConfig({
   },
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#FFFDF9',
+    navigationBarBackgroundColor: '#FFFAF9',
     navigationBarTitleText: '育娃手记',
     navigationBarTextStyle: 'black',
   },

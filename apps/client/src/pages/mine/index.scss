@@ -1,6 +1,6 @@
 .mine-page {
   min-height: 100vh;
-  background: #FFFDF9;
+  background: #FFFAF9;
   padding: 32px 24px 140px;
   box-sizing: border-box;
 }
@@ -222,7 +222,7 @@
   transition: background 0.15s ease;
 
   &:active {
-    background: #FFFDF9;
+    background: #FFFAF9;
   }
 
   &:not(:last-child) {
@@ -561,7 +561,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #FFFDF9;
+  background: #FFFAF9;
   border: 1px solid #FFC4D0;
   border-radius: 20px;
   padding: 24px 28px;
