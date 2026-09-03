@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { Canvas,  View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, {
 	useDidShow,
 	useShareAppMessage,
@@ -20,6 +20,9 @@ import {
 	hasAutoRedirectedToOnboarding,
 	markAutoRedirectedToOnboarding,
 } from '../../utils/onboarding'
+import { DailyMetric } from '../../utils/dailyPoster'
+import reportIcon from '../../assets/icons/dailyReport.svg'
+import { deliverDailyPoster } from '../../utils/chartExport'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -226,6 +229,89 @@ export default function Index() {
 	const monthlyTips = displayAge ? getMonthlyTips(displayAge.months) : null
 	const featuredTip = monthlyTips?.tips[0]
 
+	// 生成今日日报海报
+	const handleDailyReport = async (action: 'save' | 'share') => {
+		if (!currentBaby) return
+		try {
+			const summaryData = summary || {
+				feedingCount: 0,
+				totalMilk: 0,
+				diaperCount: 0,
+				sleepTotal: 0,
+				sleepCount: 0,
+				foodCount: 0,
+				waterTotal: 0,
+				bathCount: 0,
+				outdoorCount: 0,
+			}
+			const now = new Date()
+			const weekLabels = ['日', '一', '二', '三', '四', '五', '六']
+			const dateText = `${now.getMonth() + 1}月${now.getDate()}日 · 星期${weekLabels[now.getDay()]}`
+			const age = calculateAge(currentBaby.birthday)
+			const metrics: DailyMetric[] = [
+				{
+					label: '喂奶',
+					value: `${summaryData.feedingCount}次`,
+					subBelow:
+						summaryData.totalMilk > 0 ? `共${summaryData.totalMilk}ml` : undefined,
+					iconBg: '#FFF3D9',
+					emoji: '🍼',
+				},
+				{
+					label: '睡眠',
+					value: formatDurationLong(summaryData.sleepTotal),
+					iconBg: '#EFE8FB',
+					emoji: '😴',
+				},
+				{
+					label: '便便尿布',
+					value: `${summaryData.diaperCount}次`,
+					iconBg: '#FBF3D1',
+					emoji: '💩',
+				},
+				{
+					label: '辅食',
+					value: `${summaryData.foodCount}次`,
+					iconBg: '#E8F5E4',
+					emoji: '🍚',
+				},
+				{
+					label: '饮水',
+					value: `${summaryData.waterTotal}ml`,
+					iconBg: '#E3F2FD',
+					emoji: '💧',
+				},
+				{
+					label: '户外',
+					value: `${summaryData.outdoorCount}次`,
+					iconBg: '#E9F5E1',
+					emoji: '🌳',
+				},
+			]
+			const highlights: string[] = []
+			if (summaryData.feedingCount > 0) highlights.push(`喂了${summaryData.feedingCount}次奶`)
+			if (summaryData.sleepTotal > 0) highlights.push(`睡了${formatDurationLong(summaryData.sleepTotal)}`)
+			if (summaryData.diaperCount > 0) highlights.push(`换了${summaryData.diaperCount}次尿布`)
+			const reviewText = highlights.length
+				? `今天${highlights.join('、')}，又是被好好照顾的一天～`
+				: '今天还没有记录，去记一笔再来看看宝宝的日报吧～'
+			await deliverDailyPoster(
+				{
+					babyName: currentBaby.name,
+					avatarUrl: currentBaby.avatar,
+					genderText: currentBaby.gender === 'male' ? '男宝' : '女宝',
+					dateText,
+					ageText: `${age.months}个月 ${age.days}天`,
+					metrics,
+					reviewText,
+				},
+				action,
+			)
+		} catch (error) {
+			Taro.showToast({ title: '操作失败，请重试', icon: 'none' })
+		}
+	}
+
 	return (
 		<View className="page">
 			{/* 未登录：示例数据提示 */}
@@ -312,55 +398,51 @@ export default function Index() {
 					<View className="baby-metrics">
 						{latestHeightWeight && (
 							<Fragment>
-								{latestHeightWeight.weight != null && (
-									<View className="baby-metric m-weight">
-										<View className="baby-metric-icon">
-											<Text>⚖️</Text>
-										</View>
-										<View className="baby-metric-copy">
-											<Text className="baby-metric-label">体重</Text>
-											<View className="baby-metric-value">
-												<Text className="baby-metric-num">
-													{latestHeightWeight.weight}
-												</Text>
-												<Text className="baby-metric-unit">kg</Text>
-											</View>
+								<View className="baby-metric m-weight">
+									<View className="baby-metric-icon">
+										<Text>⚖️</Text>
+									</View>
+									<View className="baby-metric-copy">
+										<Text className="baby-metric-label">体重</Text>
+										<View className="baby-metric-value">
+											<Text className="baby-metric-num">
+												{latestHeightWeight.weight}
+											</Text>
+											<Text className="baby-metric-unit">kg</Text>
 										</View>
 									</View>
-								)}
-								{latestHeightWeight.height != null && (
-									<View className="baby-metric m-height">
-										<View className="baby-metric-icon">
-											<Text>📏</Text>
-										</View>
-										<View className="baby-metric-copy">
-											<Text className="baby-metric-label">身高</Text>
-											<View className="baby-metric-value">
-												<Text className="baby-metric-num">
-													{latestHeightWeight.height}
-												</Text>
-												<Text className="baby-metric-unit">cm</Text>
-											</View>
+								</View>
+								<View className="baby-metric m-height">
+									<View className="baby-metric-icon">
+										<Text>📏</Text>
+									</View>
+									<View className="baby-metric-copy">
+										<Text className="baby-metric-label">身高</Text>
+										<View className="baby-metric-value">
+											<Text className="baby-metric-num">
+												{latestHeightWeight.height}
+											</Text>
+											<Text className="baby-metric-unit">cm</Text>
 										</View>
 									</View>
-								)}
+								</View>
 							</Fragment>
 						)}
 						{latestTemperature && (
 							<View className="baby-metric m-temp">
 								<View className="baby-metric-icon">
 									<Text>🌡️</Text>
-								</View>
+									</View>
 								<View className="baby-metric-copy">
 									<Text className="baby-metric-label">体温</Text>
 									<View className="baby-metric-value">
 										<Text className="baby-metric-num">
 											{latestTemperature.temperature}
 										</Text>
-										<Text className="baby-metric-unit">°C</Text>
+											<Text className="baby-metric-unit">°C</Text>
+										</View>
 									</View>
 								</View>
-							</View>
 						)}
 					</View>
 				)}
@@ -420,6 +502,17 @@ export default function Index() {
 					<View className="section-head">
 						<View className="section-accent" />
 						<Text className="section-label">今日记录</Text>
+						{isLoggedIn && currentBaby && (
+							<View
+								className="daily-report-entry"
+								onClick={() => handleDailyReport('share')}
+							>
+								<Image
+									className="daily-report-entry-icon"
+									src={reportIcon}
+								/>
+							</View>
+						)}
 					</View>
 					<View className="stats-list-container">
 						{/* 喂奶 */}
@@ -578,11 +671,11 @@ export default function Index() {
 										</View>
 										<Text className="sheet-item-label">{action.label}</Text>
 									</View>
-								))}
-							</View>
+							))}
 						</View>
 					</View>
 				</View>
+			</View>
 			)}
 
 			{showTips && monthlyTips && (
@@ -596,20 +689,20 @@ export default function Index() {
 							</View>
 							<View className="tips-sheet-count"><Text>{monthlyTips.tips.length} 条</Text></View>
 						</View>
-						<ScrollView className="tips-sheet-list" scrollY>
-							{monthlyTips.tips.map((tip, index) => (
-								<View key={tip.category} className="tips-sheet-item">
-									<Text className="tips-sheet-index">0{index + 1}</Text>
-									<View className="tips-sheet-copy">
-										<Text className="tips-sheet-category">{tip.category}</Text>
-										<Text className="tips-sheet-content">{tip.content}</Text>
-									</View>
+					<ScrollView className="tips-sheet-list" scrollY>
+						{monthlyTips.tips.map((tip, index) => (
+							<View key={tip.category} className="tips-sheet-item">
+								<Text className="tips-sheet-index">0{index + 1}</Text>
+								<View className="tips-sheet-copy">
+									<Text className="tips-sheet-category">{tip.category}</Text>
+									<Text className="tips-sheet-content">{tip.content}</Text>
 								</View>
-							))}
-							<Text className="tips-sheet-disclaimer">小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。</Text>
-						</ScrollView>
-					</View>
+							</View>
+						))}
+						<Text className="tips-sheet-disclaimer">小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。</Text>
+					</ScrollView>
 				</View>
+			</View>
 			)}
 
 			{/* 「添加到我的小程序」引导浮层：气泡指向右上角胶囊 */}
@@ -627,6 +720,18 @@ export default function Index() {
 					</View>
 				</View>
 			)}
+
+			{/* 日报海报的离屏画布 */}
+			<View
+				className="poster-canvas-wrap"
+				style={{ width: '340px', height: '600px' }}
+			>
+				<Canvas
+					type="2d"
+					id="daily-report-canvas"
+					style={{ width: '340px', height: '600px' }}
+				/>
+			</View>
 
 			<TabBar />
 		</View>

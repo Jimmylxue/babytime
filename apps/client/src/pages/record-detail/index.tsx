@@ -5,6 +5,7 @@ import { useRecordStore, DetailRecord } from '../../stores/recordStore';
 import { formatDate, formatDurationLong, formatHM } from '../../utils/date';
 import { detailTypeTabs, getRecordMainText, getIntervalShortText } from '../../utils/recordDisplay';
 import { MOCK_DETAIL } from '../../utils/mock';
+import { recordApi } from '../../utils/request';
 import './index.scss';
 
 export default function RecordDetailPage() {
@@ -42,16 +43,68 @@ export default function RecordDetailPage() {
     fetchDetail(babyId, type, { days, page: detailPagination.page + 1, pageSize: detailPagination.pageSize, metric: growthMetric || undefined });
   };
 
-  // 点击一行记录，弹出编辑/删除操作面板
+  // 点击一行记录，弹出编辑/再来一条/删除操作面板
   const handleRowClick = (item: DetailRecord) => {
-    Taro.showActionSheet({ itemList: ['编辑', '删除'] }).then((res) => {
+    // 睡眠时间段、身高体重、疫苗不适合一键重复
+    const repeatable = ['feeding', 'diaper', 'food', 'water', 'temperature', 'medicine'].includes(type);
+    const itemList = repeatable ? ['编辑', '再来一条', '删除'] : ['编辑', '删除'];
+    Taro.showActionSheet({ itemList }).then((res) => {
+      if (!repeatable) {
+        if (res.tapIndex === 0) {
+          openEdit(item);
+        } else if (res.tapIndex === 1) {
+          handleDelete(item.id);
+        }
+        return;
+      }
       if (res.tapIndex === 0) {
-        const metricParam = growthMetric ? `&metric=${growthMetric}` : '';
-        Taro.navigateTo({ url: `/pages/record/index?type=${type}&babyId=${babyId}&id=${item.id}${metricParam}` });
+        openEdit(item);
       } else if (res.tapIndex === 1) {
+        handleRepeat(item);
+      } else if (res.tapIndex === 2) {
         handleDelete(item.id);
       }
     });
+  };
+
+  const openEdit = (item: DetailRecord) => {
+    const metricParam = growthMetric ? `&metric=${growthMetric}` : '';
+    Taro.navigateTo({ url: `/pages/record/index?type=${type}&babyId=${babyId}&id=${item.id}${metricParam}` });
+  };
+
+  // 「再来一条」：以这条记录为模板新建，时间取现在
+  const handleRepeat = async (item: DetailRecord) => {
+    if (!babyId) return;
+    try {
+      const data: any = {
+        babyId,
+        type,
+        startTime: new Date().toISOString(),
+      };
+      if (type === 'feeding') {
+        if (item.feedingMethod) data.feedingMethod = item.feedingMethod;
+        if (item.amount != null) data.amount = item.amount;
+        if (item.breastAmount != null) data.breastAmount = item.breastAmount;
+        if (item.formulaAmount != null) data.formulaAmount = item.formulaAmount;
+        if (item.duration != null) data.duration = item.duration;
+      } else if (type === 'diaper') {
+        data.diaperStatus = item.diaperStatus || 'wet';
+      } else if (type === 'food') {
+        data.foodName = item.foodName;
+      } else if (type === 'water') {
+        if (item.amount != null) data.amount = item.amount;
+      } else if (type === 'temperature') {
+        if (item.temperature != null) data.temperature = item.temperature;
+      } else if (type === 'medicine') {
+        data.medicineName = item.medicineName;
+        data.medicineDose = item.medicineDose;
+      }
+      await recordApi.create(data);
+      Taro.showToast({ title: '已按该记录新增一条', icon: 'success' });
+      loadFirstPage();
+    } catch (error) {
+      Taro.showToast({ title: '操作失败', icon: 'none' });
+    }
   };
 
   const handleDelete = async (recordId: string) => {

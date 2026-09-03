@@ -76,7 +76,11 @@ export default function RecordPage() {
 	const { addRecord, updateRecord } = useRecordStore()
 
 	const [loading, setLoading] = useState(false)
+	const [savedOnce, setSavedOnce] = useState(false)
 	const submittingRef = useRef(false) // 同步锁，避免 state 异步更新导致连点漏拦截
+	// 用户是否手动改过表单：预填结果不覆盖已手动编辑的内容
+	const formTouchedRef = useRef(false)
+	const prefillRef = useRef(false)
 	const [feedingMethod, setFeedingMethod] = useState('formula')
 	const [amount, setAmount] = useState('')
 	const [breastAmount, setBreastAmount] = useState('')
@@ -116,6 +120,8 @@ export default function RecordPage() {
 	const [startTime, setStartTime] = useState(formatHM(new Date()))
 	const [recordDate, setRecordDate] = useState(formatDate(new Date()))
 	const today = formatDate(new Date())
+	// 「按上次来」提示条：本类型最近一条记录的摘要文案
+	const [lastRecordHint, setLastRecordHint] = useState('')
 
 	const typeInfo = { ...(recordTypes[type] || recordTypes.feeding) }
 	// 身高体重拆分为独立入口：metric 为 height/weight 时只记录对应一项
@@ -153,14 +159,102 @@ export default function RecordPage() {
 	useDidShow(() => {
 		if (isEdit && id) {
 			fetchRecord()
-		} else if (type === 'height_weight' && babyId) {
+			return
+		}
+		if (type === 'height_weight' && babyId) {
 			// 新增测量时展示上次测量值，方便对比录入
 			recordApi
 				.getStats(babyId)
 				.then(res => setLastMeasurement(res.data?.latestHeightWeight || null))
 				.catch(() => {})
 		}
+		// 「按上次来」：新增时用本类型最近一条记录预填高频字段（时间/照片/备注不预填）
+		if (!prefillRef.current && babyId) {
+			prefillRef.current = true
+			recordApi
+				.getDetail(babyId, type, { days: 60, page: 1, pageSize: 1 })
+				.then(res => {
+					const last = res.data?.items?.[res.data.items.length - 1]
+					if (!last) return
+					setLastRecordHint(buildLastRecordHint(last))
+					switch (type) {
+						case 'feeding':
+							if (last.feedingMethod) setFeedingMethod(last.feedingMethod)
+							if (last.amount != null) setAmount(String(last.amount))
+							if (last.breastAmount != null)
+								setBreastAmount(String(last.breastAmount))
+							if (last.formulaAmount != null)
+								setFormulaAmount(String(last.formulaAmount))
+							if (last.duration != null) setDuration(String(last.duration))
+							break
+						case 'diaper':
+							if (last.diaperStatus) setDiaperStatus(last.diaperStatus)
+							break
+						case 'food':
+							if (last.foodName) setFoodName(last.foodName)
+							break
+						case 'water':
+							if (last.amount != null) setAmount(String(last.amount))
+							break
+						case 'temperature':
+							if (last.temperature != null)
+								setTemperature(String(last.temperature))
+							break
+						case 'medicine':
+							if (last.medicineName) setMedicineName(last.medicineName)
+							if (last.medicineDose) setMedicineDose(last.medicineDose)
+							break
+					}
+				})
+				.catch(() => {})
+		}
 	})
+
+	// 生成「上次记录」摘要文案（喂奶/尿布/辅食/饮水/体温/用药）
+	const buildLastRecordHint = (last: any): string => {
+		switch (type) {
+			case 'feeding': {
+				const methodLabel: Record<string, string> = {
+					breast: '母乳',
+					formula: '奶粉',
+					mixed: '混合',
+				}
+				const parts: string[] = []
+				if (last.feedingMethod)
+					parts.push(methodLabel[last.feedingMethod] || last.feedingMethod)
+				if (last.feedingMethod === 'mixed') {
+					const b = last.breastAmount ? `母${last.breastAmount}ml` : ''
+					const f = last.formulaAmount ? `奶${last.formulaAmount}ml` : ''
+					const bf = [b, f].filter(Boolean).join('+')
+					if (bf) parts.push(bf)
+				} else if (last.amount) {
+					parts.push(`${last.amount}ml`)
+				}
+				if (last.duration) parts.push(`${last.duration}分钟`)
+				return parts.join(' · ')
+			}
+			case 'diaper': {
+				const statusLabel: Record<string, string> = {
+					wet: '尿了',
+					dirty: '拉了',
+					both: '都有',
+				}
+				return statusLabel[last.diaperStatus] || ''
+			}
+			case 'food':
+				return last.foodName ? `吃了${last.foodName}` : ''
+			case 'water':
+				return last.amount ? `${last.amount}ml` : ''
+			case 'temperature':
+				return last.temperature ? `${last.temperature}°C` : ''
+			case 'medicine':
+				return [last.medicineName, last.medicineDose]
+					.filter(Boolean)
+					.join(' · ')
+			default:
+				return ''
+		}
+	}
 
 	const fetchRecord = async () => {
 		try {
@@ -411,15 +505,25 @@ export default function RecordPage() {
 				const { babyId: _babyId, type: _type, ...updateData } = data
 				await updateRecord(id, updateData)
 				Taro.showToast({ title: '更新成功', icon: 'success' })
+				setTimeout(() => Taro.navigateBack(), 1500)
 			} else {
 				await addRecord(data)
-				Taro.showToast({ title: '记录成功', icon: 'success' })
 				// 累计记录数 +1，用于「添加到我的小程序」引导（记满 3 条弹一次）
 				const cumulative =
 					(Taro.getStorageSync('stats:cumulativeRecords') || 0) + 1
 				Taro.setStorageSync('stats:cumulativeRecords', cumulative)
+
+				// 连续记录：保存后停留本页，发生时间重置为当前，
+				// 类型字段保留（即「按上一条继续」），一次性内容清空
+				Taro.showToast({ title: '已记录，可继续添加', icon: 'success' })
+				setStartTime(formatHM(new Date()))
+				setNote('')
+				setDiaperImage('')
+				setDiaperAnalysis(null)
+				setSavedOnce(true)
+				submittingRef.current = false
+				setLoading(false)
 			}
-			setTimeout(() => Taro.navigateBack(), 1500)
 		} catch (error) {
 			submittingRef.current = false
 			setLoading(false)
@@ -445,6 +549,14 @@ export default function RecordPage() {
 					</View>
 				)}
 			</View>
+
+			{!isEdit && lastRecordHint && (
+				<View className="last-record-hint">
+					<Text className="last-record-hint-label">上次</Text>
+					<Text className="last-record-hint-text">{lastRecordHint}</Text>
+					<Text className="last-record-hint-tip">已按上次预填，可直接保存</Text>
+				</View>
+			)}
 
 			<View className="record-form">
 				{/* 所有记录按实际发生日期归档；身高体重只需选择日期。 */}
@@ -487,7 +599,7 @@ export default function RecordPage() {
 									<View
 										key={m.value}
 										className={`method-item ${feedingMethod === m.value ? 'active' : ''}`}
-										onClick={() => setFeedingMethod(m.value)}
+										onClick={() => { formTouchedRef.current = true; setFeedingMethod(m.value) }}
 									>
 										<Text>{m.label}</Text>
 									</View>
@@ -506,7 +618,7 @@ export default function RecordPage() {
 									type="number"
 									placeholder="请输入奶量"
 									value={amount}
-									onInput={e => setAmount(e.detail.value)}
+									onInput={e => { formTouchedRef.current = true; setAmount(e.detail.value) }}
 								/>
 							</View>
 						)}
@@ -519,7 +631,7 @@ export default function RecordPage() {
 										type="number"
 										placeholder="请输入母乳量"
 										value={breastAmount}
-										onInput={e => setBreastAmount(e.detail.value)}
+										onInput={e => { formTouchedRef.current = true; setBreastAmount(e.detail.value) }}
 									/>
 								</View>
 								<View className="form-group">
@@ -529,7 +641,7 @@ export default function RecordPage() {
 										type="number"
 										placeholder="请输入奶粉量"
 										value={formulaAmount}
-										onInput={e => setFormulaAmount(e.detail.value)}
+										onInput={e => { formTouchedRef.current = true; setFormulaAmount(e.detail.value) }}
 									/>
 								</View>
 							</>
@@ -557,7 +669,7 @@ export default function RecordPage() {
 									<View
 										key={s.value}
 										className={`method-item ${diaperStatus === s.value ? 'active' : ''}`}
-										onClick={() => setDiaperStatus(s.value)}
+										onClick={() => { formTouchedRef.current = true; setDiaperStatus(s.value) }}
 									>
 										<Text>{s.label}</Text>
 									</View>
@@ -684,7 +796,7 @@ export default function RecordPage() {
 							className="form-input"
 							placeholder="如：米粉、果泥"
 							value={foodName}
-							onInput={e => setFoodName(e.detail.value)}
+							onInput={e => { formTouchedRef.current = true; setFoodName(e.detail.value) }}
 						/>
 					</View>
 				)}
@@ -712,7 +824,7 @@ export default function RecordPage() {
 							type="digit"
 							placeholder="请输入体温"
 							value={temperature}
-							onInput={e => setTemperature(e.detail.value)}
+							onInput={e => { formTouchedRef.current = true; setTemperature(e.detail.value) }}
 						/>
 					</View>
 				)}
@@ -779,7 +891,7 @@ export default function RecordPage() {
 								className="form-input"
 								placeholder="请输入药品名称"
 								value={medicineName}
-								onInput={e => setMedicineName(e.detail.value)}
+								onInput={e => { formTouchedRef.current = true; setMedicineName(e.detail.value) }}
 							/>
 						</View>
 						<View className="form-group">
@@ -788,7 +900,7 @@ export default function RecordPage() {
 								className="form-input"
 								placeholder="如：1次1包，1天3次"
 								value={medicineDose}
-								onInput={e => setMedicineDose(e.detail.value)}
+								onInput={e => { formTouchedRef.current = true; setMedicineDose(e.detail.value) }}
 							/>
 						</View>
 					</>
@@ -925,7 +1037,9 @@ export default function RecordPage() {
 							: '提交中...'
 						: isEdit
 							? '保存修改'
-							: '保存记录'}
+							: savedOnce
+								? '再记一条'
+								: '保存记录'}
 				</Text>
 			</View>
 		</View>

@@ -5,6 +5,11 @@ import {
   ChartPosterOptions,
   POSTER_CANVAS_ID,
 } from './chartPoster'
+import {
+  renderDailyPoster,
+  DailyPosterOptions,
+  DAILY_POSTER_CANVAS_ID,
+} from './dailyPoster'
 
 export type { ChartPosterOptions }
 
@@ -84,7 +89,7 @@ async function shareImage(filePath: string) {
   }
 }
 
-/** 生成带宝宝信息的分享海报，并执行保存或分享 */
+/** 生成单图表分享海报，并执行保存或分享 */
 export async function deliverChartPoster(
   opts: ChartPosterOptions,
   action: 'save' | 'share',
@@ -94,6 +99,28 @@ export async function deliverChartPoster(
   try {
     await renderChartPoster(opts)
     filePath = await exportChartCanvas(POSTER_CANVAS_ID)
+  } catch (error) {
+    Taro.hideLoading()
+    throw error
+  }
+  Taro.hideLoading()
+  if (action === 'save') {
+    await saveToAlbum(filePath)
+  } else {
+    await shareImage(filePath)
+  }
+}
+
+/** 生成宝宝日报海报，并执行保存或分享 */
+export async function deliverDailyPoster(
+  opts: DailyPosterOptions,
+  action: 'save' | 'share',
+) {
+  Taro.showLoading({ title: '生成图片中', mask: true })
+  let filePath: string
+  try {
+    await renderDailyPoster(opts)
+    filePath = await exportChartCanvas(DAILY_POSTER_CANVAS_ID)
   } catch (error) {
     Taro.hideLoading()
     throw error

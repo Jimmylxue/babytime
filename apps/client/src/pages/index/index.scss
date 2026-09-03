@@ -881,3 +881,28 @@
   font-weight: 700;
   color: #FFFFFF;
 }
+
+// 日报海报的离屏画布（移出屏幕；尺寸用内联样式避免 px 被编译成 rpx）
+.poster-canvas-wrap {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+}
+
+// 今日记录标题行的「生成日报」迷你图标（与统计页图表按钮同款视觉）
+.daily-report-entry {
+  margin-left: auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #FFF0F4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.daily-report-entry-icon {
+  width: 28px;
+  height: 28px;
+}
+

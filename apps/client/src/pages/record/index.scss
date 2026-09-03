@@ -363,3 +363,40 @@
   font-weight: 700;
   color: #fff;
 }
+
+// 「上次记录」提示条：默认已按上次预填
+.last-record-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FFF7E8;
+  border: 2px solid rgba(255, 196, 163, 0.45);
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.last-record-hint-label {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #FFFFFF;
+  background: #FFB88A;
+  border-radius: 10px;
+  padding: 4px 12px;
+  font-weight: 700;
+}
+
+.last-record-hint-text {
+  flex: 1;
+  font-size: 24px;
+  color: #8A6D3B;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.last-record-hint-tip {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #C9A063;
+}
