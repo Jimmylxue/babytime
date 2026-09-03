@@ -7,6 +7,7 @@ import {
   paintGrowthCurve,
   GrowthCurvePoint,
 } from '../components/GrowthCurveChart/painter'
+import { loadCanvasImage } from './posterHelpers'
 
 /** 海报逻辑尺寸（CSS 像素）；位图尺寸 = 逻辑尺寸 × dpr */
 export const POSTER_W = 340
@@ -30,38 +31,13 @@ export interface ChartPosterOptions {
   /** 小结卡文案 */
   reviewText?: string
   color?: string
+  /** 小程序码图片地址 */
+  miniProgramCodeUrl?: string
   data: LineChartPaintData | BarChartPaintData | {
     metric: 'height' | 'weight'
     gender: 'male' | 'female'
     points: GrowthCurvePoint[]
   }
-}
-
-/** 用画布节点加载网络头像，超时/失败返回 null（回退为 emoji 占位） */
-function loadCanvasImage(node: any, src?: string): Promise<any> {
-  return new Promise(resolve => {
-    if (!src) {
-      resolve(null)
-      return
-    }
-    const img = node.createImage()
-    let settled = false
-    const done = (v: any) => {
-      if (settled) return
-      settled = true
-      resolve(v)
-    }
-    const timer = setTimeout(() => done(null), 3000)
-    img.onload = () => {
-      clearTimeout(timer)
-      done(img)
-    }
-    img.onerror = () => {
-      clearTimeout(timer)
-      done(null)
-    }
-    img.src = src
-  })
 }
 
 function drawCircleAvatar(
@@ -138,7 +114,8 @@ export function renderChartPoster(opts: ChartPosterOptions): Promise<void> {
         const ctx = node.getContext('2d')
         ctx.scale(dpr, dpr)
         const avatar = await loadCanvasImage(node, opts.avatarUrl)
-        drawPoster(ctx, POSTER_W, POSTER_H, opts, avatar)
+        const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
+        drawPoster(ctx, POSTER_W, POSTER_H, opts, avatar, miniProgramCode)
         resolve()
       })
   })
@@ -150,6 +127,7 @@ function drawPoster(
   H: number,
   opts: ChartPosterOptions,
   avatar: any,
+  miniProgramCode: any,
 ) {
   // 背景：淡粉渐变 + 柔光
   const bgGradient = ctx.createLinearGradient(0, 0, 0, H)
@@ -258,10 +236,11 @@ function drawPoster(
   }
 
   // 本周小结卡片
+  const reviewY = cardY + cardH + 14
+  const reviewH = 66
+  const reviewW = W - 32 - 78
   if (opts.reviewText) {
-    const reviewY = cardY + cardH + 14
-    const reviewH = 66
-    roundRect(ctx, cardX, reviewY, cardW, reviewH, 14)
+    roundRect(ctx, cardX, reviewY, reviewW, reviewH, 14)
     ctx.fillStyle = '#FBE0E7'
     ctx.fill()
 
@@ -289,20 +268,40 @@ function drawPoster(
     ctx.fillText(opts.reviewTitle || '本周小结', iconX + 28, iconY + 4)
 
     // 正文：放不下自动缩小字号，仍放不下截断加省略号
-    const fitted = fitText(ctx, opts.reviewText, cardW - 66, '11px sans-serif')
+    const fitted = fitText(ctx, opts.reviewText, reviewW - 66, '11px sans-serif')
     ctx.font = fitted.font
     ctx.fillStyle = '#4A464B'
     ctx.fillText(fitted.text, cardX + 14, reviewY + 44)
 
     // 右侧双爱心装饰
-    drawHeart(ctx, cardX + cardW - 34, reviewY + 18, 14, '#F5A8B9')
-    drawHeart(ctx, cardX + cardW - 20, reviewY + 12, 9, '#F8C9D3')
+    drawHeart(ctx, cardX + reviewW - 34, reviewY + 18, 14, '#F5A8B9')
+    drawHeart(ctx, cardX + reviewW - 20, reviewY + 12, 9, '#F8C9D3')
   }
+
+  // 右下角小程序码：使用白底并保持原图比例，便于从分享海报扫码进入。
+  const codePanelX = cardX + reviewW + 8
+  const codePanelY = reviewY
+  const codePanelW = W - 16 - codePanelX
+  const codePanelH = reviewH
+  roundRect(ctx, codePanelX, codePanelY, codePanelW, codePanelH, 14)
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fill()
+  if (miniProgramCode) {
+    const codeW = Math.min(codePanelW - 10, 46)
+    const codeH = codeW * (294 / 258)
+    const codeX = codePanelX + (codePanelW - codeW) / 2
+    ctx.drawImage(miniProgramCode, codeX, codePanelY + 4, codeW, codeH)
+  }
+  ctx.font = '8px sans-serif'
+  ctx.fillStyle = '#8E8B82'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'bottom'
+  ctx.fillText('扫码打开', codePanelX + codePanelW / 2, codePanelY + codePanelH - 5)
 
   // 底部水印
   ctx.font = '10px sans-serif'
   ctx.fillStyle = '#C9B8BC'
-  ctx.textAlign = 'center'
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText('育娃手记 · 记录宝宝成长的每一天', W / 2, H - 18)
+  ctx.fillText('育娃手记 · 记录宝宝成长的每一天', 18, H - 18)
 }

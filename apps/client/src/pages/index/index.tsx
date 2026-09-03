@@ -13,6 +13,7 @@ import { getMonthlyTips } from '../../utils/monthlyTips'
 import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi, notificationApi, trackEvent, VaccinePlanItem } from '../../utils/request'
+import miniProgramCode from '../../assets/mini-program-code.jpg'
 import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock'
 import babyFacePink from '../../assets/icons/baby-face-pink.svg'
 import babyFaceBlue from '../../assets/icons/baby-face-blue.svg'
@@ -113,12 +114,12 @@ export default function Index() {
 	}
 
 	useShareAppMessage(() => ({
-		title: '育娃手记 - 记录宝宝成长的每一天',
+		title: '育娃手记｜宝宝吃睡记录与成长统计',
 		path: '/pages/index/index',
 	}))
 
 	useShareTimeline(() => ({
-		title: '育娃手记 - 记录宝宝成长的每一天',
+		title: '育娃手记｜宝宝吃睡记录与成长统计',
 		query: '',
 	}))
 
@@ -433,6 +434,7 @@ export default function Index() {
 					ageText: `${age.months}个月 ${age.days}天`,
 					metrics,
 					reviewText,
+					miniProgramCodeUrl: miniProgramCode,
 				},
 				action,
 			)

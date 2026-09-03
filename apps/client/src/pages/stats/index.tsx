@@ -42,6 +42,7 @@ import {
 } from '../../utils/chartExport'
 import downloadIcon from '../../assets/icons/download.svg'
 import shareIcon from '../../assets/icons/share.svg'
+import miniProgramCode from '../../assets/mini-program-code.jpg'
 import './index.scss'
 
 function isToday(dateStr: string): boolean {
@@ -301,7 +302,7 @@ export default function StatsPage() {
 		action: 'save' | 'share',
 	) => {
 		try {
-			await deliverChartPoster(opts, action)
+			await deliverChartPoster({ ...opts, miniProgramCodeUrl: miniProgramCode }, action)
 		} catch (error) {
 			Taro.showToast({ title: '操作失败，请重试', icon: 'none' })
 		}

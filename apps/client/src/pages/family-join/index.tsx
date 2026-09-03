@@ -28,7 +28,7 @@ export default function FamilyJoinPage() {
 
   // 转发不断链：卡片可继续转给其他家人
   useShareAppMessage(() => ({
-    title: `${info?.inviterNickname || '家人'} 邀请你一起记录宝宝的成长`,
+    title: `${info?.inviterNickname || '家人'}邀请你加入${info?.babyName || '宝宝'}的成长记录`,
     path: `/pages/family-join/index?invite=${inviteCode}`,
   }))
 

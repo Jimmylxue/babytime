@@ -100,7 +100,7 @@ export default function FamilyPage() {
 
   // 分享卡片（转发不断链：落地页可继续转发）
   useShareAppMessage(() => ({
-    title: `${userInfo?.nickname || '家人'} 邀请你一起记录宝宝的成长`,
+    title: `${userInfo?.nickname || '家人'}邀请你一起记录宝宝成长`,
     path: `/pages/family-join/index?invite=${inviteInfo?.inviteCode || ''}`,
   }))
 

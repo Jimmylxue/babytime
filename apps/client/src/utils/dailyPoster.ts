@@ -33,6 +33,8 @@ export interface DailyPosterOptions {
   /** 今日小结文案 */
   reviewText: string
   color?: string
+  /** 小程序码图片地址 */
+  miniProgramCodeUrl?: string
 }
 
 /** 卡哇伊云朵装饰（闭眼微笑 + 腮红） */
@@ -123,7 +125,8 @@ export function renderDailyPoster(opts: DailyPosterOptions): Promise<void> {
         const ctx = node.getContext('2d')
         ctx.scale(dpr, dpr)
         const avatar = await loadCanvasImage(node, opts.avatarUrl)
-        drawDailyPoster(ctx, DAILY_POSTER_W, DAILY_POSTER_H, opts, avatar)
+        const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
+        drawDailyPoster(ctx, DAILY_POSTER_W, DAILY_POSTER_H, opts, avatar, miniProgramCode)
         resolve()
       })
   })
@@ -135,6 +138,7 @@ function drawDailyPoster(
   H: number,
   opts: DailyPosterOptions,
   avatar: any,
+  miniProgramCode: any,
 ) {
   // 背景：淡粉渐变 + 柔光
   const bg = ctx.createLinearGradient(0, 0, 0, H)
@@ -285,7 +289,7 @@ function drawDailyPoster(
   const reviewY = 178 + 96 + 12 + 84 + 12 + 84 + 18
   const reviewH = 86
   const reviewX = 16
-  const reviewW = W - 32
+  const reviewW = W - 32 - 78
   const reviewGrad = ctx.createLinearGradient(reviewX, reviewY, reviewX, reviewY + reviewH)
   reviewGrad.addColorStop(0, '#FBDCE5')
   reviewGrad.addColorStop(1, '#F8D0DC')
@@ -351,14 +355,31 @@ function drawDailyPoster(
   }
   if (line) ctx.fillText(line, reviewX + 16, lineY)
 
-  // 底部水印（两侧小爱心）
+  // 右下角小程序码：保持原图比例，白底提升识别率。
+  const codePanelX = reviewX + reviewW + 8
+  const codePanelY = reviewY
+  const codePanelW = W - 16 - codePanelX
+  const codePanelH = reviewH
+  roundRect(ctx, codePanelX, codePanelY, codePanelW, codePanelH, 16)
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fill()
+  if (miniProgramCode) {
+    const codeW = Math.min(codePanelW - 12, 56)
+    const codeH = codeW * (294 / 258)
+    const codeX = codePanelX + (codePanelW - codeW) / 2
+    ctx.drawImage(miniProgramCode, codeX, codePanelY + 7, codeW, codeH)
+  }
+  ctx.font = '8px sans-serif'
+  ctx.fillStyle = '#8E8B82'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'bottom'
+  ctx.fillText('扫码打开', codePanelX + codePanelW / 2, codePanelY + codePanelH - 7)
+
+  // 底部水印
   const wm = '育娃手记 · 记录宝宝成长的每一天'
   ctx.font = '10px sans-serif'
   ctx.fillStyle = '#C9B8BC'
-  ctx.textAlign = 'center'
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillText(wm, W / 2, H - 20)
-  const wmW = ctx.measureText(wm).width
-  drawHeart(ctx, W / 2 - wmW / 2 - 16, H - 20, 7, '#F5BCC7')
-  drawHeart(ctx, W / 2 + wmW / 2 + 16, H - 20, 7, '#F5BCC7')
+  ctx.fillText(wm, 18, H - 20)
 }
