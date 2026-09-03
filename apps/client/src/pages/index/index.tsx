@@ -8,13 +8,16 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
-import { calculateAge, formatDate, formatDurationLong } from '../../utils/date'
+import { calculateAge, formatDate, formatDurationLong, formatHM } from '../../utils/date'
 import { getMonthlyTips } from '../../utils/monthlyTips'
 import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi, notificationApi, trackEvent, VaccinePlanItem } from '../../utils/request'
 import miniProgramCode from '../../assets/mini-program-code.jpg'
-import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock'
+import babyIllustration from '../../assets/baby-illustration.jpg'
+import babyIllustrationGirl from '../../assets/baby-illustration-girl.jpg'
+import vaccineSafety from '../../assets/vaccine-safety.jpg'
+import { MOCK_BABY, MOCK_STATS, MOCK_SUMMARY } from '../../utils/mock'
 import babyFacePink from '../../assets/icons/baby-face-pink.svg'
 import babyFaceBlue from '../../assets/icons/baby-face-blue.svg'
 import {
@@ -35,6 +38,8 @@ const quickActions = [
 	{ type: 'vaccine', icon: '💉', label: '疫苗' },
 	{ type: 'temperature', icon: '🌡️', label: '体温' },
 	{ type: 'photo', icon: '📷', label: '拍照' },
+	{ type: 'height_weight', metric: 'weight', icon: '⚖️', label: '体重' },
+	{ type: 'height_weight', metric: 'height', icon: '📏', label: '身高' },
 ]
 
 const moreActions = [
@@ -55,6 +60,26 @@ const feedingMethodLabel: Record<string, string> = {
 function formatVaccineDate(date: string) {
 	const [, month, day] = date.split('-').map(Number)
 	return `${month}月${day}日`
+}
+
+function getVaccineDaysLeft(date?: string | null) {
+	if (!date) return 14
+	const target = new Date(`${date}T00:00:00`).getTime()
+	return Math.max(0, Math.ceil((target - new Date().setHours(0, 0, 0, 0)) / (24 * 60 * 60 * 1000)))
+}
+
+// 未登录示例数据：14 天后的示例针次（日期动态计算，「还有 N 天」始终成立）
+function getDemoNextVaccine(): VaccinePlanItem {
+	const date = formatDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000))
+	return {
+		scheduleItemId: 'demo-schedule-2',
+		label: '乙肝疫苗 第2剂',
+		referenceDate: date,
+		scheduledDate: date,
+		effectiveDate: date,
+		completed: false,
+		actualDate: null,
+	}
 }
 
 export default function Index() {
@@ -218,6 +243,10 @@ export default function Index() {
 	}
 
 	const handleReminderCardClick = () => {
+		if (!isLoggedIn) {
+			needLogin()
+			return
+		}
 		if (vaccineState === 'active') {
 			Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}` })
 			return
@@ -225,13 +254,40 @@ export default function Index() {
 		void requestVaccineSubscription()
 	}
 
-	const vaccineReminderDescription = nextVaccine
-		? `${nextVaccine.scheduledDate ? '计划' : '参考'} ${formatVaccineDate(nextVaccine.effectiveDate)} · ${nextVaccine.label}`
-		: vaccineState === 'active'
-			? '还有可用提醒次数'
-			: vaccineState === 'exhausted'
-				? '上次提醒已发送，继续订阅下一次'
-				: '接种日前 3 天提醒你，按时完成接种'
+	// 「查看计划」只跳页面，不再触发订阅流程（阻止冒泡避免重复处理卡片点击）
+	const handleViewVaccinePlan = (e?: any) => {
+		e?.stopPropagation?.()
+		if (!isLoggedIn) {
+			needLogin()
+			return
+		}
+		Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}` })
+	}
+
+	// 疫苗卡展示态：未登录按「已订阅」展示示例针次，点击引导登录
+	const vaccineStateDisplay = isLoggedIn ? vaccineState : 'active'
+	const nextVaccineDisplay = isLoggedIn ? nextVaccine : getDemoNextVaccine()
+	const isVaccineActive = vaccineStateDisplay === 'active'
+	// 三态外观：已订阅绿、未订阅粉白、已过期（次数耗尽）琥珀——均需再订阅一次的用 CTA 按钮
+	const vaccineCardClass = isVaccineActive
+		? 'enabled'
+		: vaccineStateDisplay === 'exhausted'
+			? 'expired'
+			: 'unsubscribed'
+	const vaccineBadgeText = isVaccineActive ? '已订阅' : vaccineStateDisplay === 'exhausted' ? '已过期' : '未开启'
+	const vaccineBadgeClass = isVaccineActive ? '' : vaccineStateDisplay === 'exhausted' ? ' expired' : ' off'
+	const vaccineCtaText = isVaccineActive ? '查看计划' : vaccineStateDisplay === 'exhausted' ? '再次订阅' : '开启提醒'
+	const vaccineDaysLeft = getVaccineDaysLeft(nextVaccineDisplay?.effectiveDate)
+	const vaccineWeekday = nextVaccineDisplay
+		? '日一二三四五六'.charAt(new Date(`${nextVaccineDisplay.effectiveDate}T00:00:00`).getDay())
+		: ''
+	// 无下一针安排时的兜底文案
+	const vaccineReminderFallback =
+		vaccineStateDisplay === 'active'
+			? '订阅生效中，有新安排会继续提醒你'
+			: vaccineStateDisplay === 'exhausted'
+				? '本次提醒已发送，点击卡片可再次订阅'
+				: '开启订阅，接种日前 3 天微信提醒你'
 
 	const requestReviewSubscription = async () => {
 		if (!reviewTemplateId) return
@@ -264,6 +320,27 @@ export default function Index() {
 			? `已醒${formatElapsed(summary.lastSleepEndAt).replace('前', '')}`
 			: summary?.lastSleepAt ? `入睡${formatElapsed(summary.lastSleepAt)}` : '')
 		: ''
+
+	const navigateToRecord = async (type: string, metric?: string) => {
+		if (!isLoggedIn) {
+			needLogin()
+			return
+		}
+		if (!currentBaby) {
+			Taro.navigateTo({ url: '/pages/onboarding/index' })
+			return
+		}
+		if (type === 'photo') {
+			takePhotoAndSave(currentBaby.id)
+			return
+		}
+		Taro.navigateTo({
+			url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}${
+				metric ? `&metric=${metric}` : ''
+			}`,
+		})
+		setShowMore(false)
+	}
 
 	// 从记录中提取辅助信息
 	const todayRecords = records || []
@@ -301,27 +378,6 @@ export default function Index() {
 	const lastSleepDuration =
 		sleepRecords.length > 0 ? sleepRecords[0].duration : null
 
-	const navigateToRecord = async (type: string, metric?: string) => {
-		if (!isLoggedIn) {
-			needLogin()
-			return
-		}
-		if (!currentBaby) {
-			Taro.navigateTo({ url: '/pages/onboarding/index' })
-			return
-		}
-		if (type === 'photo') {
-			takePhotoAndSave(currentBaby.id)
-			return
-		}
-		Taro.navigateTo({
-			url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}${
-				metric ? `&metric=${metric}` : ''
-			}`,
-		})
-		setShowMore(false)
-	}
-
 	// 查看喂奶明细
 	const goToFeedingDetail = () => {
 		if (!isLoggedIn) {
@@ -355,9 +411,34 @@ export default function Index() {
 	// 未登录时使用 mock 数据
 	const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY
 	const displaySummary = isLoggedIn ? summary : MOCK_SUMMARY
+	// 身高体重是慢变的存量数据，示例模式补一份样例；体温是瞬时健康信号，示例里不展示
+	const displayHeightWeight = isLoggedIn ? latestHeightWeight : MOCK_STATS.latestHeightWeight
 	const displayAge = displayBaby ? calculateAge(displayBaby.birthday) : null
 	const monthlyTips = displayAge ? getMonthlyTips(displayAge.months) : null
 	const featuredTip = monthlyTips?.tips[0]
+
+	// 体温是瞬时健康信号：只有最近 24 小时内量过才在首页展示，过期数据交给明细页/趋势图
+	const TEMPERATURE_WINDOW_MS = 24 * 60 * 60 * 1000
+	const displayTemperature =
+		latestTemperature &&
+		now - new Date(latestTemperature.date).getTime() <= TEMPERATURE_WINDOW_MS
+			? latestTemperature
+			: null
+	// 发烧状态色：≥38.5 高热红、≥37.3 低热橙、正常中性色
+	const tempFeverClass = !displayTemperature
+		? ''
+		: displayTemperature.temperature >= 38.5
+			? ' fever-high'
+			: displayTemperature.temperature >= 37.3
+				? ' fever-low'
+				: ''
+	const tempTimeText = displayTemperature
+		? `${
+				new Date(displayTemperature.date).toDateString() === new Date(now).toDateString()
+					? '今天'
+					: '昨天'
+			}${formatHM(displayTemperature.date)}`
+		: ''
 
 	// 生成今日日报海报
 	const handleDailyReport = async (action: 'save' | 'share') => {
@@ -473,6 +554,11 @@ export default function Index() {
 			>
 				<View className="baby-deco baby-deco-a" />
 				<View className="baby-deco baby-deco-b" />
+				<Image
+					className="baby-illustration"
+					src={displayBaby?.gender === 'female' ? babyIllustrationGirl : babyIllustration}
+					mode="aspectFit"
+				/>
 				<View className="baby-main">
 					<View className="baby-avatar">
 						{displayBaby?.avatar ? (
@@ -528,9 +614,9 @@ export default function Index() {
 					)}
 				</View>
 
-				{(latestHeightWeight || latestTemperature) && (
-					<View className="baby-metrics">
-						{latestHeightWeight && (
+				{(displayHeightWeight || displayTemperature || isLoggedIn) && (
+					<View className={`baby-metrics${displayTemperature ? ' has-temp' : ''}`}>
+						{displayHeightWeight ? (
 							<Fragment>
 								<View className="baby-metric m-weight">
 									<View className="baby-metric-icon">
@@ -540,7 +626,7 @@ export default function Index() {
 										<Text className="baby-metric-label">体重</Text>
 										<View className="baby-metric-value">
 											<Text className="baby-metric-num">
-												{latestHeightWeight.weight}
+												{displayHeightWeight.weight}
 											</Text>
 											<Text className="baby-metric-unit">kg</Text>
 										</View>
@@ -554,29 +640,64 @@ export default function Index() {
 										<Text className="baby-metric-label">身高</Text>
 										<View className="baby-metric-value">
 											<Text className="baby-metric-num">
-												{latestHeightWeight.height}
+												{displayHeightWeight.height}
 											</Text>
 											<Text className="baby-metric-unit">cm</Text>
 										</View>
 									</View>
 								</View>
 							</Fragment>
-						)}
-						{latestTemperature && (
-							<View className="baby-metric m-temp">
-								<View className="baby-metric-icon">
-									<Text>🌡️</Text>
+						) : (
+							<Fragment>
+								{/* 空状态：虚线幽灵卡引导记录第一笔身高体重 */}
+								<View
+									className="baby-metric ghost"
+									onClick={() => navigateToRecord('height_weight', 'weight')}
+								>
+									<View className="baby-metric-icon">
+										<Text>⚖️</Text>
 									</View>
-								<View className="baby-metric-copy">
-									<Text className="baby-metric-label">体温</Text>
-									<View className="baby-metric-value">
-										<Text className="baby-metric-num">
-											{latestTemperature.temperature}
-										</Text>
-											<Text className="baby-metric-unit">°C</Text>
+									<View className="baby-metric-copy">
+										<Text className="baby-metric-label">体重</Text>
+										<View className="baby-metric-value">
+											<Text className="ghost-add">＋ 记录</Text>
 										</View>
 									</View>
 								</View>
+								<View
+									className="baby-metric ghost"
+									onClick={() => navigateToRecord('height_weight', 'height')}
+								>
+									<View className="baby-metric-icon">
+										<Text>📏</Text>
+									</View>
+									<View className="baby-metric-copy">
+										<Text className="baby-metric-label">身高</Text>
+										<View className="baby-metric-value">
+											<Text className="ghost-add">＋ 记录</Text>
+										</View>
+									</View>
+								</View>
+							</Fragment>
+						)}
+						{displayTemperature && (
+							<View className={`baby-metric m-temp${tempFeverClass}`}>
+								<View className="baby-metric-icon">
+									<Text>🌡️</Text>
+								</View>
+								<View className="baby-metric-copy">
+									<View className="baby-metric-label-row">
+										<Text className="baby-metric-label">体温</Text>
+										<Text className="baby-metric-time">{tempTimeText}</Text>
+									</View>
+									<View className="baby-metric-value">
+										<Text className="baby-metric-num">
+											{displayTemperature.temperature}
+										</Text>
+										<Text className="baby-metric-unit">°C</Text>
+									</View>
+								</View>
+							</View>
 						)}
 					</View>
 				)}
@@ -598,18 +719,48 @@ export default function Index() {
 				)}
 			</View>
 
-			{isLoggedIn && currentBaby && vaccineTemplateId && (
+			{(isLoggedIn ? Boolean(currentBaby && vaccineTemplateId) : Boolean(displayBaby)) && (
 				<Button
-					className={`vaccine-reminder-card${vaccineState === 'active' ? ' enabled' : ''}`}
+					className={`vaccine-reminder-card ${vaccineCardClass}`}
 					onClick={handleReminderCardClick}
-					aria-label={vaccineState === 'active' ? '疫苗提醒已订阅' : vaccineState === 'exhausted' ? '再次订阅疫苗提醒' : '开启疫苗提醒'}
+					aria-label={vaccineBadgeText}
 				>
-					<View className="vaccine-reminder-icon"><Text>💉</Text></View>
+					<Image className="vaccine-safety-art" src={vaccineSafety} mode="aspectFit" />
 					<View className="vaccine-reminder-copy">
-						<Text className="vaccine-reminder-title">{vaccineState === 'active' ? '疫苗提醒已订阅' : vaccineState === 'exhausted' ? '再次订阅疫苗提醒' : '开启疫苗提醒'}</Text>
-						<Text className="vaccine-reminder-desc">{vaccineReminderDescription}</Text>
+						<View className="vaccine-title-row">
+							<Text className="vaccine-bell">🔔</Text>
+							<Text className="vaccine-reminder-title">疫苗提醒</Text>
+							<View className={`vaccine-state-badge${vaccineBadgeClass}`}>
+								<Text className={`vaccine-state-badge-text${vaccineBadgeClass}`}>
+									{vaccineBadgeText}
+								</Text>
+							</View>
+						</View>
+						{nextVaccineDisplay ? (
+							<Fragment>
+								<Text className="vaccine-next-line">下一针：{nextVaccineDisplay.label}</Text>
+								<View className="vaccine-count">
+									<Text className="vaccine-count-prefix">还有</Text>
+									<Text className="vaccine-count-number">{vaccineDaysLeft}</Text>
+									<Text className="vaccine-count-unit">天</Text>
+								</View>
+								<Text className="vaccine-date-line">
+									接种日期：{formatVaccineDate(nextVaccineDisplay.effectiveDate)}（周{vaccineWeekday}）
+								</Text>
+							</Fragment>
+						) : (
+							<Text className="vaccine-reminder-desc">{vaccineReminderFallback}</Text>
+						)}
 					</View>
-					<Text className="vaccine-reminder-action">{vaccineState === 'active' ? '已订阅' : vaccineState === 'exhausted' ? '再次订阅 ›' : '开启 ›'}</Text>
+					<View
+						className={`vaccine-plan-btn${isVaccineActive ? '' : ' cta'}`}
+						onClick={isVaccineActive ? handleViewVaccinePlan : undefined}
+					>
+						<Text className={`vaccine-plan-btn-text${isVaccineActive ? '' : ' cta'}`}>
+							{vaccineCtaText}
+						</Text>
+						<Text className={`vaccine-plan-btn-arrow${isVaccineActive ? '' : ' cta'}`}>›</Text>
+					</View>
 				</Button>
 			)}
 
@@ -626,7 +777,7 @@ export default function Index() {
 								<View
 									key={action.type}
 									className="action-item"
-									onClick={() => navigateToRecord(action.type)}
+									onClick={() => navigateToRecord(action.type, 'metric' in action ? action.metric : undefined)}
 								>
 									<View className={`action-icon ${action.type}`}>
 										<Text>{action.icon}</Text>
@@ -645,7 +796,7 @@ export default function Index() {
 				</View>
 			)}
 
-			{/* 今日统计 */}
+			{/* 今日记录 */}
 			{displaySummary && (
 				<View className="stats-section">
 					<View className="section-head">
@@ -832,11 +983,11 @@ export default function Index() {
 										</View>
 										<Text className="sheet-item-label">{action.label}</Text>
 									</View>
-							))}
+								))}
+							</View>
 						</View>
 					</View>
 				</View>
-			</View>
 			)}
 
 			{showTips && monthlyTips && (
@@ -850,20 +1001,20 @@ export default function Index() {
 							</View>
 							<View className="tips-sheet-count"><Text>{monthlyTips.tips.length} 条</Text></View>
 						</View>
-					<ScrollView className="tips-sheet-list" scrollY>
-						{monthlyTips.tips.map((tip, index) => (
-							<View key={tip.category} className="tips-sheet-item">
-								<Text className="tips-sheet-index">0{index + 1}</Text>
-								<View className="tips-sheet-copy">
-									<Text className="tips-sheet-category">{tip.category}</Text>
-									<Text className="tips-sheet-content">{tip.content}</Text>
+						<ScrollView className="tips-sheet-list" scrollY>
+							{monthlyTips.tips.map((tip, index) => (
+								<View key={tip.category} className="tips-sheet-item">
+									<Text className="tips-sheet-index">0{index + 1}</Text>
+									<View className="tips-sheet-copy">
+										<Text className="tips-sheet-category">{tip.category}</Text>
+										<Text className="tips-sheet-content">{tip.content}</Text>
+									</View>
 								</View>
-							</View>
-						))}
-						<Text className="tips-sheet-disclaimer">小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。</Text>
-					</ScrollView>
+							))}
+							<Text className="tips-sheet-disclaimer">小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。</Text>
+						</ScrollView>
+					</View>
 				</View>
-			</View>
 			)}
 
 			{/* 「添加到我的小程序」引导浮层：气泡指向右上角胶囊 */}

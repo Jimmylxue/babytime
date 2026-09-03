@@ -76,7 +76,6 @@ export default function RecordPage() {
 	const { addRecord, updateRecord } = useRecordStore()
 
 	const [loading, setLoading] = useState(false)
-	const [savedOnce, setSavedOnce] = useState(false)
 	const submittingRef = useRef(false) // 同步锁，避免 state 异步更新导致连点漏拦截
 	// 用户是否手动改过表单：预填结果不覆盖已手动编辑的内容
 	const formTouchedRef = useRef(false)
@@ -514,16 +513,9 @@ export default function RecordPage() {
 					(Taro.getStorageSync('stats:cumulativeRecords') || 0) + 1
 				Taro.setStorageSync('stats:cumulativeRecords', cumulative)
 
-				// 连续记录：保存后停留本页，发生时间重置为当前，
-				// 类型字段保留（即「按上一条继续」），一次性内容清空
-				Taro.showToast({ title: '已记录，可继续添加', icon: 'success' })
-				setStartTime(formatHM(new Date()))
-				setNote('')
-				setDiaperImage('')
-				setDiaperAnalysis(null)
-				setSavedOnce(true)
-				submittingRef.current = false
-				setLoading(false)
+				// 保存成功后直接返回（与编辑态一致）：再次进入时「按上次来」会预填上次值
+				Taro.showToast({ title: '已记录', icon: 'success' })
+				setTimeout(() => Taro.navigateBack(), 1500)
 			}
 		} catch (error) {
 			submittingRef.current = false
@@ -1038,9 +1030,7 @@ export default function RecordPage() {
 							: '提交中...'
 						: isEdit
 							? '保存修改'
-							: savedOnce
-								? '再记一条'
-								: '保存记录'}
+							: '保存记录'}
 				</Text>
 			</View>
 		</View>
