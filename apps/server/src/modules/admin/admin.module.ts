@@ -11,6 +11,7 @@ import { AdminStatsService } from './admin-stats.service';
 import { AdminController } from './admin.controller';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
       }),
     }),
     TypeOrmModule.forFeature([Announcement]),
+    NotificationModule,
   ],
   controllers: [AdminController],
   providers: [AdminAuthService, AdminStatsService, AdminBabyService, AdminAnnouncementService, AdminJwtStrategy, AdminJwtGuard],

@@ -1,4 +1,4 @@
-import { Canvas,  View, Text, Image, ScrollView } from '@tarojs/components'
+import { Canvas, View, Text, Image, ScrollView, Button } from '@tarojs/components'
 import Taro, {
 	useDidShow,
 	useShareAppMessage,
@@ -66,10 +66,14 @@ export default function Index() {
 	const [showTips, setShowTips] = useState(false)
 	const [showAddGuide, setShowAddGuide] = useState(false)
 	const [now, setNow] = useState(() => Date.now())
+	const [statusBarHeight] = useState(() => Taro.getSystemInfoSync().statusBarHeight || 20)
+	const [vaccineTemplateId, setVaccineTemplateId] = useState('')
+	const [vaccineSubscribed, setVaccineSubscribed] = useState(false)
 	const [reviewTemplateId, setReviewTemplateId] = useState('')
 	const [reviewSubscribed, setReviewSubscribed] = useState(false)
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
+	const requestingVaccineSubscriptionRef = useRef(false)
 
 	useEffect(() => {
 		const timer = setInterval(() => setNow(Date.now()), 60 * 1000)
@@ -136,8 +140,10 @@ export default function Index() {
 		showAnnouncementIfNeeded()
 		if (isLoggedIn) {
 			notificationApi.getConfig().then(res => {
+				setVaccineTemplateId(res.data?.vaccineEnabled ? res.data.vaccineTemplateId : '')
 				setReviewTemplateId(res.data?.reviewEnabled ? res.data.reviewTemplateId : '')
 			}).catch(() => {})
+			setVaccineSubscribed(Boolean(Taro.getStorageSync('subscription:vaccine:accepted')))
 			fetchBabies().then(() => {
 				const baby = useBabyStore.getState().currentBaby
 				if (baby) {
@@ -152,6 +158,63 @@ export default function Index() {
 			})
 		}
 	})
+
+	const requestVaccineSubscription = async () => {
+		if (requestingVaccineSubscriptionRef.current) return
+		if (!isLoggedIn) {
+			needLogin()
+			return
+		}
+		if (!vaccineTemplateId) {
+			Taro.showToast({ title: '提醒服务暂未配置', icon: 'none' })
+			return
+		}
+		requestingVaccineSubscriptionRef.current = true
+		try {
+			const promptKey = `subscription:vaccine:last-prompt:v3:${new Date().toISOString().slice(0, 10)}`
+			if (Taro.getStorageSync(promptKey)) {
+				Taro.showToast({ title: '今天已请求过提醒授权', icon: 'none' })
+				return
+			}
+			const requestSubscribeMessage = (Taro as any).requestSubscribeMessage
+			if (typeof requestSubscribeMessage !== 'function') {
+				throw new Error('当前基础库不支持订阅消息，请升级微信后重试')
+			}
+			// 必须在铃铛点击回调中直接调用，不能先 await 网络请求。
+			const result = await requestSubscribeMessage({ tmplIds: [vaccineTemplateId] })
+			Taro.setStorageSync(promptKey, true)
+			const status = result?.[vaccineTemplateId] || 'unknown'
+			await notificationApi.saveSubscriptions({ [vaccineTemplateId]: status })
+			void trackEvent('subscription_prompt_result', { template: 'vaccine', status, source: 'home_header' })
+			if (status === 'accept') {
+				Taro.setStorageSync('subscription:vaccine:accepted', true)
+				setVaccineSubscribed(true)
+				Taro.showToast({ title: '接种提醒已开启', icon: 'success' })
+			} else if (status === 'reject') {
+				setVaccineSubscribed(false)
+				Taro.showToast({ title: '暂未开启接种提醒', icon: 'none' })
+			}
+		} catch (error: any) {
+			const errorMessage = error?.errMsg || error?.message || 'unknown'
+			console.error('requestSubscribeMessage failed', error)
+			if (errorMessage.includes('cancel')) {
+				Taro.showToast({ title: '已取消提醒授权', icon: 'none' })
+			} else {
+				await Taro.showModal({ title: '提醒授权失败', content: errorMessage, showCancel: false, confirmText: '知道了' })
+			}
+			void trackEvent('subscription_prompt_result', { template: 'vaccine', status: 'error', source: 'home_header' })
+		} finally {
+			requestingVaccineSubscriptionRef.current = false
+		}
+	}
+
+	const handleReminderCardClick = () => {
+		if (vaccineSubscribed) {
+			Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}` })
+			return
+		}
+		void requestVaccineSubscription()
+	}
 
 	const requestReviewSubscription = async () => {
 		if (!reviewTemplateId) return
@@ -364,6 +427,9 @@ export default function Index() {
 
 	return (
 		<View className="page">
+			<View className="home-topbar" style={{ paddingTop: `${statusBarHeight}px` }}>
+				<Text className="home-topbar-title">育娃手记</Text>
+			</View>
 			{/* 未登录：示例数据提示 */}
 			{!isLoggedIn && (
 				<View className="demo-banner">
@@ -513,6 +579,21 @@ export default function Index() {
 					</View>
 				)}
 			</View>
+
+			{isLoggedIn && currentBaby && vaccineTemplateId && (
+				<Button
+					className={`vaccine-reminder-card${vaccineSubscribed ? ' enabled' : ''}`}
+					onClick={handleReminderCardClick}
+					aria-label={vaccineSubscribed ? '管理疫苗提醒' : '开启疫苗提醒'}
+				>
+					<View className="vaccine-reminder-icon"><Text>💉</Text></View>
+					<View className="vaccine-reminder-copy">
+						<Text className="vaccine-reminder-title">{vaccineSubscribed ? '疫苗提醒已开启' : '开启疫苗提醒'}</Text>
+						<Text className="vaccine-reminder-desc">{vaccineSubscribed ? '接种日前 3 天提醒你' : '接种日前 3 天提醒你，按时完成接种'}</Text>
+					</View>
+					<Text className="vaccine-reminder-action">{vaccineSubscribed ? '管理 ›' : '开启 ›'}</Text>
+				</Button>
+			)}
 
 			{/* 快速记录 */}
 			{displayBaby && (

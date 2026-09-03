@@ -8,6 +8,7 @@ import Babies from './pages/Babies';
 import BabyDetailPage from './pages/BabyDetail';
 import Analytics from './pages/Analytics';
 import Announcements from './pages/Announcements';
+import Subscriptions from './pages/Subscriptions';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
 	if (!getToken()) {
@@ -34,6 +35,7 @@ export default function App() {
 				<Route path="users" element={<Users />} />
 				<Route path="analytics" element={<Analytics />} />
 				<Route path="announcements" element={<Announcements />} />
+				<Route path="notifications" element={<Subscriptions />} />
 			</Route>
 			<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>

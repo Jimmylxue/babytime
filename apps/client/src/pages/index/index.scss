@@ -1,7 +1,31 @@
 .page {
   min-height: 100vh;
   background: #FFFAF9;
-  padding: 32px 24px 140px;
+  // 顶部栏为 fixed，给页面内容预留状态栏和导航栏高度。
+  padding: 180px 24px 140px;
+}
+
+.home-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 88px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: content-box;
+  background: #FFFAF9;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(130, 110, 90, 0.04);
+}
+
+.home-topbar-title {
+  margin-left: 32px;
+  color: #2D2A2E;
+  font-size: 34px;
+  font-weight: 700;
 }
 
 // 登录提示
@@ -318,6 +342,78 @@
   color: #B79CA6;
   font-family: Arial, sans-serif;
   font-size: 36px;
+}
+
+.vaccine-reminder-card {
+  width: 100%;
+  min-height: 118px;
+  margin: -14px 0 32px;
+  padding: 20px 22px;
+  border: 1px solid #F1E9E6;
+  border-radius: 24px;
+  background: #FFFFFF;
+  box-shadow: 0 10px 28px rgba(130, 110, 90, 0.07);
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  line-height: normal;
+  text-align: left;
+}
+
+.vaccine-reminder-card::after { border: 0; }
+
+.vaccine-reminder-card.enabled {
+  background: #F7FBF6;
+  border-color: #E1EFDE;
+}
+
+.vaccine-reminder-icon {
+  flex-shrink: 0;
+  width: 70px;
+  height: 70px;
+  margin-right: 18px;
+  border-radius: 20px;
+  background: #EEF1FF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+}
+
+.vaccine-reminder-card.enabled .vaccine-reminder-icon {
+  background: #E9F5E7;
+}
+
+.vaccine-reminder-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.vaccine-reminder-title {
+  display: block;
+  color: #33272B;
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.vaccine-reminder-desc {
+  display: block;
+  margin-top: 8px;
+  color: #8E8B82;
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+.vaccine-reminder-action {
+  flex-shrink: 0;
+  margin-left: 16px;
+  color: #D85B75;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.vaccine-reminder-card.enabled .vaccine-reminder-action {
+  color: #4F9C62;
 }
 
 // 统计区域

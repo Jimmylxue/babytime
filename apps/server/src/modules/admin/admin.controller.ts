@@ -1,4 +1,4 @@
-import { Controller, Body, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Controller, Body, Get, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminAnnouncementService } from './admin-announcement.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminBabyService } from './admin-baby.service';
@@ -7,6 +7,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
+import { NotificationService } from '../notification/notification.service';
 
 @Controller('admin')
 export class AdminController {
@@ -15,6 +16,7 @@ export class AdminController {
     private readonly adminStatsService: AdminStatsService,
     private readonly adminAnnouncementService: AdminAnnouncementService,
     private readonly adminBabyService: AdminBabyService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Post('auth/login')
@@ -122,6 +124,25 @@ export class AdminController {
   @Put('announcements/:id')
   async updateAnnouncement(@Param('id') id: string, @Body() dto: UpdateAnnouncementDto) {
     const data = await this.adminAnnouncementService.update(id, dto);
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('notifications/subscriptions')
+  async listNotificationSubscriptions(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    const data = await this.notificationService.listSubscribedUsers(Number(page) || 1, Number(pageSize) || 20, keyword?.trim() || undefined);
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Post('notifications/test')
+  async sendNotificationTest(@Request() req, @Body() body: { userId?: string; babyId?: string }) {
+    if (!body?.userId) return { code: 400, message: '请选择已订阅用户' };
+    const data = await this.notificationService.sendManualVaccine(body.userId, body.babyId, req.user?.username || 'admin');
     return { code: 0, message: 'success', data };
   }
 }

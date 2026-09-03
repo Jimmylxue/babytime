@@ -188,3 +188,26 @@ export interface AnnouncementPayload {
 	content: string;
 	isActive: boolean;
 }
+
+export interface NotificationSubscription {
+	userId: string;
+	nickname: string | null;
+	avatar: string | null;
+	templateId: string;
+	status: string;
+	availableCount: number;
+	acceptedCount: number;
+	rejectedCount: number;
+	sentCount: number;
+	babyId: string | null;
+	babyName: string | null;
+	grantedAt: string | null;
+	lastSentAt: string | null;
+}
+
+export interface NotificationSubscriptionResult {
+	list: NotificationSubscription[];
+	total: number;
+	page: number;
+	pageSize: number;
+}

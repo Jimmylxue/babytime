@@ -5,6 +5,7 @@ import {
 	TeamOutlined,
 	BarChartOutlined,
 	NotificationOutlined,
+	BellOutlined,
 	LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +19,7 @@ const MENU_ITEMS = [
 	{ key: '/users', icon: <TeamOutlined />, label: '用户列表' },
 	{ key: '/analytics', icon: <BarChartOutlined />, label: '数据分析' },
 	{ key: '/announcements', icon: <NotificationOutlined />, label: '公告管理' },
+	{ key: '/notifications', icon: <BellOutlined />, label: '订阅用户' },
 ];
 
 export default function AdminLayout() {

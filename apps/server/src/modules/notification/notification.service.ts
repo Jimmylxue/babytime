@@ -1,7 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { HttpService } from '@nestjs/axios';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
 import { User } from '../user/entities/user.entity';
 import { Baby } from '../baby/entities/baby.entity';
@@ -35,6 +38,7 @@ export class NotificationService implements OnModuleInit {
     @InjectRepository(SubscriptionGrant) private readonly grants: Repository<SubscriptionGrant>,
     @InjectRepository(NotificationDelivery) private readonly deliveries: Repository<NotificationDelivery>,
     @InjectRepository(FamilyMember) private readonly familyMembers: Repository<FamilyMember>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   onModuleInit() {
@@ -83,6 +87,123 @@ export class NotificationService implements OnModuleInit {
   private getVaccineTemplateId() { return process.env.WECHAT_SUBSCRIBE_VACCINE_TEMPLATE_ID || ''; }
   private getReviewTemplateId() { return process.env.WECHAT_SUBSCRIBE_REVIEW_TEMPLATE_ID || ''; }
 
+  async listSubscribedUsers(page = 1, pageSize = 20, keyword?: string) {
+    const templateId = this.getVaccineTemplateId();
+    if (!templateId) return { list: [], total: 0, page: 1, pageSize };
+    const safePage = Math.max(Math.floor(page) || 1, 1);
+    const safePageSize = Math.min(Math.max(Math.floor(pageSize) || 20, 1), 100);
+    const offset = (safePage - 1) * safePageSize;
+    const where = keyword ? 'AND (u.nickname LIKE ? OR b.name LIKE ?)' : '';
+    const keywordParams = keyword ? [`%${keyword}%`, `%${keyword}%`] : [];
+    const baseParams = [templateId, ...keywordParams];
+    const [countRow] = await this.dataSource.query(
+      `SELECT COUNT(DISTINCT sg.user_id) AS total
+       FROM subscription_grants sg
+       INNER JOIN users u ON u.id = sg.user_id
+       LEFT JOIN babies b ON b.user_id = u.id
+       WHERE sg.template_id = ? AND sg.accepted_count > 0 ${where}`,
+      baseParams,
+    );
+    const rows = await this.dataSource.query(
+      `SELECT DISTINCT sg.user_id AS userId, u.nickname, u.avatar, sg.template_id AS templateId,
+        sg.status, sg.available_count AS availableCount, sg.accepted_count AS acceptedCount,
+        sg.rejected_count AS rejectedCount, sg.sent_count AS sentCount,
+        sg.granted_at AS grantedAt, sg.last_sent_at AS lastSentAt,
+        COALESCE(
+          (SELECT b1.id FROM babies b1 WHERE b1.user_id = u.id ORDER BY b1.created_at ASC LIMIT 1),
+          (SELECT b2.id FROM babies b2 INNER JOIN family_members fm ON fm.baby_id = b2.id
+           WHERE fm.user_id = u.id AND fm.status = 'accepted' ORDER BY b2.created_at ASC LIMIT 1)
+        ) AS babyId,
+        COALESCE(
+          (SELECT b1.name FROM babies b1 WHERE b1.user_id = u.id ORDER BY b1.created_at ASC LIMIT 1),
+          (SELECT b2.name FROM babies b2 INNER JOIN family_members fm ON fm.baby_id = b2.id
+           WHERE fm.user_id = u.id AND fm.status = 'accepted' ORDER BY b2.created_at ASC LIMIT 1)
+        ) AS babyName
+       FROM subscription_grants sg
+       INNER JOIN users u ON u.id = sg.user_id
+       LEFT JOIN babies b ON b.user_id = u.id
+       WHERE sg.template_id = ? AND sg.accepted_count > 0 ${where}
+       ORDER BY sg.available_count DESC, sg.granted_at DESC
+       LIMIT ? OFFSET ?`,
+      [...baseParams, safePageSize, offset],
+    );
+    return {
+      list: rows.map((row) => ({
+        userId: row.userId, nickname: row.nickname, avatar: row.avatar, templateId: row.templateId,
+        status: row.status, availableCount: Number(row.availableCount), acceptedCount: Number(row.acceptedCount),
+        rejectedCount: Number(row.rejectedCount), sentCount: Number(row.sentCount), babyId: row.babyId || null,
+        babyName: row.babyName || null, grantedAt: row.grantedAt, lastSentAt: row.lastSentAt,
+      })),
+      total: Number(countRow?.total || 0), page: safePage, pageSize: safePageSize,
+    };
+  }
+
+  async sendManualVaccine(userId: string, babyId: string | undefined, triggeredBy: string) {
+    const templateId = this.getVaccineTemplateId();
+    if (!templateId || !process.env.WECHAT_APP_ID || !process.env.WECHAT_APP_SECRET) {
+      throw new BadRequestException('疫苗提醒模板或微信配置未完成');
+    }
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user?.openId) throw new NotFoundException('用户不存在或没有微信 OpenID');
+    const baby = babyId
+      ? await this.babies.findOne({ where: { id: babyId } })
+      : await this.babies.findOne({ where: { userId }, order: { createdAt: 'ASC' } });
+    if (!baby) throw new BadRequestException('该用户没有可用的宝宝档案');
+    if (baby.userId !== userId) {
+      const member = await this.familyMembers.findOne({ where: { userId, babyId: baby.id, status: InviteStatus.ACCEPTED } });
+      if (!member) throw new BadRequestException('用户无权操作该宝宝');
+    }
+    const grant = await this.grants.findOne({ where: { userId, templateId } });
+    if (!grant || grant.acceptedCount <= 0) throw new BadRequestException('该用户尚未授权疫苗提醒');
+    if (grant.availableCount <= 0) throw new BadRequestException('该用户没有可用的订阅次数，请先重新授权');
+
+    const reserve = await this.grants.createQueryBuilder().update(SubscriptionGrant)
+      .set({ availableCount: () => 'available_count - 1' })
+      .where('id = :id AND available_count > 0', { id: grant.id }).execute();
+    if (!reserve.affected) throw new BadRequestException('订阅次数刚刚被其他发送消耗，请刷新列表');
+
+    const date = new Date(); date.setDate(date.getDate() + Number(process.env.VACCINE_REMINDER_DAYS || 3));
+    const notifyTime = `${this.formatLocalDate(date)} 09:00`;
+    const payload = {
+      vaccine: `${baby.name} · 测试提醒`.slice(0, 20), date: notifyTime, note: '测试提醒，以门诊为准'.slice(0, 20),
+    };
+    const delivery = this.deliveries.create({
+      dedupeKey: `manual:vaccine:${randomUUID()}`, userId, templateId, status: 'sending', source: 'manual',
+      triggeredBy, payload: JSON.stringify(payload), error: null, wechatCode: null, wechatMessage: null, sentAt: null,
+    });
+    await this.deliveries.save(delivery);
+    try {
+      const token = await this.getAccessToken();
+      if (!token) throw new Error('微信 access_token 获取失败');
+      const result = await firstValueFrom(this.http.post(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${token}`, {
+        touser: user.openId, template_id: templateId,
+        page: `/pages/vaccine-timeline/index?babyId=${baby.id}&source=notification_vaccine`,
+        data: {
+          [process.env.WECHAT_VACCINE_FIELD_NAME || 'thing1']: { value: payload.vaccine },
+          [process.env.WECHAT_VACCINE_FIELD_DATE || 'time2']: { value: payload.date },
+          [process.env.WECHAT_VACCINE_FIELD_NOTE || 'thing6']: { value: payload.note },
+        }, miniprogram_state: process.env.WECHAT_SUBSCRIBE_MINI_PROGRAM_STATE || 'formal',
+      }));
+      const response = result.data || {};
+      delivery.wechatCode = String(response.errcode ?? 0);
+      delivery.wechatMessage = response.errmsg || 'ok';
+      if (response.errcode) throw new Error(`${response.errcode}: ${response.errmsg}`);
+      delivery.status = 'sent'; delivery.sentAt = new Date();
+      const freshGrant = await this.grants.findOneOrFail({ where: { id: grant.id } });
+      freshGrant.sentCount += 1; freshGrant.lastSentAt = new Date(); freshGrant.status = freshGrant.availableCount > 0 ? 'accept' : 'consumed';
+      await this.grants.save(freshGrant);
+      await this.deliveries.save(delivery);
+      return { success: true, deliveryId: delivery.id, availableCount: freshGrant.availableCount };
+    } catch (error: any) {
+      delivery.status = 'failed'; delivery.error = String(error?.message || error);
+      await this.deliveries.save(delivery);
+      await this.grants.createQueryBuilder().update(SubscriptionGrant)
+        .set({ availableCount: () => 'available_count + 1', status: 'accept' })
+        .where('id = :id', { id: grant.id }).execute();
+      throw new BadRequestException(`测试推送失败：${delivery.error}`);
+    }
+  }
+
   private async getAccessToken() {
     const appid = process.env.WECHAT_APP_ID;
     const secret = process.env.WECHAT_APP_SECRET;
@@ -129,6 +250,8 @@ export class NotificationService implements OnModuleInit {
           const done = await this.records.count({ where: { babyId: baby.id, vaccineScheduleItemId: itemId } });
           if (done > 0) continue;
           const date = this.formatLocalDate(due);
+          // 模板中的 time2 字段要求时间格式；接种日期按提醒日当天 09:00 展示。
+          const notifyTime = `${date} 09:00`;
           const dedupeKey = `vaccine:${baby.id}:${itemId}:${date}:${user.id}`;
           let delivery = await this.deliveries.findOne({ where: { dedupeKey } });
           if (delivery && delivery.status !== 'failed') continue;
@@ -141,7 +264,7 @@ export class NotificationService implements OnModuleInit {
               touser: user.openId, template_id: templateId, page: `/pages/vaccine-timeline/index?babyId=${baby.id}&source=notification_vaccine`,
               data: {
                 [process.env.WECHAT_VACCINE_FIELD_NAME || 'thing1']: { value: `${baby.name} · ${label}`.slice(0, 20) },
-                [process.env.WECHAT_VACCINE_FIELD_DATE || 'time2']: { value: date },
+                [process.env.WECHAT_VACCINE_FIELD_DATE || 'time2']: { value: notifyTime },
                 [process.env.WECHAT_VACCINE_FIELD_NOTE || 'thing6']: { value: '以门诊为准' },
               },
               miniprogram_state: process.env.WECHAT_SUBSCRIBE_MINI_PROGRAM_STATE || 'formal',
