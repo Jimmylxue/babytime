@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180">
+  <defs>
+    <linearGradient id="ballGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FBC9D4"/>
+      <stop offset="1" stop-color="#F29FB6"/>
+    </linearGradient>
+  </defs>
+  <!-- 星光点缀（不随拨浪鼓旋转） -->
+  <path d="M128 82 L131.5 92.5 L142 96 L131.5 99.5 L128 110 L124.5 99.5 L114 96 L124.5 92.5 Z" fill="#F3A9BC"/>
+  <path d="M141 62 L143 68 L149 70 L143 72 L141 78 L139 72 L133 70 L139 68 Z" fill="#F6C0CC"/>
+  <circle cx="118" cy="122" r="3.5" fill="#F6C0CC"/>
+  <!-- 拨浪鼓：整体右倾，球朝右上、手柄斜向左下 -->
+  <g transform="translate(8 2) rotate(35 75 68)">
+    <rect x="70" y="98" width="11" height="52" rx="5.5" fill="#EBC89B"/>
+    <circle cx="75.5" cy="160" r="10" fill="none" stroke="#EBC89B" stroke-width="7"/>
+    <rect x="60" y="93" width="31" height="13" rx="6.5" fill="#C99F87"/>
+    <circle cx="75" cy="56" r="43" fill="url(#ballGrad)"/>
+    <rect x="31" y="43" width="88" height="17" rx="8.5" fill="#FAE8DC" transform="rotate(-6 75 51.5)"/>
+    <ellipse cx="57" cy="34" rx="11" ry="6.5" fill="#FFFFFF" opacity="0.4" transform="rotate(-28 57 34)"/>
+  </g>
+</svg>

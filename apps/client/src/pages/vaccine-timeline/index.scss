@@ -1,193 +1,406 @@
+// 疫苗时间轴 —— 按参考稿高保真还原
 .timeline-page {
   min-height: 100vh;
-  padding: 32px 32px 72px;
+  padding: 24px 26px 72px;
   background: #FFFAF9;
   box-sizing: border-box;
 }
 
+// 顶部宝宝卡（粉渐变 + 拨浪鼓插画）
 .timeline-hero {
-  padding: 36px 32px;
-  background: #fff0ed;
-  border: 1px solid #ffd6dd;
-  border-radius: 24px;
-}
-
-.timeline-baby-name,
-.timeline-age,
-.timeline-current-label,
-.timeline-current-value,
-.vaccine-note,
-.vaccine-record-info,
-.custom-records-title,
-.custom-record-item,
-.empty-title,
-.empty-desc {
-  display: block;
+  position: relative;
+  overflow: hidden;
+  padding: 30px 28px 32px;
+  background: linear-gradient(135deg, #FFF3F5 0%, #FFE9EE 100%);
+  border-radius: 28px;
 }
 
 .timeline-baby-name {
+  display: block;
   font-size: 38px;
   line-height: 1.3;
-  font-weight: 700;
-  color: #2d2a2e;
+  font-weight: 800;
+  color: #3A3134;
 }
 
 .timeline-age {
-  margin-top: 8px;
-  font-size: 26px;
-  color: #8e8b82;
+  display: block;
+  margin-top: 6px;
+  font-size: 24px;
+  color: #A8A1A8;
+}
+
+.timeline-hero-art {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 150px;
+  height: 170px;
+  pointer-events: none;
 }
 
 .timeline-current-stage {
-  margin-top: 28px;
+  position: relative;
+  z-index: 1;
+  margin-top: 30px;
   padding-top: 24px;
-  border-top: 1px solid #ffd6dd;
+
+  // 分割线不贯穿整卡，止于拨浪鼓插画左侧（参考图样式）
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(100% - 190px);
+    border-top: 1px solid rgba(58, 49, 52, 0.08);
+  }
 }
 
 .timeline-current-label {
-  font-size: 22px;
-  color: #a66e79;
+  display: block;
+  font-size: 24px;
+  color: #8E8890;
 }
 
 .timeline-current-value {
-  margin-top: 8px;
-  font-size: 30px;
-  font-weight: 700;
-  color: #d85b75;
+  display: block;
+  margin-top: 6px;
+  font-size: 36px;
+  font-weight: 800;
+  color: #E5546E;
 }
 
+// 免责声明条
 .timeline-disclaimer {
-  margin: 24px 0 16px;
-  padding: 20px 24px;
-  background: #f8f6f1;
+  margin: 22px 0 20px;
+  padding: 22px 26px;
+  background: #F7F5F4;
   border-radius: 16px;
-  color: #8e8b82;
+  color: #98928F;
   font-size: 22px;
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
+// 订阅状态条（已订阅绿 / 未开启粉 / 已过期琥珀）
 .reminder-entry {
+  width: 100%;
+  box-sizing: border-box;
   border: 0;
   line-height: normal;
   text-align: left;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 32px;
-  padding: 22px 24px;
-  background: #fff;
-  border: 1px solid #ffd6dd;
-  border-radius: 16px;
+  gap: 16px;
+  margin-bottom: 36px;
+  padding: 24px 26px;
+  background: #FFF3F5;
+  border: 1px solid #F6D9DE;
+  border-radius: 20px;
+}
+
+.reminder-entry::after { border: 0; }
+
+.reminder-entry.enabled {
+  background: #EFF8EA;
+  border-color: #D8ECC9;
+}
+
+.reminder-entry.expired {
+  background: #FFF7EA;
+  border-color: #F0DFC2;
+}
+
+.reminder-bell {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+}
+
+.reminder-copy {
+  flex: 1;
+  min-width: 0;
 }
 
 .reminder-title,
 .reminder-desc { display: block; }
-.reminder-title { color: #3f3b3d; font-size: 26px; font-weight: 600; }
-.reminder-desc { margin-top: 6px; color: #8e8b82; font-size: 20px; }
-.reminder-action { flex: 0 0 auto; color: #d85b75; font-size: 22px; }
-.reminder-entry.enabled { border-color: #cde7d4; background: #f3fbf5; }
-.reminder-entry.enabled .reminder-action { color: #4f9c62; }
 
-.timeline-list { margin-left: 6px; }
+.reminder-title {
+  color: #C25B74;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.reminder-desc {
+  margin-top: 4px;
+  color: #C99AA5;
+  font-size: 21px;
+}
+
+.reminder-entry.enabled .reminder-title { color: #4E9C5F; }
+.reminder-entry.enabled .reminder-desc { color: #8FB98A; }
+.reminder-entry.expired .reminder-title { color: #B8863B; }
+.reminder-entry.expired .reminder-desc { color: #C9AE84; }
+
+.reminder-pill {
+  flex: 0 0 auto;
+  padding: 10px 26px;
+  background: #FFFFFF;
+  border: 1px solid #F3CFD6;
+  border-radius: 999px;
+  display: flex;
+}
+
+.reminder-pill-text {
+  color: #E0678C;
+  font-size: 23px;
+  font-weight: 600;
+}
+
+.reminder-entry.enabled .reminder-pill { border-color: #CBE3C5; }
+.reminder-entry.enabled .reminder-pill-text { color: #4E9C5F; }
+.reminder-entry.expired .reminder-pill { border-color: #EBD5AE; }
+.reminder-entry.expired .reminder-pill-text { color: #B8863B; }
+
+// 时间轴（左轨：圆点 + 连线）
+.timeline-list {
+  margin-left: 4px;
+}
 
 .timeline-group {
   position: relative;
   display: flex;
-  padding-bottom: 34px;
+  padding-bottom: 36px;
+
+  &:last-child {
+    padding-bottom: 0;
+  }
 
   &:not(:last-child) .timeline-marker::after {
     content: '';
     position: absolute;
-    top: 26px;
-    left: 10px;
-    width: 2px;
-    height: calc(100% + 8px);
-    background: #e8e3db;
+    top: 28px;
+    left: 20px;
+    width: 4px;
+    height: calc(100% + 12px);
+    background: #F0E4E8;
+    border-radius: 2px;
   }
-
-  &.current .timeline-dot { background: #ff8fa3; box-shadow: 0 0 0 8px #fff0ed; }
 }
 
-.timeline-marker { position: relative; width: 36px; flex: 0 0 36px; }
-.timeline-dot { position: relative; z-index: 1; width: 20px; height: 20px; margin-top: 10px; background: #c9c4bc; border-radius: 50%; }
-.timeline-content { flex: 1; min-width: 0; }
+.timeline-marker {
+  position: relative;
+  width: 44px;
+  flex: 0 0 44px;
+}
+
+.timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  // 与阶段标题文字垂直居中（标题行高约 42px，视觉中心 ~21px）
+  margin: 13px 0 0 14px;
+  background: #D9D3D8;
+  border-radius: 50%;
+}
+
+.timeline-group.current .timeline-dot {
+  width: 26px;
+  height: 26px;
+  margin: 8px 0 0 9px;
+  background: #F27BA0;
+}
+
+// 走过的阶段：粉色节点（区别于未到的灰色）
+.timeline-group.past .timeline-dot {
+  background: #F0A2BE;
+}
+
+.timeline-content {
+  flex: 1;
+  min-width: 0;
+  margin-top: -2px;
+}
 
 .timeline-group-title {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 16px;
-  color: #2d2a2e;
+  margin-bottom: 18px;
+  min-height: 34px;
+  color: #3A3134;
   font-size: 30px;
   font-weight: 700;
 }
 
-.current-badge {
-  padding: 4px 12px;
-  background: #fff0ed;
-  border-radius: 12px;
-  color: #d85b75;
-  font-size: 20px;
-  font-weight: 500;
+.timeline-group.current .timeline-group-title {
+  color: #E5546E;
 }
 
+.current-badge {
+  padding: 4px 16px;
+  background: #FDEFF2;
+  border: 1px solid #F5C3CE;
+  border-radius: 999px;
+  color: #E5546E;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+// 疫苗卡片：名称 + 日期 | 设置日期胶囊 | 记录接种›
 .vaccine-item {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 22px 20px;
-  margin-bottom: 12px;
-  background: #fff;
-  border: 1px solid #eeeae3;
-  border-radius: 16px;
+  padding: 24px 22px;
+  margin-bottom: 14px;
+  background: #FFFFFF;
+  border: 1px solid #F8E9ED;
+  border-radius: 24px;
+  box-shadow: 0 4px 12px rgba(232, 158, 172, 0.06);
 
-  &.completed { background: #f3fbf5; border-color: #cde7d4; }
+  &:active {
+    opacity: 0.85;
+  }
+
+  &.completed {
+    background: #F3FBF5;
+    border-color: #CDE7D4;
+  }
 }
 
-.vaccine-item-main { flex: 1; min-width: 0; }
-.vaccine-name { color: #3f3b3d; font-size: 27px; font-weight: 600; }
-.vaccine-note { margin-top: 8px; color: #9b958d; font-size: 20px; line-height: 1.4; }
-.vaccine-record-info { margin-top: 8px; color: #5b9e6c; font-size: 21px; }
-.vaccine-plan-date-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  margin-top: 10px;
+.vaccine-item-main {
+  flex: 1;
+  min-width: 0;
 }
-.vaccine-plan-date {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #8e8b82;
+
+.vaccine-name {
+  display: block;
+  color: #3A3134;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.vaccine-note {
+  display: block;
+  margin-top: 6px;
+  color: #A29CA3;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.vaccine-ref-date {
+  display: block;
+  margin-top: 8px;
+  color: #A29CA3;
+  font-size: 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vaccine-record-info {
+  display: block;
+  margin-top: 8px;
+  color: #4F9C62;
   font-size: 21px;
-  line-height: 1.45;
 }
-.vaccine-plan-date.custom { color: #b45f70; }
-.vaccine-plan-date-action {
-  color: #d85b75;
-  font-size: 20px;
+
+// 右侧动作区：设置日期胶囊（+ 恢复参考小字）
+.vaccine-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
+
+.vaccine-set-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #FDEFF2;
+  border-radius: 999px;
+}
+
+.vaccine-set-date.custom {
+  background: #FFE4EA;
+}
+
+.vaccine-set-date-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.vaccine-set-date-text {
+  color: #E5546E;
+  font-size: 23px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .vaccine-plan-reset {
-  color: #9b958d;
-  font-size: 20px;
+  color: #B9AAB1;
+  font-size: 19px;
 }
-.vaccine-status { color: #d85b75; font-size: 22px; white-space: nowrap; }
-.vaccine-status.done { color: #4f9c62; }
 
+.vaccine-record-link {
+  flex: 0 0 auto;
+  margin-left: 4px;
+  color: #E5546E;
+  font-size: 23px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.done {
+    color: #4F9C62;
+  }
+}
+
+// 自定义疫苗记录
 .custom-records {
-  margin: 10px 0 0 36px;
-  padding: 28px 24px;
-  background: #fff;
-  border: 1px solid #eeeae3;
-  border-radius: 20px;
+  margin: 10px 0 0 48px;
+  padding: 28px 26px;
+  background: #FFFFFF;
+  border: 1px solid #F8E9ED;
+  border-radius: 24px;
 }
 
-.custom-records-title { margin-bottom: 12px; color: #4b4747; font-size: 28px; font-weight: 700; }
-.custom-record-item { display: flex; justify-content: space-between; padding: 16px 0; border-top: 1px solid #f2eee8; color: #77716b; font-size: 24px; }
-.timeline-loading { padding: 60px 0; color: #8e8b82; font-size: 26px; text-align: center; }
-.timeline-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; }
+.custom-records-title {
+  display: block;
+  margin-bottom: 12px;
+  color: #4B4747;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.custom-record-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-top: 1px solid #F5F0F2;
+  color: #77716B;
+  font-size: 24px;
+}
+
+.timeline-loading {
+  padding: 60px 0;
+  color: #8E8B82;
+  font-size: 26px;
+  text-align: center;
+}
+
+.timeline-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  text-align: center;
+}
+
 .empty-icon { font-size: 72px; }
-.empty-title { margin-top: 24px; color: #2d2a2e; font-size: 32px; font-weight: 700; }
-.empty-desc { margin-top: 16px; color: #8e8b82; font-size: 24px; }
+.empty-title { display: block; margin-top: 24px; color: #2D2A2E; font-size: 32px; font-weight: 700; }
+.empty-desc { display: block; margin-top: 16px; color: #8E8B82; font-size: 24px; }

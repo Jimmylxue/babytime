@@ -12,7 +12,6 @@ import {
 	TemperatureTrendPoint,
 } from '../../stores/recordStore'
 import {
-	calculateAge,
 	formatDate,
 	formatDuration,
 	formatDurationLong,
@@ -25,13 +24,7 @@ import {
 	getRecordMainText,
 	getIntervalText,
 } from '../../utils/recordDisplay'
-import { notificationApi, recordApi, VaccinePlanItem } from '../../utils/request'
-import {
-	getCurrentVaccineStage,
-	getVaccineReferenceDate,
-	VACCINE_SCHEDULE,
-	VaccineScheduleItem,
-} from '../../utils/vaccineSchedule'
+import { recordApi } from '../../utils/request'
 import TabBar from '../../components/TabBar'
 import LineChart, { LineChartPoint } from '../../components/LineChart'
 import BarChart from '../../components/BarChart'
@@ -68,23 +61,6 @@ interface GrowthSeriesPoint extends HeightWeightTrendPoint {
 	weightMeasured: boolean
 }
 
-interface VaccineRecord {
-	id: string
-	startTime: string
-	vaccineName?: string
-	vaccineHospital?: string
-	vaccineScheduleItemId?: string
-}
-
-const vaccineAgeGroups = Array.from(
-	new Set(VACCINE_SCHEDULE.map(item => item.ageMonths)),
-)
-
-function formatVaccineDate(date: string) {
-	const [year, month, day] = date.split('-').map(Number)
-	return `${year}年${month}月${day}日`
-}
-
 export default function StatsPage() {
 	const { isLoggedIn } = useAuthStore()
 	const { currentBaby } = useBabyStore()
@@ -118,17 +94,6 @@ export default function StatsPage() {
 	// 成长曲线用全量身高体重历史（stats 接口无 days 上限）
 	const [whoSeries, setWhoSeries] = useState<HeightWeightTrendPoint[]>([])
 	const [growthChartRatio, setGrowthChartRatio] = useState(0.46)
-	const [vaccineRecords, setVaccineRecords] = useState<VaccineRecord[]>([])
-	const [vaccinePlans, setVaccinePlans] = useState<Record<string, VaccinePlanItem>>({})
-
-	const loadVaccineRecords = async (babyId: string) => {
-		const [recordRes, planRes] = await Promise.all([
-			recordApi.getVaccines(babyId),
-			notificationApi.getVaccinePlans(babyId).catch(() => null),
-		])
-		setVaccineRecords(recordRes.data || [])
-		setVaccinePlans(Object.fromEntries((planRes?.data || []).map(plan => [plan.scheduleItemId, plan])))
-	}
 
 	// 拉取选中日期的明细/汇总，完成后拷贝到本页状态，之后 store 再被谁覆盖都不影响本页展示
 	const loadDayDetail = async (
@@ -164,8 +129,7 @@ export default function StatsPage() {
 				const baby = useBabyStore.getState().currentBaby
 				if (baby) {
 					fetchStats(baby.id, days)
-					if (activeType === 'vaccine') loadVaccineRecords(baby.id)
-					else loadDayDetail(baby.id, activeType, selectedDate)
+					loadDayDetail(baby.id, activeType, selectedDate)
 				}
 			})
 	})
@@ -175,14 +139,6 @@ export default function StatsPage() {
 			loadDayDetail(currentBaby.id, activeType, selectedDate)
 		}
 	}, [isLoggedIn, currentBaby?.id, activeType, activeMetric, selectedDate])
-
-	useEffect(() => {
-		if (isLoggedIn && currentBaby && activeType === 'vaccine') {
-			loadVaccineRecords(currentBaby.id).catch(() =>
-				Taro.showToast({ title: '加载疫苗记录失败', icon: 'none' }),
-			)
-		}
-	}, [isLoggedIn, currentBaby?.id, activeType])
 
 	// 进入「成长曲线」视图时拉取全量身高体重历史
 	useEffect(() => {
@@ -247,39 +203,6 @@ export default function StatsPage() {
 		Taro.navigateTo({
 			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}${metricParam}`,
 		})
-		}
-
-		const goToVaccineRecord = (item: VaccineScheduleItem) => {
-			if (!currentBaby) return
-			Taro.navigateTo({
-				url: `/pages/record/index?type=vaccine&babyId=${currentBaby.id}&scheduleItemId=${item.id}`,
-			})
-		}
-
-		const goToVaccineTimeline = () => {
-			if (!currentBaby) return
-			Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby.id}` })
-		}
-
-		const manageVaccineRecord = async (record: VaccineRecord) => {
-			if (!currentBaby) return
-			try {
-				const action = await Taro.showActionSheet({ itemList: ['编辑', '删除'] })
-				if (action.tapIndex === 0) {
-					Taro.navigateTo({ url: `/pages/record/index?type=vaccine&babyId=${currentBaby.id}&id=${record.id}` })
-					return
-				}
-				const confirm = await Taro.showModal({
-					title: '删除接种记录',
-					content: `确定删除“${record.vaccineName || '这条疫苗'}”吗？`,
-				})
-				if (!confirm.confirm) return
-				await recordApi.delete(record.id)
-				await loadVaccineRecords(currentBaby.id)
-				Taro.showToast({ title: '已删除', icon: 'success' })
-			} catch (error) {
-				if (error?.errMsg && !error.errMsg.includes('cancel')) Taro.showToast({ title: '操作失败', icon: 'none' })
-			}
 		}
 
 	// 海报头部统计周期文案
@@ -1088,22 +1011,6 @@ export default function StatsPage() {
 		]
 	}
 
-	const vaccineAge = currentBaby ? calculateAge(currentBaby.birthday) : null
-	const currentVaccineItems = vaccineAge
-		? getCurrentVaccineStage(vaccineAge.months)
-		: []
-	const vaccineRecordByScheduleItem = new Map(
-		vaccineRecords
-			.filter(record => record.vaccineScheduleItemId)
-			.map(record => [record.vaccineScheduleItemId as string, record]),
-	)
-	const scheduledVaccineRecordIds = new Set(
-		Array.from(vaccineRecordByScheduleItem.values()).map(record => record.id),
-	)
-	const customVaccineRecords = vaccineRecords.filter(
-		record => !scheduledVaccineRecordIds.has(record.id),
-	)
-
 	return (
 		<View className="page">
 			{/* 未登录或未创建宝宝时，正在展示示例数据 */}
@@ -1139,6 +1046,15 @@ export default function StatsPage() {
 						key={`${tab.type}-${tab.metric ?? ''}`}
 						className={`type-tab ${activeType === tab.type && activeMetric === (tab.metric ?? null) ? 'active' : ''}`}
 						onClick={() => {
+							// 疫苗页签是时间轴的快捷入口：点击直接跳转，避免维护两套相同视图
+							if (tab.type === 'vaccine') {
+								if (!isLoggedIn || !currentBaby) {
+									needLogin()
+									return
+								}
+								Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby.id}` })
+								return
+							}
 							setActiveType(tab.type)
 							setActiveMetric(tab.metric ?? null)
 						}}
@@ -1150,121 +1066,7 @@ export default function StatsPage() {
 				))}
 			</View>
 
-			{activeType === 'vaccine' ? (
-				<View className="vaccine-plan-view">
-					{currentBaby && vaccineAge ? (
-						<>
-							<View className="vaccine-plan-header">
-								<View>
-									<Text className="vaccine-plan-name">{currentBaby.name}</Text>
-									<Text className="vaccine-plan-age">
-										{vaccineAge.months}个月{vaccineAge.days}天
-									</Text>
-								</View>
-								<View className="vaccine-plan-stage">
-									<Text>当前阶段</Text>
-									<Text>{currentVaccineItems[0]?.ageLabel || '常规接种'}</Text>
-								</View>
-							</View>
-							<View className="vaccine-plan-tools">
-								<Text className="vaccine-plan-tip">
-									国家免疫规划常规接种参考，实际以接种门诊和接种证为准。
-								</Text>
-								<View className="vaccine-plan-manage" onClick={goToVaccineTimeline}>
-									<Text>设置接种日期</Text>
-									<Text>›</Text>
-								</View>
-							</View>
-							<View className="vaccine-plan-list">
-								{vaccineAgeGroups.map(ageMonths => {
-									const items = VACCINE_SCHEDULE.filter(
-										item => item.ageMonths === ageMonths,
-									)
-									const isCurrent = items.some(item =>
-										currentVaccineItems.some(current => current.id === item.id),
-									)
-									return (
-										<View
-											key={ageMonths}
-											className={`vaccine-plan-group${isCurrent ? ' current' : ''}`}
-										>
-											<View className="vaccine-plan-marker">
-												<View />
-											</View>
-											<View className="vaccine-plan-group-content">
-												<View className="vaccine-plan-group-title">
-													<Text>{items[0].ageLabel}</Text>
-													{isCurrent && <Text>当前</Text>}
-												</View>
-											{items.map(item => {
-												const record = vaccineRecordByScheduleItem.get(
-													item.id,
-												)
-												const plan = vaccinePlans[item.id]
-												const referenceDate = plan?.referenceDate || getVaccineReferenceDate(currentBaby.birthday, item.ageMonths)
-												const effectiveDate = plan?.scheduledDate || referenceDate
-												return (
-														<View
-															key={item.id}
-															className={`vaccine-plan-item${record ? ' completed' : ''}`}
-															onClick={() =>
-																record
-																	? manageVaccineRecord(record)
-																	: goToVaccineRecord(item)
-															}
-														>
-															<View>
-																<Text className="vaccine-plan-item-name">
-																	{item.displayName}
-																</Text>
-														{record ? (
-															<Text className="vaccine-plan-item-info">
-																已记录 {formatDate(record.startTime)}
-															</Text>
-														) : (
-															<Text className={`vaccine-plan-item-date${plan?.scheduledDate ? ' custom' : ''}`}>
-																{plan?.scheduledDate ? '计划接种' : '参考接种'} {formatVaccineDate(effectiveDate)}
-															</Text>
-														)}
-															</View>
-															<Text className="vaccine-plan-item-action">
-																{record ? '管理' : '记录'}
-															</Text>
-														</View>
-													)
-												})}
-											</View>
-										</View>
-									)
-								})}
-							</View>
-							{customVaccineRecords.length > 0 && (
-								<View className="vaccine-custom-list">
-									<Text className="vaccine-custom-list-title">
-										其他已记录疫苗
-									</Text>
-									{customVaccineRecords.map(record => (
-										<View
-											key={record.id}
-											className="vaccine-custom-list-item"
-											onClick={() => manageVaccineRecord(record)}
-										>
-											<Text>{record.vaccineName || '未命名疫苗'}</Text>
-											<Text>{formatDate(record.startTime)}</Text>
-										</View>
-									))}
-								</View>
-							)}
-						</>
-					) : (
-						<View className="vaccine-plan-empty">
-							<Text>请先添加宝宝信息后查看疫苗时间轴</Text>
-						</View>
-					)}
-				</View>
-			) : (
-				<>
-					{/* 日期切换 */}
+			{/* 日期切换 */}
 					<View className="date-nav">
 						<View
 							className="date-arrow"
@@ -1522,8 +1324,6 @@ export default function StatsPage() {
 								)}
 						</View>
 					)}
-				</>
-			)}
 
 			{/* 图表分享海报的离屏画布（尺寸用内联样式，避免 px 被 Taro 转成 rpx） */}
 			<View

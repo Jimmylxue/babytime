@@ -1,4 +1,4 @@
-import { View, Text, Button, Picker } from '@tarojs/components'
+import { View, Text, Button, Picker, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
@@ -6,6 +6,9 @@ import { useBabyStore } from '../../stores/babyStore'
 import { recordApi, notificationApi, trackEvent, VaccinePlanItem } from '../../utils/request'
 import { calculateAge, formatDate } from '../../utils/date'
 import { getCurrentVaccineStage, getVaccineReferenceDate, VACCINE_SCHEDULE, VaccineScheduleItem } from '../../utils/vaccineSchedule'
+import vaccineRattle from '../../assets/vaccine-rattle.svg'
+import bellIcon from '../../assets/icons/bell.svg'
+import calendarIcon from '../../assets/icons/calendar-heart.svg'
 import './index.scss'
 
 interface VaccineRecord {
@@ -143,6 +146,7 @@ export default function VaccineTimelinePage() {
 
   const age = calculateAge(baby.birthday)
   const currentItems = getCurrentVaccineStage(age.months)
+  const currentStageAge = currentItems[0]?.ageMonths ?? Number.MAX_SAFE_INTEGER
   const recordByScheduleItem = new Map(records
     .filter((record) => record.vaccineScheduleItemId)
     .map((record) => [record.vaccineScheduleItemId as string, record]))
@@ -227,6 +231,7 @@ export default function VaccineTimelinePage() {
       <View className="timeline-hero">
         <Text className="timeline-baby-name">{baby.name}</Text>
         <Text className="timeline-age">{age.months}个月{age.days}天</Text>
+        <Image className="timeline-hero-art" src={vaccineRattle} mode="aspectFit" />
         <View className="timeline-current-stage">
           <Text className="timeline-current-label">当前关注阶段</Text>
           <Text className="timeline-current-value">
@@ -239,12 +244,15 @@ export default function VaccineTimelinePage() {
         <Text>本时间轴为国家免疫规划常规接种参考，品种、联合疫苗替代及补种安排请以接种门诊和接种证为准。</Text>
       </View>
 
-      <Button className={`reminder-entry${vaccineState === 'active' ? ' enabled' : ''}`} onClick={requestVaccineSubscription}>
-        <View>
-          <Text className="reminder-title">{vaccineState === 'active' ? '疫苗提醒已订阅' : vaccineState === 'exhausted' ? '再次订阅接种提醒' : '开启接种提醒'}</Text>
-          <Text className="reminder-desc">{vaccineState === 'active' ? '还有可用提醒次数' : '每次订阅可获得 1 次接种提醒，临近参考接种日时通知'}</Text>
+      <Button className={`reminder-entry ${vaccineState === 'active' ? ' enabled' : vaccineState === 'exhausted' ? ' expired' : ' off'}`} onClick={requestVaccineSubscription}>
+        <Image className="reminder-bell" src={bellIcon} />
+        <View className="reminder-copy">
+          <Text className="reminder-title">{vaccineState === 'active' ? '疫苗提醒已订阅' : vaccineState === 'exhausted' ? '提醒次数已用完' : '开启接种提醒'}</Text>
+          <Text className="reminder-desc">{vaccineState === 'active' ? '还有可用提醒次数' : vaccineState === 'exhausted' ? '重新授权可再获得 1 次接种提醒' : '每次订阅可获得 1 次接种提醒，临近参考接种日时通知'}</Text>
         </View>
-        <Text className="reminder-action">{vaccineState === 'active' ? '已订阅' : vaccineState === 'exhausted' ? '再次订阅' : '去开启'}</Text>
+        <View className="reminder-pill">
+          <Text className="reminder-pill-text">{vaccineState === 'active' ? '已订阅' : vaccineState === 'exhausted' ? '再次订阅' : '去开启'}</Text>
+        </View>
       </Button>
 
       {loading ? (
@@ -254,8 +262,10 @@ export default function VaccineTimelinePage() {
           {ageGroups.map((ageMonths) => {
             const items = VACCINE_SCHEDULE.filter((item) => item.ageMonths === ageMonths)
             const isCurrent = items.some((item) => currentItems.some((current) => current.id === item.id))
+            // 走过的阶段节点用粉色标记，未到的保持灰色
+            const groupState = isCurrent ? 'current' : ageMonths < currentStageAge ? 'past' : 'future'
             return (
-              <View key={ageMonths} className={`timeline-group${isCurrent ? ' current' : ''}`}>
+              <View key={ageMonths} className={`timeline-group ${groupState}`}>
                 <View className="timeline-marker"><View className="timeline-dot" /></View>
                 <View className="timeline-content">
                   <View className="timeline-group-title">
@@ -278,25 +288,32 @@ export default function VaccineTimelinePage() {
                               已记录 {formatDate(record.startTime)}{record.vaccineHospital ? ` · ${record.vaccineHospital}` : ''}
                             </Text>
                           ) : (
-                            <View className="vaccine-plan-date-row" onClick={(event) => event.stopPropagation()}>
-                              <Picker
-                                mode="date"
-                                value={pickerValue}
-                                start={formatDate(new Date())}
-                                onChange={(event) => void updateVaccinePlan(item, event.detail.value as string)}
-                              >
-                                <View className={`vaccine-plan-date${plan?.scheduledDate ? ' custom' : ''}`}>
-                                  <Text>{plan?.scheduledDate ? '计划接种' : '参考接种'} {formatVaccineDate(effectiveDate)}</Text>
-                                  <Text className="vaccine-plan-date-action">{plan?.scheduledDate ? '修改' : '设置日期'}</Text>
-                                </View>
-                              </Picker>
-                              {plan?.scheduledDate && (
-                                <Text className="vaccine-plan-reset" onClick={() => void resetVaccinePlan(item)}>恢复参考</Text>
-                              )}
-                            </View>
+                            <Text className="vaccine-ref-date">
+                              {plan?.scheduledDate ? '计划接种' : '参考接种'} {formatVaccineDate(effectiveDate)}
+                            </Text>
                           )}
                         </View>
-                        <Text className={`vaccine-status${record ? ' done' : ''}`}>{record ? '管理记录' : '记录接种'}</Text>
+                        {!record && (
+                          <View className="vaccine-actions" onClick={(event) => event.stopPropagation()}>
+                            <Picker
+                              mode="date"
+                              value={pickerValue}
+                              start={formatDate(new Date())}
+                              onChange={(event) => void updateVaccinePlan(item, event.detail.value as string)}
+                            >
+                              <View className={`vaccine-set-date${plan?.scheduledDate ? ' custom' : ''}`}>
+                                <Image className="vaccine-set-date-icon" src={calendarIcon} />
+                                <Text className="vaccine-set-date-text">{plan?.scheduledDate ? '修改日期' : '设置日期'}</Text>
+                              </View>
+                            </Picker>
+                            {plan?.scheduledDate && (
+                              <Text className="vaccine-plan-reset" onClick={() => void resetVaccinePlan(item)}>恢复参考</Text>
+                            )}
+                          </View>
+                        )}
+                        <Text className={`vaccine-record-link${record ? ' done' : ''}`}>
+                          {record ? '管理记录 ›' : '记录接种 ›'}
+                        </Text>
                       </View>
                     )
                   })}

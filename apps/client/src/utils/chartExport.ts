@@ -79,7 +79,12 @@ async function shareImage(filePath: string) {
     return
   }
   try {
-    await Taro.showShareImageMenu({ path: filePath })
+    // menus 需要基础库 2.22.1+：shareAppMessage 发送给朋友、shareTimeline 分享到朋友圈
+    // （朋友圈项仅 Android 出现，iOS 微信未开放，面板里只有发送给朋友/保存等）
+    await Taro.showShareImageMenu({
+      path: filePath,
+      menus: ['shareAppMessage', 'shareTimeline'],
+    } as any)
   } catch (error) {
     // 用户取消不提示；其他失败兜底为保存
     const msg = String((error as Error)?.message || '')
