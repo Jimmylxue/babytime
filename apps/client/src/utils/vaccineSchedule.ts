@@ -49,3 +49,13 @@ export function getCurrentVaccineStage(months: number): VaccineScheduleItem[] {
   ), 0)
   return VACCINE_SCHEDULE.filter((item) => item.ageMonths === currentAge)
 }
+
+export function getVaccineReferenceDate(birthday: string, ageMonths: number): string {
+  const [year, month, day] = birthday.split('-').map(Number)
+  const targetMonth = month - 1 + ageMonths
+  const targetYear = year + Math.floor(targetMonth / 12)
+  const normalizedMonth = ((targetMonth % 12) + 12) % 12
+  const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate()
+  const targetDay = Math.min(day, lastDay)
+  return `${targetYear}-${String(normalizedMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`
+}

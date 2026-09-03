@@ -25,9 +25,10 @@ import {
 	getRecordMainText,
 	getIntervalText,
 } from '../../utils/recordDisplay'
-import { recordApi } from '../../utils/request'
+import { notificationApi, recordApi, VaccinePlanItem } from '../../utils/request'
 import {
 	getCurrentVaccineStage,
+	getVaccineReferenceDate,
 	VACCINE_SCHEDULE,
 	VaccineScheduleItem,
 } from '../../utils/vaccineSchedule'
@@ -78,6 +79,11 @@ const vaccineAgeGroups = Array.from(
 	new Set(VACCINE_SCHEDULE.map(item => item.ageMonths)),
 )
 
+function formatVaccineDate(date: string) {
+	const [year, month, day] = date.split('-').map(Number)
+	return `${year}年${month}月${day}日`
+}
+
 export default function StatsPage() {
 	const { isLoggedIn } = useAuthStore()
 	const { currentBaby } = useBabyStore()
@@ -112,10 +118,15 @@ export default function StatsPage() {
 	const [whoSeries, setWhoSeries] = useState<HeightWeightTrendPoint[]>([])
 	const [growthChartRatio, setGrowthChartRatio] = useState(0.46)
 	const [vaccineRecords, setVaccineRecords] = useState<VaccineRecord[]>([])
+	const [vaccinePlans, setVaccinePlans] = useState<Record<string, VaccinePlanItem>>({})
 
 	const loadVaccineRecords = async (babyId: string) => {
-		const res = await recordApi.getVaccines(babyId)
-		setVaccineRecords(res.data || [])
+		const [recordRes, planRes] = await Promise.all([
+			recordApi.getVaccines(babyId),
+			notificationApi.getVaccinePlans(babyId).catch(() => null),
+		])
+		setVaccineRecords(recordRes.data || [])
+		setVaccinePlans(Object.fromEntries((planRes?.data || []).map(plan => [plan.scheduleItemId, plan])))
 	}
 
 	// 拉取选中日期的明细/汇总，完成后拷贝到本页状态，之后 store 再被谁覆盖都不影响本页展示
@@ -242,6 +253,11 @@ export default function StatsPage() {
 			Taro.navigateTo({
 				url: `/pages/record/index?type=vaccine&babyId=${currentBaby.id}&scheduleItemId=${item.id}`,
 			})
+		}
+
+		const goToVaccineTimeline = () => {
+			if (!currentBaby) return
+			Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby.id}` })
 		}
 
 		const manageVaccineRecord = async (record: VaccineRecord) => {
@@ -1149,9 +1165,15 @@ export default function StatsPage() {
 									<Text>{currentVaccineItems[0]?.ageLabel || '常规接种'}</Text>
 								</View>
 							</View>
-							<Text className="vaccine-plan-tip">
-								国家免疫规划常规接种参考，实际以接种门诊和接种证为准。
-							</Text>
+							<View className="vaccine-plan-tools">
+								<Text className="vaccine-plan-tip">
+									国家免疫规划常规接种参考，实际以接种门诊和接种证为准。
+								</Text>
+								<View className="vaccine-plan-manage" onClick={goToVaccineTimeline}>
+									<Text>设置接种日期</Text>
+									<Text>›</Text>
+								</View>
+							</View>
 							<View className="vaccine-plan-list">
 								{vaccineAgeGroups.map(ageMonths => {
 									const items = VACCINE_SCHEDULE.filter(
@@ -1173,11 +1195,14 @@ export default function StatsPage() {
 													<Text>{items[0].ageLabel}</Text>
 													{isCurrent && <Text>当前</Text>}
 												</View>
-												{items.map(item => {
-													const record = vaccineRecordByScheduleItem.get(
-														item.id,
-													)
-													return (
+											{items.map(item => {
+												const record = vaccineRecordByScheduleItem.get(
+													item.id,
+												)
+												const plan = vaccinePlans[item.id]
+												const referenceDate = plan?.referenceDate || getVaccineReferenceDate(currentBaby.birthday, item.ageMonths)
+												const effectiveDate = plan?.scheduledDate || referenceDate
+												return (
 														<View
 															key={item.id}
 															className={`vaccine-plan-item${record ? ' completed' : ''}`}
@@ -1191,11 +1216,15 @@ export default function StatsPage() {
 																<Text className="vaccine-plan-item-name">
 																	{item.displayName}
 																</Text>
-																{record && (
-																	<Text className="vaccine-plan-item-info">
-																		已记录 {formatDate(record.startTime)}
-																	</Text>
-																)}
+														{record ? (
+															<Text className="vaccine-plan-item-info">
+																已记录 {formatDate(record.startTime)}
+															</Text>
+														) : (
+															<Text className={`vaccine-plan-item-date${plan?.scheduledDate ? ' custom' : ''}`}>
+																{plan?.scheduledDate ? '计划接种' : '参考接种'} {formatVaccineDate(effectiveDate)}
+															</Text>
+														)}
 															</View>
 															<Text className="vaccine-plan-item-action">
 																{record ? '管理' : '记录'}

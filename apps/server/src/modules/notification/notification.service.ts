@@ -1,17 +1,17 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { HttpService } from '@nestjs/axios';
 import { DataSource, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { firstValueFrom } from 'rxjs';
 import { User } from '../user/entities/user.entity';
 import { Baby } from '../baby/entities/baby.entity';
-import { Record as BabyRecord } from '../record/entities/record.entity';
+import { Record as BabyRecord, RecordType } from '../record/entities/record.entity';
 import { SubscriptionGrant } from '../user/entities/subscription-grant.entity';
 import { NotificationDelivery } from './entities/notification-delivery.entity';
 import { FamilyMember, InviteStatus } from '../family/entities/family-member.entity';
+import { VaccinePlan } from './entities/vaccine-plan.entity';
 
 // 与客户端 vaccineSchedule.ts 保持节点 ID 和月龄一致；地区接种安排仍以门诊为准。
 const VACCINES = [
@@ -38,6 +38,7 @@ export class NotificationService implements OnModuleInit {
     @InjectRepository(SubscriptionGrant) private readonly grants: Repository<SubscriptionGrant>,
     @InjectRepository(NotificationDelivery) private readonly deliveries: Repository<NotificationDelivery>,
     @InjectRepository(FamilyMember) private readonly familyMembers: Repository<FamilyMember>,
+    @InjectRepository(VaccinePlan) private readonly vaccinePlans: Repository<VaccinePlan>,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
@@ -86,6 +87,88 @@ export class NotificationService implements OnModuleInit {
 
   private getVaccineTemplateId() { return process.env.WECHAT_SUBSCRIBE_VACCINE_TEMPLATE_ID || ''; }
   private getReviewTemplateId() { return process.env.WECHAT_SUBSCRIBE_REVIEW_TEMPLATE_ID || ''; }
+
+  async getUserVaccineStatus(userId: string) {
+    const templateId = this.getVaccineTemplateId();
+    if (!templateId) return { configured: false, state: 'never', availableCount: 0, acceptedCount: 0, sentCount: 0 };
+    const grant = await this.grants.findOne({ where: { userId, templateId } });
+    const acceptedCount = Number(grant?.acceptedCount || 0);
+    const availableCount = Number(grant?.availableCount || 0);
+    return {
+      configured: true,
+      state: availableCount > 0 ? 'active' : acceptedCount > 0 ? 'exhausted' : 'never',
+      availableCount,
+      acceptedCount,
+      sentCount: Number(grant?.sentCount || 0),
+    };
+  }
+
+  private async getAccessibleBaby(userId: string, babyId: string) {
+    const baby = await this.babies.findOne({ where: { id: babyId } });
+    if (!baby) throw new NotFoundException('宝贝不存在');
+    if (baby.userId === userId) return baby;
+    const member = await this.familyMembers.findOne({
+      where: { userId, babyId, status: InviteStatus.ACCEPTED },
+    });
+    if (!member) throw new ForbiddenException('无权访问该宝宝');
+    return baby;
+  }
+
+  async getVaccinePlans(userId: string, babyId: string) {
+    const baby = await this.getAccessibleBaby(userId, babyId);
+    const plans = await this.vaccinePlans.find({ where: { babyId } });
+    const records = await this.records.find({ where: { babyId, type: RecordType.VACCINE } });
+    const planByItem = new Map(plans.map((plan) => [plan.scheduleItemId, plan]));
+    const recordByItem = new Map(
+      records.filter((record) => record.vaccineScheduleItemId).map((record) => [record.vaccineScheduleItemId, record]),
+    );
+    return VACCINES.map(([scheduleItemId, months, label]) => {
+      const referenceDate = this.formatLocalDate(this.dueDate(baby.birthday, months));
+      const plan = planByItem.get(scheduleItemId);
+      const record = recordByItem.get(scheduleItemId);
+      return {
+        scheduleItemId,
+        label,
+        referenceDate,
+        scheduledDate: plan?.scheduledDate || null,
+        effectiveDate: plan?.scheduledDate || referenceDate,
+        completed: Boolean(record),
+        actualDate: record ? this.formatLocalDate(new Date(record.startTime)) : null,
+      };
+    });
+  }
+
+  async setVaccinePlan(userId: string, babyId: string, scheduleItemId: string, scheduledDate: string) {
+    await this.getAccessibleBaby(userId, babyId);
+    if (!VACCINES.some(([itemId]) => itemId === scheduleItemId)) {
+      throw new BadRequestException('无效的疫苗计划节点');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
+      throw new BadRequestException('接种日期格式不正确');
+    }
+    const parsedDate = new Date(`${scheduledDate}T12:00:00`);
+    if (Number.isNaN(parsedDate.getTime()) || this.formatLocalDate(parsedDate) !== scheduledDate) {
+      throw new BadRequestException('接种日期无效');
+    }
+    const today = this.formatLocalDate(new Date());
+    if (scheduledDate < today) throw new BadRequestException('计划接种日不能早于今天');
+
+    let plan = await this.vaccinePlans.findOne({ where: { babyId, scheduleItemId } });
+    if (!plan) plan = this.vaccinePlans.create({ babyId, scheduleItemId });
+    plan.scheduledDate = scheduledDate;
+    plan.updatedBy = userId;
+    const saved = await this.vaccinePlans.save(plan);
+    return { scheduleItemId, scheduledDate: saved.scheduledDate };
+  }
+
+  async removeVaccinePlan(userId: string, babyId: string, scheduleItemId: string) {
+    await this.getAccessibleBaby(userId, babyId);
+    if (!VACCINES.some(([itemId]) => itemId === scheduleItemId)) {
+      throw new BadRequestException('无效的疫苗计划节点');
+    }
+    await this.vaccinePlans.delete({ babyId, scheduleItemId });
+    return { scheduleItemId, scheduledDate: null };
+  }
 
   async listSubscribedUsers(page = 1, pageSize = 20, keyword?: string) {
     const templateId = this.getVaccineTemplateId();
@@ -216,9 +299,16 @@ export class NotificationService implements OnModuleInit {
   }
 
   private dueDate(birthday: string, months: number) {
-    const d = new Date(`${birthday}T12:00:00`);
-    d.setMonth(d.getMonth() + months);
-    return d;
+    const [year, month, day] = birthday.split('-').map(Number);
+    const targetMonth = month - 1 + months;
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const normalizedMonth = ((targetMonth % 12) + 12) % 12;
+    const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+    return new Date(targetYear, normalizedMonth, Math.min(day, lastDay), 12, 0, 0, 0);
+  }
+
+  private parseLocalDate(date: string) {
+    return new Date(`${date}T12:00:00`);
   }
 
   private formatLocalDate(date: Date) {
@@ -234,9 +324,13 @@ export class NotificationService implements OnModuleInit {
     if (!token) return { sent: 0, skipped: true };
     const babies = await this.babies.find();
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const horizon = new Date(today); horizon.setDate(horizon.getDate() + Number(process.env.VACCINE_REMINDER_DAYS || 3));
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + Number(process.env.VACCINE_REMINDER_DAYS || 3));
+    horizon.setHours(23, 59, 59, 999);
     let sent = 0;
     for (const baby of babies) {
+      const plans = await this.vaccinePlans.find({ where: { babyId: baby.id } });
+      const planByItem = new Map(plans.map((plan) => [plan.scheduleItemId, plan.scheduledDate]));
       const members = await this.familyMembers.find({ where: { babyId: baby.id, status: InviteStatus.ACCEPTED } });
       const recipientIds = Array.from(new Set([baby.userId, ...members.map((item) => item.userId).filter(Boolean)]));
       for (const recipientId of recipientIds) {
@@ -245,12 +339,13 @@ export class NotificationService implements OnModuleInit {
         const grant = await this.grants.findOne({ where: { userId: user.id, templateId } });
         if (!grant || grant.availableCount <= 0) continue;
         for (const [itemId, months, label] of VACCINES) {
-          const due = this.dueDate(baby.birthday, months);
+          const scheduledDate = planByItem.get(itemId);
+          const due = scheduledDate ? this.parseLocalDate(scheduledDate) : this.dueDate(baby.birthday, months);
           if (due < today || due > horizon) continue;
           const done = await this.records.count({ where: { babyId: baby.id, vaccineScheduleItemId: itemId } });
           if (done > 0) continue;
           const date = this.formatLocalDate(due);
-          // 模板中的 time2 字段要求时间格式；接种日期按提醒日当天 09:00 展示。
+          // 模板中的 time2 字段要求时间格式；优先展示用户设置的计划接种日。
           const notifyTime = `${date} 09:00`;
           const dedupeKey = `vaccine:${baby.id}:${itemId}:${date}:${user.id}`;
           let delivery = await this.deliveries.findOne({ where: { dedupeKey } });
@@ -265,7 +360,7 @@ export class NotificationService implements OnModuleInit {
               data: {
                 [process.env.WECHAT_VACCINE_FIELD_NAME || 'thing1']: { value: `${baby.name} · ${label}`.slice(0, 20) },
                 [process.env.WECHAT_VACCINE_FIELD_DATE || 'time2']: { value: notifyTime },
-                [process.env.WECHAT_VACCINE_FIELD_NOTE || 'thing6']: { value: '以门诊为准' },
+                [process.env.WECHAT_VACCINE_FIELD_NOTE || 'thing6']: { value: scheduledDate ? '计划接种日，请以门诊为准' : '参考日期，请以门诊为准' },
               },
               miniprogram_state: process.env.WECHAT_SUBSCRIBE_MINI_PROGRAM_STATE || 'formal',
             };

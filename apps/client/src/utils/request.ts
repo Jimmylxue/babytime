@@ -174,6 +174,16 @@ export const announcementApi = {
 	}),
 }
 
+export interface VaccinePlanItem {
+	scheduleItemId: string
+	label: string
+	referenceDate: string
+	scheduledDate: string | null
+	effectiveDate: string
+	completed: boolean
+	actualDate: string | null
+}
+
 export const notificationApi = {
 	getConfig: () => request<{
 		vaccineTemplateId: string
@@ -181,6 +191,26 @@ export const notificationApi = {
 		vaccineEnabled: boolean
 		reviewEnabled: boolean
 	}>({ url: '/notification/config', needToken: false }),
+	getStatus: () => request<{
+		configured: boolean
+		state: 'never' | 'active' | 'exhausted'
+		availableCount: number
+		acceptedCount: number
+		sentCount: number
+	}>({ url: '/notification/status' }),
+	getVaccinePlans: (babyId: string) =>
+		request<VaccinePlanItem[]>({ url: `/notification/vaccine-plans/${babyId}` }),
+	setVaccinePlan: (babyId: string, scheduleItemId: string, scheduledDate: string) =>
+		request<{ scheduleItemId: string; scheduledDate: string }>({
+			url: `/notification/vaccine-plans/${babyId}/${scheduleItemId}`,
+			method: 'PUT',
+			data: { scheduledDate },
+		}),
+	removeVaccinePlan: (babyId: string, scheduleItemId: string) =>
+		request<{ scheduleItemId: string; scheduledDate: null }>({
+			url: `/notification/vaccine-plans/${babyId}/${scheduleItemId}`,
+			method: 'DELETE',
+		}),
 	saveSubscriptions: (statuses: Record<string, string>) =>
 		request<any>({ url: '/notification/subscriptions', method: 'POST', data: { statuses } }),
 }

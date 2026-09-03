@@ -8,11 +8,11 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
-import { calculateAge, formatDurationLong } from '../../utils/date'
+import { calculateAge, formatDate, formatDurationLong } from '../../utils/date'
 import { getMonthlyTips } from '../../utils/monthlyTips'
 import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
-import { announcementApi, notificationApi, trackEvent } from '../../utils/request'
+import { announcementApi, notificationApi, trackEvent, VaccinePlanItem } from '../../utils/request'
 import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock'
 import babyFacePink from '../../assets/icons/baby-face-pink.svg'
 import babyFaceBlue from '../../assets/icons/baby-face-blue.svg'
@@ -51,6 +51,11 @@ const feedingMethodLabel: Record<string, string> = {
 	mixed: '混合',
 }
 
+function formatVaccineDate(date: string) {
+	const [, month, day] = date.split('-').map(Number)
+	return `${month}月${day}日`
+}
+
 export default function Index() {
 	const { isLoggedIn } = useAuthStore()
 	const { currentBaby, fetchBabies } = useBabyStore()
@@ -68,7 +73,8 @@ export default function Index() {
 	const [now, setNow] = useState(() => Date.now())
 	const [statusBarHeight] = useState(() => Taro.getSystemInfoSync().statusBarHeight || 20)
 	const [vaccineTemplateId, setVaccineTemplateId] = useState('')
-	const [vaccineSubscribed, setVaccineSubscribed] = useState(false)
+	const [vaccineState, setVaccineState] = useState<'never' | 'active' | 'exhausted'>('never')
+	const [nextVaccine, setNextVaccine] = useState<VaccinePlanItem | null>(null)
 	const [reviewTemplateId, setReviewTemplateId] = useState('')
 	const [reviewSubscribed, setReviewSubscribed] = useState(false)
 	const announcementCheckingRef = useRef(false)
@@ -143,10 +149,18 @@ export default function Index() {
 				setVaccineTemplateId(res.data?.vaccineEnabled ? res.data.vaccineTemplateId : '')
 				setReviewTemplateId(res.data?.reviewEnabled ? res.data.reviewTemplateId : '')
 			}).catch(() => {})
-			setVaccineSubscribed(Boolean(Taro.getStorageSync('subscription:vaccine:accepted')))
+			notificationApi.getStatus().then(res => setVaccineState(res.data?.state || 'never')).catch(() => setVaccineState('never'))
 			fetchBabies().then(() => {
 				const baby = useBabyStore.getState().currentBaby
 				if (baby) {
+					setNextVaccine(null)
+					notificationApi.getVaccinePlans(baby.id).then(res => {
+						const today = formatDate(new Date())
+						const next = (res.data || [])
+							.filter(item => !item.completed && item.effectiveDate >= today)
+							.sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))[0] || null
+						setNextVaccine(next)
+					}).catch(() => setNextVaccine(null))
 					fetchSummary(baby.id)
 					fetchStats(baby.id)
 					maybeShowAddGuide()
@@ -171,27 +185,21 @@ export default function Index() {
 		}
 		requestingVaccineSubscriptionRef.current = true
 		try {
-			const promptKey = `subscription:vaccine:last-prompt:v3:${new Date().toISOString().slice(0, 10)}`
-			if (Taro.getStorageSync(promptKey)) {
-				Taro.showToast({ title: '今天已请求过提醒授权', icon: 'none' })
-				return
-			}
 			const requestSubscribeMessage = (Taro as any).requestSubscribeMessage
 			if (typeof requestSubscribeMessage !== 'function') {
 				throw new Error('当前基础库不支持订阅消息，请升级微信后重试')
 			}
 			// 必须在铃铛点击回调中直接调用，不能先 await 网络请求。
 			const result = await requestSubscribeMessage({ tmplIds: [vaccineTemplateId] })
-			Taro.setStorageSync(promptKey, true)
 			const status = result?.[vaccineTemplateId] || 'unknown'
 			await notificationApi.saveSubscriptions({ [vaccineTemplateId]: status })
-			void trackEvent('subscription_prompt_result', { template: 'vaccine', status, source: 'home_header' })
+			void trackEvent('subscription_prompt_result', { template: 'vaccine', status, source: 'home_reminder_card' })
+			const latestStatus = await notificationApi.getStatus().catch(() => null)
+			if (latestStatus?.data?.state) setVaccineState(latestStatus.data.state)
 			if (status === 'accept') {
-				Taro.setStorageSync('subscription:vaccine:accepted', true)
-				setVaccineSubscribed(true)
+				if (!latestStatus?.data?.state) setVaccineState('active')
 				Taro.showToast({ title: '接种提醒已开启', icon: 'success' })
 			} else if (status === 'reject') {
-				setVaccineSubscribed(false)
 				Taro.showToast({ title: '暂未开启接种提醒', icon: 'none' })
 			}
 		} catch (error: any) {
@@ -202,19 +210,27 @@ export default function Index() {
 			} else {
 				await Taro.showModal({ title: '提醒授权失败', content: errorMessage, showCancel: false, confirmText: '知道了' })
 			}
-			void trackEvent('subscription_prompt_result', { template: 'vaccine', status: 'error', source: 'home_header' })
+			void trackEvent('subscription_prompt_result', { template: 'vaccine', status: 'error', source: 'home_reminder_card' })
 		} finally {
 			requestingVaccineSubscriptionRef.current = false
 		}
 	}
 
 	const handleReminderCardClick = () => {
-		if (vaccineSubscribed) {
+		if (vaccineState === 'active') {
 			Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}` })
 			return
 		}
 		void requestVaccineSubscription()
 	}
+
+	const vaccineReminderDescription = nextVaccine
+		? `${nextVaccine.scheduledDate ? '计划' : '参考'} ${formatVaccineDate(nextVaccine.effectiveDate)} · ${nextVaccine.label}`
+		: vaccineState === 'active'
+			? '还有可用提醒次数'
+			: vaccineState === 'exhausted'
+				? '上次提醒已发送，继续订阅下一次'
+				: '接种日前 3 天提醒你，按时完成接种'
 
 	const requestReviewSubscription = async () => {
 		if (!reviewTemplateId) return
@@ -582,16 +598,16 @@ export default function Index() {
 
 			{isLoggedIn && currentBaby && vaccineTemplateId && (
 				<Button
-					className={`vaccine-reminder-card${vaccineSubscribed ? ' enabled' : ''}`}
+					className={`vaccine-reminder-card${vaccineState === 'active' ? ' enabled' : ''}`}
 					onClick={handleReminderCardClick}
-					aria-label={vaccineSubscribed ? '管理疫苗提醒' : '开启疫苗提醒'}
+					aria-label={vaccineState === 'active' ? '疫苗提醒已订阅' : vaccineState === 'exhausted' ? '再次订阅疫苗提醒' : '开启疫苗提醒'}
 				>
 					<View className="vaccine-reminder-icon"><Text>💉</Text></View>
 					<View className="vaccine-reminder-copy">
-						<Text className="vaccine-reminder-title">{vaccineSubscribed ? '疫苗提醒已开启' : '开启疫苗提醒'}</Text>
-						<Text className="vaccine-reminder-desc">{vaccineSubscribed ? '接种日前 3 天提醒你' : '接种日前 3 天提醒你，按时完成接种'}</Text>
+						<Text className="vaccine-reminder-title">{vaccineState === 'active' ? '疫苗提醒已订阅' : vaccineState === 'exhausted' ? '再次订阅疫苗提醒' : '开启疫苗提醒'}</Text>
+						<Text className="vaccine-reminder-desc">{vaccineReminderDescription}</Text>
 					</View>
-					<Text className="vaccine-reminder-action">{vaccineSubscribed ? '管理 ›' : '开启 ›'}</Text>
+					<Text className="vaccine-reminder-action">{vaccineState === 'active' ? '已订阅' : vaccineState === 'exhausted' ? '再次订阅 ›' : '开启 ›'}</Text>
 				</Button>
 			)}
 

@@ -9,9 +9,10 @@ import { NotificationDelivery } from './entities/notification-delivery.entity';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
 import { FamilyMember } from '../family/entities/family-member.entity';
+import { VaccinePlan } from './entities/vaccine-plan.entity';
 
 @Module({
-  imports: [HttpModule, TypeOrmModule.forFeature([User, Baby, BabyRecord, FamilyMember, SubscriptionGrant, NotificationDelivery])],
+  imports: [HttpModule, TypeOrmModule.forFeature([User, Baby, BabyRecord, FamilyMember, SubscriptionGrant, NotificationDelivery, VaccinePlan])],
   controllers: [NotificationController],
   providers: [NotificationService],
   exports: [NotificationService],

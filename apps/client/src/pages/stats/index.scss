@@ -714,6 +714,20 @@
 .vaccine-plan-stage Text:first-child { color: #A66E79; font-size: 19px; }
 .vaccine-plan-stage Text:last-child { margin-top: 6px; color: #D85B75; font-size: 25px; font-weight: 700; }
 .vaccine-plan-tip { margin: 18px 0 24px; color: #A8A59E; font-size: 20px; line-height: 1.55; }
+.vaccine-plan-tools { margin: 18px 0 24px; }
+.vaccine-plan-tools .vaccine-plan-tip { margin: 0; }
+.vaccine-plan-manage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 16px 18px;
+  background: #FFFFFF;
+  border: 1px solid #EEEAE3;
+  border-radius: 12px;
+  color: #D85B75;
+  font-size: 21px;
+}
 
 .vaccine-plan-group { position: relative; display: flex; padding-bottom: 30px; }
 .vaccine-plan-marker { position: relative; flex: 0 0 36px; }
@@ -728,6 +742,8 @@
 .vaccine-plan-item.completed { background: #F3FBF5; border-color: #CDE7D4; }
 .vaccine-plan-item-name { display: block; color: #3F3B3D; font-size: 24px; font-weight: 600; }
 .vaccine-plan-item-info { margin-top: 7px; color: #5B9E6C; font-size: 19px; }
+.vaccine-plan-item-date { display: block; margin-top: 7px; color: #8E8B82; font-size: 19px; }
+.vaccine-plan-item-date.custom { color: #B45F70; }
 .vaccine-plan-item-action { flex: 0 0 auto; color: #D85B75; font-size: 21px; }
 .vaccine-plan-item.completed .vaccine-plan-item-action { color: #4F9C62; }
 
