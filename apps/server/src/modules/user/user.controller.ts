@@ -40,4 +40,15 @@ export class UserController {
       data: user,
     };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('events')
+  @HttpCode(200)
+  async trackEvent(@Request() req, @Body() body: { name: string; properties?: Record<string, any> }) {
+    if (!body?.name || !/^[a-z0-9_.-]{1,64}$/i.test(body.name)) {
+      return { code: 400, message: '事件名称无效' };
+    }
+    const data = await this.userService.trackEvent(req.user.id, body.name, body.properties);
+    return { code: 0, message: 'success', data };
+  }
 }

@@ -28,6 +28,9 @@ export class User {
   @Column({ name: 'role', nullable: true, comment: '角色: father/mother' })
   role: string;
 
+  @Column({ name: 'last_seen_at', type: 'datetime', nullable: true })
+  lastSeenAt: Date;
+
   @OneToMany(() => Baby, (baby) => baby.user)
   babies: Baby[];
 

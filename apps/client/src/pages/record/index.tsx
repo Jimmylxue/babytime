@@ -2,7 +2,7 @@ import { View, Text, Input, Picker, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState, useRef } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
-import { recordApi, stoolAnalysisApi } from '../../utils/request'
+import { recordApi, stoolAnalysisApi, notificationApi, trackEvent } from '../../utils/request'
 import {
 	calculateAge,
 	formatDate,
@@ -508,6 +508,23 @@ export default function RecordPage() {
 				setTimeout(() => Taro.navigateBack(), 1500)
 			} else {
 				await addRecord(data)
+				void trackEvent('record_created', { type, babyId })
+				if (type === 'vaccine') {
+					try {
+						const promptKey = `subscription:vaccine:last-prompt:${new Date().toISOString().slice(0, 10)}`
+						if (!Taro.getStorageSync(promptKey)) {
+							Taro.setStorageSync(promptKey, true)
+							const config = await notificationApi.getConfig()
+							if (config.data?.vaccineEnabled && config.data.vaccineTemplateId) {
+								const result = await (Taro as any).requestSubscribeMessage({ tmplIds: [config.data.vaccineTemplateId] })
+								await notificationApi.saveSubscriptions({ [config.data.vaccineTemplateId]: result?.[config.data.vaccineTemplateId] || 'reject' })
+								void trackEvent('subscription_prompt_result', { template: 'vaccine', status: result?.[config.data.vaccineTemplateId] || 'unknown' })
+							}
+						}
+					} catch (error) {
+						void trackEvent('subscription_prompt_result', { template: 'vaccine', status: 'error' })
+					}
+				}
 				// 累计记录数 +1，用于「添加到我的小程序」引导（记满 3 条弹一次）
 				const cumulative =
 					(Taro.getStorageSync('stats:cumulativeRecords') || 0) + 1

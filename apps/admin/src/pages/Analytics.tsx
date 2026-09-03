@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card, Col, Progress, Row, Segmented, Statistic, Typography } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import { apiGet } from '../api/client';
-import type { Funnel, Retention } from '../types';
+import type { Engagement, Funnel, Retention } from '../types';
 
 const COHORT_OPTIONS = [
 	{ label: '近 90 天注册', value: 90 },
@@ -16,6 +16,7 @@ export default function Analytics() {
 	const [funnel, setFunnel] = useState<Funnel>();
 	const [retention, setRetention] = useState<Retention>();
 	const [days, setDays] = useState(90);
+	const [engagement, setEngagement] = useState<Engagement>();
 
 	const loadFunnel = useCallback(async () => {
 		const data = await apiGet<Funnel>('/stats/funnel');
@@ -29,6 +30,7 @@ export default function Analytics() {
 
 	useEffect(() => {
 		loadFunnel();
+		apiGet<Engagement>('/stats/engagement').then(setEngagement);
 	}, [loadFunnel]);
 
 	useEffect(() => {
@@ -105,33 +107,42 @@ export default function Analytics() {
 				}
 			>
 				<Typography.Paragraph type="secondary">
-					统计最近 {days} 天注册的用户中，注册后 1 天 / 7 天 / 30 天内产生过记录的占比。
+					统计最近 {days} 天注册且已走完观察周期的用户，在注册后的第 1 / 7 / 30 个自然日再次打开或记录的比例。
 				</Typography.Paragraph>
 				<Row gutter={16}>
 					<Col xs={24} sm={8}>
 						<Card>
-							<Progress type="circle" percent={pct(retention?.activeIn1Day ?? 0, retention?.cohortSize ?? 0)} />
+							<Progress type="circle" percent={pct(retention?.activeIn1Day ?? 0, retention?.eligibleIn1Day ?? 0)} />
 							<div style={{ marginTop: 12 }}>
-								<Statistic title="1 天内活跃" value={retention?.activeIn1Day ?? 0} suffix={`/ ${retention?.cohortSize ?? 0} 人`} />
+								<Statistic title="D1 回访" value={retention?.activeIn1Day ?? 0} suffix={`/ ${retention?.eligibleIn1Day ?? 0} 人`} />
 							</div>
 						</Card>
 					</Col>
 					<Col xs={24} sm={8}>
 						<Card>
-							<Progress type="circle" percent={pct(retention?.activeIn7Day ?? 0, retention?.cohortSize ?? 0)} />
+							<Progress type="circle" percent={pct(retention?.activeIn7Day ?? 0, retention?.eligibleIn7Day ?? 0)} />
 							<div style={{ marginTop: 12 }}>
-								<Statistic title="7 天内活跃" value={retention?.activeIn7Day ?? 0} suffix={`/ ${retention?.cohortSize ?? 0} 人`} />
+								<Statistic title="D7 回访" value={retention?.activeIn7Day ?? 0} suffix={`/ ${retention?.eligibleIn7Day ?? 0} 人`} />
 							</div>
 						</Card>
 					</Col>
 					<Col xs={24} sm={8}>
 						<Card>
-							<Progress type="circle" percent={pct(retention?.activeIn30Day ?? 0, retention?.cohortSize ?? 0)} />
+							<Progress type="circle" percent={pct(retention?.activeIn30Day ?? 0, retention?.eligibleIn30Day ?? 0)} />
 							<div style={{ marginTop: 12 }}>
-								<Statistic title="30 天内活跃" value={retention?.activeIn30Day ?? 0} suffix={`/ ${retention?.cohortSize ?? 0} 人`} />
+								<Statistic title="D30 回访" value={retention?.activeIn30Day ?? 0} suffix={`/ ${retention?.eligibleIn30Day ?? 0} 人`} />
 							</div>
 						</Card>
 					</Col>
+				</Row>
+			</Card>
+
+			<Card title="订阅与唤回" className="chart-card" style={{ marginTop: 16 }}>
+				<Row gutter={[16, 16]}>
+					<Col xs={12} md={6}><Statistic title="已授权用户" value={engagement?.subscribedUsers ?? 0} /></Col>
+					<Col xs={12} md={6}><Statistic title="剩余发送次数 / 拒绝次数" value={`${engagement?.acceptedGrants ?? 0} / ${engagement?.rejectedGrants ?? 0}`} /></Col>
+					<Col xs={12} md={6}><Statistic title="发送成功 / 失败" value={`${engagement?.sentMessages ?? 0} / ${engagement?.failedMessages ?? 0}`} /></Col>
+					<Col xs={12} md={6}><Statistic title="消息点击用户" value={engagement?.notificationOpenUsers ?? 0} suffix={` / ${engagement?.notificationOpens ?? 0} 次`} /></Col>
 				</Row>
 			</Card>
 		</div>

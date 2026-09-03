@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { User } from './entities/user.entity';
+import { UserEvent } from './entities/user-event.entity';
 import { LoginDto, UpdateUserDto } from './dto/login.dto';
 
 @Injectable()
@@ -16,6 +17,8 @@ export class UserService {
     private userRepository: Repository<User>,
     private jwtService: JwtService,
     private httpService: HttpService,
+    @InjectRepository(UserEvent)
+    private eventRepository: Repository<UserEvent>,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -59,6 +62,8 @@ export class UserService {
     const payload = { sub: user.id, openId: user.openId };
     const token = this.jwtService.sign(payload);
 
+    await this.eventRepository.save(this.eventRepository.create({ userId: user.id, name: 'login' }));
+
     return {
       token,
       user: {
@@ -93,5 +98,12 @@ export class UserService {
   async update(id: string, updateUserDto: UpdateUserDto) {
     await this.userRepository.update(id, updateUserDto);
     return this.findById(id);
+  }
+
+  async trackEvent(userId: string, name: string, properties?: Record<string, any>) {
+    const event = this.eventRepository.create({ userId, name, properties });
+    await this.eventRepository.save(event);
+    await this.userRepository.update(userId, { lastSeenAt: new Date() });
+    return { success: true };
   }
 }

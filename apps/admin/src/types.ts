@@ -155,6 +155,21 @@ export interface Retention {
 	activeIn1Day: number;
 	activeIn7Day: number;
 	activeIn30Day: number;
+	eligibleIn1Day: number;
+	eligibleIn7Day: number;
+	eligibleIn30Day: number;
+}
+
+export interface Engagement {
+	subscribedUsers: number;
+	acceptedGrants: number;
+	rejectedGrants: number;
+	sentMessages: number;
+	failedMessages: number;
+	weekOpens: number;
+	weekOpenUsers: number;
+	notificationOpens: number;
+	notificationOpenUsers: number;
 }
 
 // 公告

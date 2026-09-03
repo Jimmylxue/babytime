@@ -906,3 +906,34 @@
   height: 28px;
 }
 
+.return-cue-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 28px 18px;
+}
+
+.return-cue {
+  padding: 8px 16px;
+  border-radius: 18px;
+  background: #fff7e8;
+  color: #9a7040;
+  font-size: 22px;
+}
+
+.review-reminder-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 28px 18px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #fff0f4;
+  color: #b85d72;
+  font-size: 22px;
+}
+
+.review-reminder-entry.enabled {
+  background: #f3fbf5;
+  color: #4f9c62;
+}

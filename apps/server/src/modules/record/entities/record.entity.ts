@@ -49,6 +49,9 @@ export class Record {
 	@Column({ name: 'baby_id' })
 	babyId: string
 
+	@Column({ name: 'actor_user_id', nullable: true, comment: '实际创建记录的用户' })
+	actorUserId: string
+
 	@Column({
 		type: 'enum',
 		enum: RecordType,

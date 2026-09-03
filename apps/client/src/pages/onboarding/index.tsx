@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from 'react';
 import { useBabyStore } from '../../stores/babyStore';
 import { chooseAndUploadImage } from '../../utils/upload';
 import { markAutoRedirectedToOnboarding } from '../../utils/onboarding';
+import { trackEvent } from '../../utils/request';
 import babyFacePink from '../../assets/icons/baby-face-pink.svg';
 import babyFaceBlue from '../../assets/icons/baby-face-blue.svg';
 import './index.scss';
@@ -71,6 +72,7 @@ export default function OnboardingPage() {
         avatar,
       });
       createdRef.current = true;
+      void trackEvent('baby_created', { source: 'onboarding', babyId: baby.id });
       const res = await Taro.showModal({
         title: '宝宝档案建好啦 🎉',
         content: '现在记录第一条吗？比如一次喂奶或换尿布',

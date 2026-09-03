@@ -55,7 +55,7 @@ export class RecordService {
       }
     }
 
-    const record = this.recordRepository.create(createRecordDto);
+    const record = this.recordRepository.create({ ...createRecordDto, actorUserId: userId });
     return this.recordRepository.save(record);
   }
 
@@ -227,7 +227,20 @@ export class RecordService {
       }
     });
 
-    return { records, summary };
+    const [lastFeeding, lastSleep] = await Promise.all([
+      this.recordRepository.findOne({ where: { babyId, type: RecordType.FEEDING }, order: { startTime: 'DESC' } }),
+      this.recordRepository.findOne({ where: { babyId, type: RecordType.SLEEP }, order: { startTime: 'DESC' } }),
+    ]);
+
+    return {
+      records,
+      summary: {
+        ...summary,
+        lastFeedingAt: lastFeeding?.startTime || null,
+        lastSleepAt: lastSleep?.startTime || null,
+        lastSleepEndAt: lastSleep?.endTime || null,
+      },
+    };
   }
 
   // 获取本地日期字符串 YYYY-MM-DD

@@ -1,9 +1,9 @@
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
-import { recordApi } from '../../utils/request'
+import { recordApi, notificationApi, trackEvent } from '../../utils/request'
 import { calculateAge, formatDate } from '../../utils/date'
 import { getCurrentVaccineStage, VACCINE_SCHEDULE, VaccineScheduleItem } from '../../utils/vaccineSchedule'
 import './index.scss'
@@ -24,6 +24,8 @@ export default function VaccineTimelinePage() {
   const { currentBaby } = useBabyStore()
   const [records, setRecords] = useState<VaccineRecord[]>([])
   const [loading, setLoading] = useState(false)
+  const [reminderEnabled, setReminderEnabled] = useState(false)
+  const notificationTrackedRef = useRef(false)
 
   const loadData = async () => {
     if (!isLoggedIn) return
@@ -43,7 +45,32 @@ export default function VaccineTimelinePage() {
 
   useDidShow(() => {
     loadData()
+    const source = Taro.getCurrentInstance().router?.params?.source
+    if (isLoggedIn && !notificationTrackedRef.current && source === 'notification_vaccine') {
+      notificationTrackedRef.current = true
+      void trackEvent('notification_open', { source })
+    }
   })
+
+  const requestVaccineSubscription = async () => {
+    try {
+      const promptKey = `subscription:vaccine:last-prompt:${new Date().toISOString().slice(0, 10)}`
+      if (Taro.getStorageSync(promptKey)) return
+      const config = await notificationApi.getConfig()
+      if (!config.data?.vaccineEnabled || !config.data.vaccineTemplateId) return
+      Taro.setStorageSync(promptKey, true)
+      const result = await (Taro as any).requestSubscribeMessage({ tmplIds: [config.data.vaccineTemplateId] })
+      const status = result?.[config.data.vaccineTemplateId] || 'unknown'
+      await notificationApi.saveSubscriptions({ [config.data.vaccineTemplateId]: status })
+      void trackEvent('subscription_prompt_result', { template: 'vaccine', status })
+      if (status === 'accept') {
+        setReminderEnabled(true)
+        Taro.showToast({ title: '接种提醒已开启', icon: 'success' })
+      }
+    } catch {
+      void trackEvent('subscription_prompt_result', { template: 'vaccine', status: 'error' })
+    }
+  }
 
   const baby = currentBaby || useBabyStore.getState().currentBaby
   if (!baby) {
@@ -110,6 +137,14 @@ export default function VaccineTimelinePage() {
 
       <View className="timeline-disclaimer">
         <Text>本时间轴为国家免疫规划常规接种参考，品种、联合疫苗替代及补种安排请以接种门诊和接种证为准。</Text>
+      </View>
+
+      <View className={`reminder-entry${reminderEnabled ? ' enabled' : ''}`} onClick={requestVaccineSubscription}>
+        <View>
+          <Text className="reminder-title">{reminderEnabled ? '接种提醒已开启' : '开启接种提醒'}</Text>
+          <Text className="reminder-desc">临近参考接种日时通过微信服务通知提醒</Text>
+        </View>
+        <Text className="reminder-action">{reminderEnabled ? '已开启' : '去开启'}</Text>
       </View>
 
       {loading ? (

@@ -47,6 +47,9 @@ export interface TodaySummary {
   waterTotal: number;
   bathCount: number;
   outdoorCount: number;
+  lastFeedingAt?: string | null;
+  lastSleepAt?: string | null;
+  lastSleepEndAt?: string | null;
 }
 
 export interface DailyStat {

@@ -59,6 +59,13 @@ export class AdminController {
   }
 
   @UseGuards(AdminJwtGuard)
+  @Get('stats/engagement')
+  async getEngagement() {
+    const data = await this.adminStatsService.getEngagement();
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
   @Get('babies')
   async getBabies(
     @Query('page') page?: string,

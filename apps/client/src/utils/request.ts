@@ -174,6 +174,20 @@ export const announcementApi = {
 	}),
 }
 
+export const notificationApi = {
+	getConfig: () => request<{
+		vaccineTemplateId: string
+		reviewTemplateId: string
+		vaccineEnabled: boolean
+		reviewEnabled: boolean
+	}>({ url: '/notification/config', needToken: false }),
+	saveSubscriptions: (statuses: Record<string, string>) =>
+		request<any>({ url: '/notification/subscriptions', method: 'POST', data: { statuses } }),
+}
+
+export const trackEvent = (name: string, properties?: Record<string, any>) =>
+	request<any>({ url: '/user/events', method: 'POST', data: { name, properties } }).catch(() => undefined)
+
 // 文件上传
 export const uploadFile = (filePath: string): Promise<{ url: string }> => {
 	const token = Taro.getStorageSync('token')

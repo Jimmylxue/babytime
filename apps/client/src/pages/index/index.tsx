@@ -4,7 +4,7 @@ import Taro, {
 	useShareAppMessage,
 	useShareTimeline,
 } from '@tarojs/taro'
-import { Fragment, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
@@ -12,7 +12,7 @@ import { calculateAge, formatDurationLong } from '../../utils/date'
 import { getMonthlyTips } from '../../utils/monthlyTips'
 import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
-import { announcementApi } from '../../utils/request'
+import { announcementApi, notificationApi, trackEvent } from '../../utils/request'
 import { MOCK_BABY, MOCK_SUMMARY } from '../../utils/mock'
 import babyFacePink from '../../assets/icons/baby-face-pink.svg'
 import babyFaceBlue from '../../assets/icons/baby-face-blue.svg'
@@ -65,7 +65,16 @@ export default function Index() {
 	const [showMore, setShowMore] = useState(false)
 	const [showTips, setShowTips] = useState(false)
 	const [showAddGuide, setShowAddGuide] = useState(false)
+	const [now, setNow] = useState(() => Date.now())
+	const [reviewTemplateId, setReviewTemplateId] = useState('')
+	const [reviewSubscribed, setReviewSubscribed] = useState(false)
 	const announcementCheckingRef = useRef(false)
+	const notificationTrackedRef = useRef(false)
+
+	useEffect(() => {
+		const timer = setInterval(() => setNow(Date.now()), 60 * 1000)
+		return () => clearInterval(timer)
+	}, [])
 
 	const showAnnouncementIfNeeded = async () => {
 		if (announcementCheckingRef.current) return
@@ -118,8 +127,17 @@ export default function Index() {
 	}
 
 	useDidShow(() => {
+		if (isLoggedIn) void trackEvent('app_open')
+		const source = Taro.getCurrentInstance().router?.params?.source
+		if (isLoggedIn && !notificationTrackedRef.current && source?.startsWith('notification_')) {
+			notificationTrackedRef.current = true
+			void trackEvent('notification_open', { source })
+		}
 		showAnnouncementIfNeeded()
 		if (isLoggedIn) {
+			notificationApi.getConfig().then(res => {
+				setReviewTemplateId(res.data?.reviewEnabled ? res.data.reviewTemplateId : '')
+			}).catch(() => {})
 			fetchBabies().then(() => {
 				const baby = useBabyStore.getState().currentBaby
 				if (baby) {
@@ -134,6 +152,38 @@ export default function Index() {
 			})
 		}
 	})
+
+	const requestReviewSubscription = async () => {
+		if (!reviewTemplateId) return
+		try {
+			const result = await (Taro as any).requestSubscribeMessage({ tmplIds: [reviewTemplateId] })
+			const status = result?.[reviewTemplateId] || 'unknown'
+			await notificationApi.saveSubscriptions({ [reviewTemplateId]: status })
+			void trackEvent('subscription_prompt_result', { template: 'daily_review', status })
+			if (status === 'accept') {
+				setReviewSubscribed(true)
+				Taro.showToast({ title: '晚间回顾已开启', icon: 'success' })
+			}
+		} catch {
+			void trackEvent('subscription_prompt_result', { template: 'daily_review', status: 'error' })
+		}
+	}
+
+	const formatElapsed = (date?: string | null) => {
+		if (!date) return ''
+		const minutes = Math.max(0, Math.floor((now - new Date(date).getTime()) / 60000))
+		if (minutes < 60) return `${minutes}分钟前`
+		const hours = Math.floor(minutes / 60)
+		if (hours < 24) return `${hours}小时${minutes % 60 ? `${minutes % 60}分钟` : ''}前`
+		return `${Math.floor(hours / 24)}天前`
+	}
+
+	const feedingElapsed = isLoggedIn ? formatElapsed(summary?.lastFeedingAt) : ''
+	const sleepElapsed = isLoggedIn
+		? (summary?.lastSleepEndAt
+			? `已醒${formatElapsed(summary.lastSleepEndAt).replace('前', '')}`
+			: summary?.lastSleepAt ? `入睡${formatElapsed(summary.lastSleepAt)}` : '')
+		: ''
 
 	// 从记录中提取辅助信息
 	const todayRecords = records || []
@@ -514,6 +564,18 @@ export default function Index() {
 							</View>
 						)}
 					</View>
+					{isLoggedIn && currentBaby && (feedingElapsed || sleepElapsed) && (
+						<View className="return-cue-row">
+							{feedingElapsed && <Text className="return-cue">距上次喂奶 {feedingElapsed}</Text>}
+							{sleepElapsed && <Text className="return-cue">{sleepElapsed}</Text>}
+						</View>
+					)}
+					{isLoggedIn && currentBaby && reviewTemplateId && (
+						<View className={`review-reminder-entry${reviewSubscribed ? ' enabled' : ''}`} onClick={requestReviewSubscription}>
+							<Text>{reviewSubscribed ? '晚间回顾已开启' : '今晚接收宝宝记录回顾'}</Text>
+							<Text>{reviewSubscribed ? '已开启' : '开启提醒'}</Text>
+						</View>
+					)}
 					<View className="stats-list-container">
 						{/* 喂奶 */}
 						<View

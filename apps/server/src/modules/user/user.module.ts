@@ -5,13 +5,15 @@ import { PassportModule } from '@nestjs/passport';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { User } from './entities/user.entity';
+import { UserEvent } from './entities/user-event.entity';
+import { SubscriptionGrant } from './entities/subscription-grant.entity';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { JwtStrategy } from '../../common/strategies/jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, UserEvent, SubscriptionGrant]),
     HttpModule,
     PassportModule,
     JwtModule.registerAsync({
