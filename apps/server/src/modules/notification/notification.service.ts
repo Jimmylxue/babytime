@@ -221,6 +221,18 @@ export class NotificationService implements OnModuleInit {
     };
   }
 
+  // 微信 43101：用户拒收或无剩余次数（两者共用该错误码），微信侧票据已不可用
+  private isWechatRefused(errorText: string) {
+    return typeof errorText === 'string' && errorText.startsWith('43101');
+  }
+
+  // 43101 对账：微信侧额度已作废，本地清零对齐，等用户重新授权后再入账
+  private async invalidateWechatGrant(grantId: string) {
+    await this.grants.createQueryBuilder().update(SubscriptionGrant)
+      .set({ availableCount: 0, status: 'consumed' })
+      .where('id = :id', { id: grantId }).execute();
+  }
+
   async sendManualVaccine(userId: string, babyId: string | undefined, triggeredBy: string) {
     const templateId = this.getVaccineTemplateId();
     if (!templateId || !process.env.WECHAT_APP_ID || !process.env.WECHAT_APP_SECRET) {
@@ -280,6 +292,11 @@ export class NotificationService implements OnModuleInit {
     } catch (error: any) {
       delivery.status = 'failed'; delivery.error = String(error?.message || error);
       await this.deliveries.save(delivery);
+      if (this.isWechatRefused(delivery.error)) {
+        // 微信侧已拒收/次数作废：不退还额度并清零，避免「显示有次数却永远推不动」的死循环
+        await this.invalidateWechatGrant(grant.id);
+        throw new BadRequestException('测试推送失败：用户已在微信侧拒收或订阅次数作废（43101），本地额度已清零，请让用户在小程序内重新授权后再试');
+      }
       await this.grants.createQueryBuilder().update(SubscriptionGrant)
         .set({ availableCount: () => 'available_count + 1', status: 'accept' })
         .where('id = :id', { id: grant.id }).execute();
@@ -379,6 +396,11 @@ export class NotificationService implements OnModuleInit {
             delivery.status = 'failed';
             delivery.error = String(error?.message || error);
             this.logger.warn(`疫苗提醒发送失败 ${dedupeKey}: ${delivery.error}`);
+            if (this.isWechatRefused(delivery.error)) {
+              // 微信侧已拒收：清零本地额度，本轮及后续定时任务不再重试该用户
+              await this.invalidateWechatGrant(grant.id);
+              break;
+            }
           }
           await this.deliveries.save(delivery);
         }
@@ -442,6 +464,11 @@ export class NotificationService implements OnModuleInit {
         sent++;
       } catch (error: any) {
         delivery.status = 'failed'; delivery.error = String(error?.message || error);
+        if (this.isWechatRefused(delivery.error)) {
+          // 微信侧已拒收：清零本地额度，后续定时任务不再重试该用户
+          await this.invalidateWechatGrant(grant.id);
+          grant.availableCount = 0;
+        }
       }
       await this.deliveries.save(delivery);
     }
