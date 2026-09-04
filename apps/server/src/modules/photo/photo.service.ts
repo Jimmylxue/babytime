@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Photo } from './entities/photo.entity';
 import { CreatePhotoDto } from './dto/create-photo.dto';
 import { BabyService } from '../baby/baby.service';
@@ -58,6 +58,28 @@ export class PhotoService {
     const photo = await this.findOne(id, userId);
     await this.photoRepository.remove(photo);
     return { success: true };
+  }
+
+  async batchRemove(ids: string[], userId: string) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('ids 不能为空');
+    }
+    if (ids.length > 100) {
+      throw new BadRequestException('单次最多删除 100 张');
+    }
+
+    const photos = await this.photoRepository.find({ where: { id: In(ids) } });
+    if (photos.length === 0) {
+      throw new NotFoundException('照片不存在');
+    }
+
+    // 涉及到的每个宝宝都做一次权限校验（创建者或家庭成员）
+    const babyIds = [...new Set(photos.map((p) => p.babyId))];
+    await Promise.all(babyIds.map((babyId) => this.babyService.findOne(babyId, userId)));
+
+    // 单条 DELETE ... WHERE id IN，不存在的照片视为已删除，直接忽略
+    const result = await this.photoRepository.delete({ id: In(photos.map((p) => p.id)) });
+    return { deleted: result.affected ?? 0 };
   }
 
   async getTimeline(userId: string, babyId: string) {

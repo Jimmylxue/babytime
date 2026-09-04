@@ -159,6 +159,8 @@ export const photoApi = {
 		request<any[]>({ url: `/photo/timeline/${babyId}` }),
 	delete: (id: string) =>
 		request<any>({ url: `/photo/${id}`, method: 'DELETE' }),
+	deleteBatch: (ids: string[]) =>
+		request<any>({ url: '/photo/batch-delete', method: 'POST', data: { ids } }),
 }
 
 // 便便图片观察：密钥仅在服务端使用，客户端只提交已上传的图片 URL。

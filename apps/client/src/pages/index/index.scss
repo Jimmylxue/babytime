@@ -788,6 +788,11 @@
   margin: 0 28px 18px;
 }
 
+// 状态提示在快速记录标题下、宫格卡片外的边距
+.return-cue-row-outer {
+  margin: 0 4px 18px;
+}
+
 .return-cue {
   padding: 8px 16px;
   border-radius: 18px;
@@ -1197,4 +1202,87 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+// 最近的瞬间：照片横滑条（相册前置入口）
+.moments-section {
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
+  margin-bottom: 40px;
+}
+
+.moments-album-entry {
+  margin-left: auto;
+  padding: 8px 22px;
+  background: rgba(255, 240, 244, 0.9);
+  border-radius: 24px;
+}
+
+.moments-album-entry-text {
+  font-size: 24px;
+  color: #F78CA6;
+  font-weight: 600;
+}
+
+.moments-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.moments-row {
+  display: inline-flex;
+  gap: 16px;
+  padding: 4px 2px 12px;
+}
+
+.moments-photo {
+  width: 200px;
+  height: 200px;
+  border-radius: 24px;
+  background: #FFF3F0;
+  flex-shrink: 0;
+}
+
+.moments-tail {
+  width: 200px;
+  height: 200px;
+  border-radius: 24px;
+  border: 2px dashed #FFC9D6;
+  background: #FFF8FA;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.moments-tail-icon {
+  font-size: 44px;
+}
+
+.moments-tail-text {
+  font-size: 24px;
+  color: #E89BB0;
+  font-weight: 600;
+}
+
+.moments-empty {
+  border: 2px dashed #FFD3DE;
+  background: #FFF8FA;
+  border-radius: 28px;
+  padding: 34px 30px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.moments-empty-icon {
+  font-size: 48px;
+}
+
+.moments-empty-text {
+  font-size: 26px;
+  color: #B8909C;
+  font-weight: 500;
+  line-height: 1.5;
 }

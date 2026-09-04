@@ -1,4 +1,11 @@
-import { Canvas, View, Text, Image, ScrollView, Button } from '@tarojs/components'
+import {
+	Canvas,
+	View,
+	Text,
+	Image,
+	ScrollView,
+	Button,
+} from '@tarojs/components'
 import Taro, {
 	useDidShow,
 	useShareAppMessage,
@@ -8,11 +15,22 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
-import { calculateAge, formatDate, formatDurationLong, formatHM } from '../../utils/date'
+import {
+	calculateAge,
+	formatDate,
+	formatDurationLong,
+	formatHM,
+} from '../../utils/date'
 import { getMonthlyTips } from '../../utils/monthlyTips'
 import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
-import { announcementApi, notificationApi, trackEvent, VaccinePlanItem } from '../../utils/request'
+import {
+	announcementApi,
+	notificationApi,
+	photoApi,
+	trackEvent,
+	VaccinePlanItem,
+} from '../../utils/request'
 import miniProgramCode from '../../assets/mini-program-code.jpg'
 import babyIllustration from '../../assets/baby-illustration.jpg'
 import babyIllustrationGirl from '../../assets/baby-illustration-girl.jpg'
@@ -37,7 +55,7 @@ const quickActions = [
 	{ type: 'food', icon: '🍚', label: '辅食' },
 	{ type: 'vaccine', icon: '💉', label: '疫苗' },
 	{ type: 'temperature', icon: '🌡️', label: '体温' },
-	{ type: 'photo', icon: '📷', label: '拍照' },
+	{ type: 'photo', icon: '📷', label: '时光' },
 	{ type: 'height_weight', metric: 'weight', icon: '⚖️', label: '体重' },
 	{ type: 'height_weight', metric: 'height', icon: '📏', label: '身高' },
 ]
@@ -48,6 +66,12 @@ const moreActions = [
 	{ type: 'medicine', icon: '💊', label: '用药' },
 	{ type: 'outdoor', icon: '🌳', label: '户外活动' },
 ]
+
+interface RecentPhoto {
+	id: string
+	url: string
+	thumbnail?: string
+}
 
 const feedingMethodLabel: Record<string, string> = {
 	breast: '母乳',
@@ -63,7 +87,12 @@ function formatVaccineDate(date: string) {
 function getVaccineDaysLeft(date?: string | null) {
 	if (!date) return 14
 	const target = new Date(`${date}T00:00:00`).getTime()
-	return Math.max(0, Math.ceil((target - new Date().setHours(0, 0, 0, 0)) / (24 * 60 * 60 * 1000)))
+	return Math.max(
+		0,
+		Math.ceil(
+			(target - new Date().setHours(0, 0, 0, 0)) / (24 * 60 * 60 * 1000),
+		),
+	)
 }
 
 // 未登录示例数据：14 天后的示例针次（日期动态计算，「还有 N 天」始终成立）
@@ -95,15 +124,21 @@ export default function Index() {
 	const [showTips, setShowTips] = useState(false)
 	const [showAddGuide, setShowAddGuide] = useState(false)
 	const [now, setNow] = useState(() => Date.now())
-	const [statusBarHeight] = useState(() => Taro.getSystemInfoSync().statusBarHeight || 20)
+	const [statusBarHeight] = useState(
+		() => Taro.getSystemInfoSync().statusBarHeight || 20,
+	)
 	const [vaccineTemplateId, setVaccineTemplateId] = useState('')
-	const [vaccineState, setVaccineState] = useState<'never' | 'active' | 'exhausted'>('never')
+	const [vaccineState, setVaccineState] = useState<
+		'never' | 'active' | 'exhausted'
+	>('never')
 	const [nextVaccine, setNextVaccine] = useState<VaccinePlanItem | null>(null)
 	const [reviewTemplateId, setReviewTemplateId] = useState('')
 	const [reviewSubscribed, setReviewSubscribed] = useState(false)
+	const [recentPhotos, setRecentPhotos] = useState<RecentPhoto[]>([])
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
 	const requestingVaccineSubscriptionRef = useRef(false)
+	const momentsPreviewRef = useRef(false)
 
 	useEffect(() => {
 		const timer = setInterval(() => setNow(Date.now()), 60 * 1000)
@@ -160,33 +195,84 @@ export default function Index() {
 		setShowAddGuide(false)
 	}
 
+	const fetchRecentPhotos = (babyId: string) => {
+		photoApi
+			.getTimeline(babyId)
+			.then(res => {
+				const timeline = (res.data || []) as { photos: RecentPhoto[] }[]
+				// 接口按日期倒序返回，拍平后取最近几张
+				setRecentPhotos(timeline.flatMap(item => item.photos).slice(0, 9))
+			})
+			.catch(() => {})
+	}
+
+	const handleMomentsPreview = (photo: RecentPhoto) => {
+		// previewImage 关闭会触发页面 onShow，打标记避免整页刷新
+		momentsPreviewRef.current = true
+		Taro.previewImage({
+			current: photo.url,
+			urls: recentPhotos.map(p => p.url),
+			fail: () => {
+				momentsPreviewRef.current = false
+			},
+		})
+	}
+
 	useDidShow(() => {
+		// 关闭大图预览触发的 onShow，不做整页刷新
+		if (momentsPreviewRef.current) {
+			momentsPreviewRef.current = false
+			return
+		}
 		if (isLoggedIn) void trackEvent('app_open')
 		const source = Taro.getCurrentInstance().router?.params?.source
-		if (isLoggedIn && !notificationTrackedRef.current && source?.startsWith('notification_')) {
+		if (
+			isLoggedIn &&
+			!notificationTrackedRef.current &&
+			source?.startsWith('notification_')
+		) {
 			notificationTrackedRef.current = true
 			void trackEvent('notification_open', { source })
 		}
 		showAnnouncementIfNeeded()
 		if (isLoggedIn) {
-			notificationApi.getConfig().then(res => {
-				setVaccineTemplateId(res.data?.vaccineEnabled ? res.data.vaccineTemplateId : '')
-				setReviewTemplateId(res.data?.reviewEnabled ? res.data.reviewTemplateId : '')
-			}).catch(() => {})
-			notificationApi.getStatus().then(res => setVaccineState(res.data?.state || 'never')).catch(() => setVaccineState('never'))
+			notificationApi
+				.getConfig()
+				.then(res => {
+					setVaccineTemplateId(
+						res.data?.vaccineEnabled ? res.data.vaccineTemplateId : '',
+					)
+					setReviewTemplateId(
+						res.data?.reviewEnabled ? res.data.reviewTemplateId : '',
+					)
+				})
+				.catch(() => {})
+			notificationApi
+				.getStatus()
+				.then(res => setVaccineState(res.data?.state || 'never'))
+				.catch(() => setVaccineState('never'))
 			fetchBabies().then(() => {
 				const baby = useBabyStore.getState().currentBaby
 				if (baby) {
 					setNextVaccine(null)
-					notificationApi.getVaccinePlans(baby.id).then(res => {
-						const today = formatDate(new Date())
-						const next = (res.data || [])
-							.filter(item => !item.completed && item.effectiveDate >= today)
-							.sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))[0] || null
-						setNextVaccine(next)
-					}).catch(() => setNextVaccine(null))
+					notificationApi
+						.getVaccinePlans(baby.id)
+						.then(res => {
+							const today = formatDate(new Date())
+							const next =
+								(res.data || [])
+									.filter(
+										item => !item.completed && item.effectiveDate >= today,
+									)
+									.sort((a, b) =>
+										a.effectiveDate.localeCompare(b.effectiveDate),
+									)[0] || null
+							setNextVaccine(next)
+						})
+						.catch(() => setNextVaccine(null))
 					fetchSummary(baby.id)
 					fetchStats(baby.id)
+					fetchRecentPhotos(baby.id)
 					maybeShowAddGuide()
 				} else if (!hasAutoRedirectedToOnboarding()) {
 					// 已登录但没有宝宝档案，进引导页创建
@@ -214,10 +300,16 @@ export default function Index() {
 				throw new Error('当前基础库不支持订阅消息，请升级微信后重试')
 			}
 			// 必须在铃铛点击回调中直接调用，不能先 await 网络请求。
-			const result = await requestSubscribeMessage({ tmplIds: [vaccineTemplateId] })
+			const result = await requestSubscribeMessage({
+				tmplIds: [vaccineTemplateId],
+			})
 			const status = result?.[vaccineTemplateId] || 'unknown'
 			await notificationApi.saveSubscriptions({ [vaccineTemplateId]: status })
-			void trackEvent('subscription_prompt_result', { template: 'vaccine', status, source: 'home_reminder_card' })
+			void trackEvent('subscription_prompt_result', {
+				template: 'vaccine',
+				status,
+				source: 'home_reminder_card',
+			})
 			const latestStatus = await notificationApi.getStatus().catch(() => null)
 			if (latestStatus?.data?.state) setVaccineState(latestStatus.data.state)
 			if (status === 'accept') {
@@ -232,9 +324,18 @@ export default function Index() {
 			if (errorMessage.includes('cancel')) {
 				Taro.showToast({ title: '已取消提醒授权', icon: 'none' })
 			} else {
-				await Taro.showModal({ title: '提醒授权失败', content: errorMessage, showCancel: false, confirmText: '知道了' })
+				await Taro.showModal({
+					title: '提醒授权失败',
+					content: errorMessage,
+					showCancel: false,
+					confirmText: '知道了',
+				})
 			}
-			void trackEvent('subscription_prompt_result', { template: 'vaccine', status: 'error', source: 'home_reminder_card' })
+			void trackEvent('subscription_prompt_result', {
+				template: 'vaccine',
+				status: 'error',
+				source: 'home_reminder_card',
+			})
 		} finally {
 			requestingVaccineSubscriptionRef.current = false
 		}
@@ -246,7 +347,9 @@ export default function Index() {
 			return
 		}
 		if (vaccineState === 'active') {
-			Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}` })
+			Taro.navigateTo({
+				url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}`,
+			})
 			return
 		}
 		void requestVaccineSubscription()
@@ -259,7 +362,9 @@ export default function Index() {
 			needLogin()
 			return
 		}
-		Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}` })
+		Taro.navigateTo({
+			url: `/pages/vaccine-timeline/index?babyId=${currentBaby?.id || ''}`,
+		})
 	}
 
 	// 疫苗卡展示态：未登录按「已订阅」展示示例针次，点击引导登录
@@ -272,12 +377,26 @@ export default function Index() {
 		: vaccineStateDisplay === 'exhausted'
 			? 'expired'
 			: 'unsubscribed'
-	const vaccineBadgeText = isVaccineActive ? '已订阅' : vaccineStateDisplay === 'exhausted' ? '已过期' : '未开启'
-	const vaccineBadgeClass = isVaccineActive ? '' : vaccineStateDisplay === 'exhausted' ? ' expired' : ' off'
-	const vaccineCtaText = isVaccineActive ? '查看计划' : vaccineStateDisplay === 'exhausted' ? '再次订阅' : '开启提醒'
+	const vaccineBadgeText = isVaccineActive
+		? '已订阅'
+		: vaccineStateDisplay === 'exhausted'
+			? '已过期'
+			: '未开启'
+	const vaccineBadgeClass = isVaccineActive
+		? ''
+		: vaccineStateDisplay === 'exhausted'
+			? ' expired'
+			: ' off'
+	const vaccineCtaText = isVaccineActive
+		? '查看计划'
+		: vaccineStateDisplay === 'exhausted'
+			? '再次订阅'
+			: '开启提醒'
 	const vaccineDaysLeft = getVaccineDaysLeft(nextVaccineDisplay?.effectiveDate)
 	const vaccineWeekday = nextVaccineDisplay
-		? '日一二三四五六'.charAt(new Date(`${nextVaccineDisplay.effectiveDate}T00:00:00`).getDay())
+		? '日一二三四五六'.charAt(
+				new Date(`${nextVaccineDisplay.effectiveDate}T00:00:00`).getDay(),
+			)
 		: ''
 	// 无下一针安排时的兜底文案
 	const vaccineReminderFallback =
@@ -290,33 +409,47 @@ export default function Index() {
 	const requestReviewSubscription = async () => {
 		if (!reviewTemplateId) return
 		try {
-			const result = await (Taro as any).requestSubscribeMessage({ tmplIds: [reviewTemplateId] })
+			const result = await (Taro as any).requestSubscribeMessage({
+				tmplIds: [reviewTemplateId],
+			})
 			const status = result?.[reviewTemplateId] || 'unknown'
 			await notificationApi.saveSubscriptions({ [reviewTemplateId]: status })
-			void trackEvent('subscription_prompt_result', { template: 'daily_review', status })
+			void trackEvent('subscription_prompt_result', {
+				template: 'daily_review',
+				status,
+			})
 			if (status === 'accept') {
 				setReviewSubscribed(true)
 				Taro.showToast({ title: '晚间回顾已开启', icon: 'success' })
 			}
 		} catch {
-			void trackEvent('subscription_prompt_result', { template: 'daily_review', status: 'error' })
+			void trackEvent('subscription_prompt_result', {
+				template: 'daily_review',
+				status: 'error',
+			})
 		}
 	}
 
 	const formatElapsed = (date?: string | null) => {
 		if (!date) return ''
-		const minutes = Math.max(0, Math.floor((now - new Date(date).getTime()) / 60000))
+		const minutes = Math.max(
+			0,
+			Math.floor((now - new Date(date).getTime()) / 60000),
+		)
 		if (minutes < 60) return `${minutes}分钟前`
 		const hours = Math.floor(minutes / 60)
-		if (hours < 24) return `${hours}小时${minutes % 60 ? `${minutes % 60}分钟` : ''}前`
+		if (hours < 24)
+			return `${hours}小时${minutes % 60 ? `${minutes % 60}分钟` : ''}前`
 		return `${Math.floor(hours / 24)}天前`
 	}
 
 	const feedingElapsed = isLoggedIn ? formatElapsed(summary?.lastFeedingAt) : ''
 	const sleepElapsed = isLoggedIn
-		? (summary?.lastSleepEndAt
+		? summary?.lastSleepEndAt
 			? `已醒${formatElapsed(summary.lastSleepEndAt).replace('前', '')}`
-			: summary?.lastSleepAt ? `入睡${formatElapsed(summary.lastSleepAt)}` : '')
+			: summary?.lastSleepAt
+				? `入睡${formatElapsed(summary.lastSleepAt)}`
+				: ''
 		: ''
 
 	const navigateToRecord = async (type: string, metric?: string) => {
@@ -329,7 +462,12 @@ export default function Index() {
 			return
 		}
 		if (type === 'photo') {
-			takePhotoAndSave(currentBaby.id)
+			takePhotoAndSave(currentBaby.id, {
+				goAlbum: true,
+				babyName: currentBaby.name,
+			}).then(success => {
+				if (success) fetchRecentPhotos(currentBaby.id)
+			})
 			return
 		}
 		Taro.navigateTo({
@@ -410,7 +548,9 @@ export default function Index() {
 	const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY
 	const displaySummary = isLoggedIn ? summary : MOCK_SUMMARY
 	// 身高体重是慢变的存量数据，示例模式补一份样例；体温是瞬时健康信号，示例里不展示
-	const displayHeightWeight = isLoggedIn ? latestHeightWeight : MOCK_STATS.latestHeightWeight
+	const displayHeightWeight = isLoggedIn
+		? latestHeightWeight
+		: MOCK_STATS.latestHeightWeight
 	const displayAge = displayBaby ? calculateAge(displayBaby.birthday) : null
 	const monthlyTips = displayAge ? getMonthlyTips(displayAge.months) : null
 	const featuredTip = monthlyTips?.tips[0]
@@ -432,7 +572,8 @@ export default function Index() {
 				: ''
 	const tempTimeText = displayTemperature
 		? `${
-				new Date(displayTemperature.date).toDateString() === new Date(now).toDateString()
+				new Date(displayTemperature.date).toDateString() ===
+				new Date(now).toDateString()
 					? '今天'
 					: '昨天'
 			}${formatHM(displayTemperature.date)}`
@@ -462,7 +603,9 @@ export default function Index() {
 					label: '喂奶',
 					value: `${summaryData.feedingCount}次`,
 					subBelow:
-						summaryData.totalMilk > 0 ? `共${summaryData.totalMilk}ml` : undefined,
+						summaryData.totalMilk > 0
+							? `共${summaryData.totalMilk}ml`
+							: undefined,
 					iconBg: '#FFF3D9',
 					emoji: '🍼',
 				},
@@ -498,9 +641,12 @@ export default function Index() {
 				},
 			]
 			const highlights: string[] = []
-			if (summaryData.feedingCount > 0) highlights.push(`喂了${summaryData.feedingCount}次奶`)
-			if (summaryData.sleepTotal > 0) highlights.push(`睡了${formatDurationLong(summaryData.sleepTotal)}`)
-			if (summaryData.diaperCount > 0) highlights.push(`换了${summaryData.diaperCount}次尿布`)
+			if (summaryData.feedingCount > 0)
+				highlights.push(`喂了${summaryData.feedingCount}次奶`)
+			if (summaryData.sleepTotal > 0)
+				highlights.push(`睡了${formatDurationLong(summaryData.sleepTotal)}`)
+			if (summaryData.diaperCount > 0)
+				highlights.push(`换了${summaryData.diaperCount}次尿布`)
 			const reviewText = highlights.length
 				? `今天${highlights.join('、')}，又是被好好照顾的一天～`
 				: '今天还没有记录，去记一笔再来看看宝宝的日报吧～'
@@ -524,14 +670,19 @@ export default function Index() {
 
 	return (
 		<View className="page">
-			<View className="home-topbar" style={{ paddingTop: `${statusBarHeight}px` }}>
+			<View
+				className="home-topbar"
+				style={{ paddingTop: `${statusBarHeight}px` }}
+			>
 				<Text className="home-topbar-title">育娃手记</Text>
 			</View>
 			{/* 未登录：示例数据提示 */}
 			{!isLoggedIn && (
 				<View className="demo-banner">
 					<Text className="demo-banner-emoji">👀</Text>
-					<Text className="demo-banner-text">示例数据预览，登录后记录宝宝的成长</Text>
+					<Text className="demo-banner-text">
+						示例数据预览，登录后记录宝宝的成长
+					</Text>
 					<View
 						className="demo-banner-btn"
 						onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
@@ -554,7 +705,11 @@ export default function Index() {
 				<View className="baby-deco baby-deco-b" />
 				<Image
 					className="baby-illustration"
-					src={displayBaby?.gender === 'female' ? babyIllustrationGirl : babyIllustration}
+					src={
+						displayBaby?.gender === 'female'
+							? babyIllustrationGirl
+							: babyIllustration
+					}
 					mode="aspectFit"
 				/>
 				<View className="baby-main">
@@ -569,9 +724,7 @@ export default function Index() {
 							<Image
 								className="avatar-baby-icon"
 								src={
-									displayBaby?.gender === 'male'
-										? babyFaceBlue
-										: babyFacePink
+									displayBaby?.gender === 'male' ? babyFaceBlue : babyFacePink
 								}
 							/>
 						)}
@@ -613,7 +766,9 @@ export default function Index() {
 				</View>
 
 				{(displayHeightWeight || displayTemperature || isLoggedIn) && (
-					<View className={`baby-metrics${displayTemperature ? ' has-temp' : ''}`}>
+					<View
+						className={`baby-metrics${displayTemperature ? ' has-temp' : ''}`}
+					>
 						{displayHeightWeight ? (
 							<Fragment>
 								<View className="baby-metric m-weight">
@@ -717,47 +872,69 @@ export default function Index() {
 				)}
 			</View>
 
-			{(isLoggedIn ? Boolean(currentBaby && vaccineTemplateId) : Boolean(displayBaby)) && (
+			{(isLoggedIn
+				? Boolean(currentBaby && vaccineTemplateId)
+				: Boolean(displayBaby)) && (
 				<Button
 					className={`vaccine-reminder-card ${vaccineCardClass}`}
 					onClick={handleReminderCardClick}
 					aria-label={vaccineBadgeText}
 				>
-					<Image className="vaccine-safety-art" src={vaccineSafety} mode="aspectFit" />
+					<Image
+						className="vaccine-safety-art"
+						src={vaccineSafety}
+						mode="aspectFit"
+					/>
 					<View className="vaccine-reminder-copy">
 						<View className="vaccine-title-row">
 							<Text className="vaccine-bell">🔔</Text>
 							<Text className="vaccine-reminder-title">疫苗提醒</Text>
 							<View className={`vaccine-state-badge${vaccineBadgeClass}`}>
-								<Text className={`vaccine-state-badge-text${vaccineBadgeClass}`}>
+								<Text
+									className={`vaccine-state-badge-text${vaccineBadgeClass}`}
+								>
 									{vaccineBadgeText}
 								</Text>
 							</View>
 						</View>
 						{nextVaccineDisplay ? (
 							<Fragment>
-								<Text className="vaccine-next-line">下一针：{nextVaccineDisplay.label}</Text>
+								<Text className="vaccine-next-line">
+									下一针：{nextVaccineDisplay.label}
+								</Text>
 								<View className="vaccine-count">
 									<Text className="vaccine-count-prefix">还有</Text>
-									<Text className="vaccine-count-number">{vaccineDaysLeft}</Text>
+									<Text className="vaccine-count-number">
+										{vaccineDaysLeft}
+									</Text>
 									<Text className="vaccine-count-unit">天</Text>
 								</View>
 								<Text className="vaccine-date-line">
-									接种日期：{formatVaccineDate(nextVaccineDisplay.effectiveDate)}（周{vaccineWeekday}）
+									接种日期：
+									{formatVaccineDate(nextVaccineDisplay.effectiveDate)}（周
+									{vaccineWeekday}）
 								</Text>
 							</Fragment>
 						) : (
-							<Text className="vaccine-reminder-desc">{vaccineReminderFallback}</Text>
+							<Text className="vaccine-reminder-desc">
+								{vaccineReminderFallback}
+							</Text>
 						)}
 					</View>
 					<View
 						className={`vaccine-plan-btn${isVaccineActive ? '' : ' cta'}`}
 						onClick={isVaccineActive ? handleViewVaccinePlan : undefined}
 					>
-						<Text className={`vaccine-plan-btn-text${isVaccineActive ? '' : ' cta'}`}>
+						<Text
+							className={`vaccine-plan-btn-text${isVaccineActive ? '' : ' cta'}`}
+						>
 							{vaccineCtaText}
 						</Text>
-						<Text className={`vaccine-plan-btn-arrow${isVaccineActive ? '' : ' cta'}`}>›</Text>
+						<Text
+							className={`vaccine-plan-btn-arrow${isVaccineActive ? '' : ' cta'}`}
+						>
+							›
+						</Text>
 					</View>
 				</Button>
 			)}
@@ -769,13 +946,29 @@ export default function Index() {
 						<View className="section-accent" />
 						<Text className="section-label">快速记录</Text>
 					</View>
+					{/* 喂养/睡眠状态提示：标题下方、宫格卡片外 */}
+					{isLoggedIn && currentBaby && (feedingElapsed || sleepElapsed) && (
+						<View className="return-cue-row return-cue-row-outer">
+							{feedingElapsed && (
+								<Text className="return-cue">距上次喂奶 {feedingElapsed}</Text>
+							)}
+							{sleepElapsed && (
+								<Text className="return-cue">{sleepElapsed}</Text>
+							)}
+						</View>
+					)}
 					<View className="quick-card">
 						<View className="action-grid">
 							{quickActions.map(action => (
 								<View
 									key={action.type}
 									className="action-item"
-									onClick={() => navigateToRecord(action.type, 'metric' in action ? action.metric : undefined)}
+									onClick={() =>
+										navigateToRecord(
+											action.type,
+											'metric' in action ? action.metric : undefined,
+										)
+									}
 								>
 									<View className={`action-icon ${action.type}`}>
 										<Text>{action.icon}</Text>
@@ -805,22 +998,18 @@ export default function Index() {
 								className="daily-report-entry"
 								onClick={() => handleDailyReport('share')}
 							>
-								<Image
-									className="daily-report-entry-icon"
-									src={reportIcon}
-								/>
+								<Image className="daily-report-entry-icon" src={reportIcon} />
 							</View>
 						)}
 					</View>
-					{isLoggedIn && currentBaby && (feedingElapsed || sleepElapsed) && (
-						<View className="return-cue-row">
-							{feedingElapsed && <Text className="return-cue">距上次喂奶 {feedingElapsed}</Text>}
-							{sleepElapsed && <Text className="return-cue">{sleepElapsed}</Text>}
-						</View>
-					)}
 					{isLoggedIn && currentBaby && reviewTemplateId && (
-						<View className={`review-reminder-entry${reviewSubscribed ? ' enabled' : ''}`} onClick={requestReviewSubscription}>
-							<Text>{reviewSubscribed ? '晚间回顾已开启' : '今晚接收宝宝记录回顾'}</Text>
+						<View
+							className={`review-reminder-entry${reviewSubscribed ? ' enabled' : ''}`}
+							onClick={requestReviewSubscription}
+						>
+							<Text>
+								{reviewSubscribed ? '晚间回顾已开启' : '今晚接收宝宝记录回顾'}
+							</Text>
 							<Text>{reviewSubscribed ? '已开启' : '开启提醒'}</Text>
 						</View>
 					)}
@@ -869,7 +1058,10 @@ export default function Index() {
 						</View>
 
 						{/* 尿布 */}
-						<View className="stat-list-item t-diaper" onClick={() => goToDiaperDetail()}>
+						<View
+							className="stat-list-item t-diaper"
+							onClick={() => goToDiaperDetail()}
+						>
 							<View className="stat-icon-wrap diaper">
 								<Text className="stat-icon">💩</Text>
 							</View>
@@ -958,6 +1150,69 @@ export default function Index() {
 				</View>
 			)}
 
+			{/* 最近的瞬间：相册入口前置到首页 */}
+			{displayBaby && (
+				<View className="moments-section">
+					<View className="section-head">
+						<View className="section-accent" />
+						<Text className="section-label">最近的瞬间</Text>
+						{recentPhotos.length > 0 && (
+							<View
+								className="moments-album-entry"
+								onClick={() =>
+									Taro.navigateTo({
+										url: `/pages/photo/index?babyId=${displayBaby.id}`,
+									})
+								}
+							>
+								<Text className="moments-album-entry-text">相册 ›</Text>
+							</View>
+						)}
+					</View>
+					{recentPhotos.length > 0 ? (
+						<ScrollView
+							className="moments-scroll"
+							scrollX
+							enhanced
+							showScrollbar={false}
+						>
+							<View className="moments-row">
+								{recentPhotos.map(photo => (
+									<Image
+										key={photo.id}
+										className="moments-photo"
+										src={photo.thumbnail || photo.url}
+										mode="aspectFill"
+										onClick={() => handleMomentsPreview(photo)}
+									/>
+								))}
+								<View
+									className="moments-tail"
+									onClick={() =>
+										Taro.navigateTo({
+											url: `/pages/photo/index?babyId=${displayBaby.id}`,
+										})
+									}
+								>
+									<Text className="moments-tail-icon">📸</Text>
+									<Text className="moments-tail-text">查看相册</Text>
+								</View>
+							</View>
+						</ScrollView>
+					) : (
+						<View
+							className="moments-empty"
+							onClick={() => navigateToRecord('photo')}
+						>
+							<Text className="moments-empty-icon">📷</Text>
+							<Text className="moments-empty-text">
+								给 {displayBaby.name} 拍张照片吧，它会出现在这里
+							</Text>
+						</View>
+					)}
+				</View>
+			)}
+
 			{/* 更多记录 - 底部弹窗 */}
 			{showMore && (
 				<View className="sheet-overlay" onClick={() => setShowMore(false)}>
@@ -988,14 +1243,23 @@ export default function Index() {
 
 			{showTips && monthlyTips && (
 				<View className="sheet-overlay" onClick={() => setShowTips(false)}>
-					<View className="sheet-panel tips-sheet-panel" onClick={e => e.stopPropagation()}>
+					<View
+						className="sheet-panel tips-sheet-panel"
+						onClick={e => e.stopPropagation()}
+					>
 						<View className="sheet-handle" />
 						<View className="tips-sheet-header">
 							<View>
-								<Text className="tips-sheet-title">{monthlyTips.ageLabel} 本月关注</Text>
-								<Text className="tips-sheet-desc">每个宝宝的成长节奏都不一样</Text>
+								<Text className="tips-sheet-title">
+									{monthlyTips.ageLabel} 本月关注
+								</Text>
+								<Text className="tips-sheet-desc">
+									每个宝宝的成长节奏都不一样
+								</Text>
 							</View>
-							<View className="tips-sheet-count"><Text>{monthlyTips.tips.length} 条</Text></View>
+							<View className="tips-sheet-count">
+								<Text>{monthlyTips.tips.length} 条</Text>
+							</View>
 						</View>
 						<ScrollView className="tips-sheet-list" scrollY>
 							{monthlyTips.tips.map((tip, index) => (
@@ -1007,7 +1271,9 @@ export default function Index() {
 									</View>
 								</View>
 							))}
-							<Text className="tips-sheet-disclaimer">小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。</Text>
+							<Text className="tips-sheet-disclaimer">
+								小贴士仅供日常参考，如有不适或喂养疑问请咨询儿科医生。
+							</Text>
 						</ScrollView>
 					</View>
 				</View>
@@ -1018,7 +1284,9 @@ export default function Index() {
 				<View className="add-guide-overlay" onClick={dismissAddGuide}>
 					<View className="add-guide-bubble" onClick={e => e.stopPropagation()}>
 						<View className="add-guide-arrow" />
-						<Text className="add-guide-title">把育娃手记添加到「我的小程序」</Text>
+						<Text className="add-guide-title">
+							把育娃手记添加到「我的小程序」
+						</Text>
 						<Text className="add-guide-desc">
 							点击右上角「···」，选择「添加到我的小程序」，下次从微信首页下拉就能快速打开
 						</Text>

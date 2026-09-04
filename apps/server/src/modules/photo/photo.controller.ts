@@ -69,4 +69,15 @@ export class PhotoController {
       message: '删除成功',
     };
   }
+
+  @Post('batch-delete')
+  @HttpCode(200)
+  async batchRemove(@Request() req, @Body() body: { ids?: string[] }) {
+    const result = await this.photoService.batchRemove(body?.ids ?? [], req.user.id);
+    return {
+      code: 0,
+      message: '删除成功',
+      data: result,
+    };
+  }
 }

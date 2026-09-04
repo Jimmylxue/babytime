@@ -25,6 +25,11 @@ export const chooseAndUploadImage = async (): Promise<string | null> => {
     }
     return null;
   } catch (error) {
+    // 用户取消拍照/选图（errMsg 含 cancel）不算失败，静默返回
+    const errMsg = (error as { errMsg?: string } | undefined)?.errMsg || '';
+    if (errMsg.includes('cancel')) {
+      return null;
+    }
     Taro.hideLoading();
     Taro.showToast({ title: '上传失败', icon: 'none' });
     return null;
@@ -34,8 +39,12 @@ export const chooseAndUploadImage = async (): Promise<string | null> => {
 /**
  * 拍照并保存到宝宝相册
  * @param babyId 宝宝ID
+ * @param options.goAlbum 保存成功后弹「去看看」引导跳转相册（首页等相册以外入口用）
  */
-export const takePhotoAndSave = async (babyId: string): Promise<boolean> => {
+export const takePhotoAndSave = async (
+  babyId: string,
+  options: { babyName?: string; goAlbum?: boolean } = {}
+): Promise<boolean> => {
   try {
     const imageUrl = await chooseAndUploadImage();
     if (!imageUrl) return false;
@@ -49,7 +58,21 @@ export const takePhotoAndSave = async (babyId: string): Promise<boolean> => {
       photoDate: dateStr,
     });
 
-    Taro.showToast({ title: '拍照成功', icon: 'success' });
+    if (options.goAlbum) {
+      const res = await Taro.showModal({
+        title: '已存入相册',
+        content: options.babyName
+          ? `照片已存入 ${options.babyName} 的成长相册`
+          : '照片已存入宝宝的成长相册',
+        cancelText: '好的',
+        confirmText: '去看看',
+      });
+      if (res.confirm) {
+        Taro.navigateTo({ url: `/pages/photo/index?babyId=${babyId}` });
+      }
+    } else {
+      Taro.showToast({ title: '拍照成功', icon: 'success' });
+    }
     return true;
   } catch (error) {
     Taro.showToast({ title: '保存失败', icon: 'none' });

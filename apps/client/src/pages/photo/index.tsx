@@ -24,6 +24,8 @@ export default function PhotoPage() {
   const { babyId } = router.params;
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [manageMode, setManageMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const previewingRef = useRef(false);
 
   useDidShow(() => {
@@ -59,15 +61,45 @@ export default function PhotoPage() {
     }
   };
 
-  const handleDeletePhoto = async (photoId: string) => {
+  const toggleManage = () => {
+    setManageMode((m) => !m);
+    setSelectedIds([]);
+  };
+
+  // 长按照片：快捷进入管理模式并选中该张
+  const enterManageWith = (photoId: string) => {
+    setManageMode(true);
+    setSelectedIds([photoId]);
+  };
+
+  const toggleSelect = (photoId: string) => {
+    setSelectedIds((ids) =>
+      ids.includes(photoId) ? ids.filter((id) => id !== photoId) : [...ids, photoId]
+    );
+  };
+
+  const allPhotos = timeline.flatMap((item) => item.photos);
+  const allSelected = allPhotos.length > 0 && selectedIds.length === allPhotos.length;
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allSelected ? [] : allPhotos.map((p) => p.id));
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
     const res = await Taro.showModal({
       title: '确认删除',
-      content: '确定要删除这张照片吗？',
+      content: `确定要删除选中的 ${selectedIds.length} 张照片吗？删除后无法恢复`,
     });
-    if (res.confirm) {
-      await photoApi.delete(photoId);
+    if (!res.confirm) return;
+    try {
+      await photoApi.deleteBatch(selectedIds);
       Taro.showToast({ title: '删除成功', icon: 'success' });
+      setManageMode(false);
+      setSelectedIds([]);
       fetchTimeline();
+    } catch (error) {
+      Taro.showToast({ title: '删除失败', icon: 'none' });
     }
   };
 
@@ -92,14 +124,26 @@ export default function PhotoPage() {
   };
 
   return (
-    <View className="photo-page">
-      {/* 上传按钮 */}
-      <View className="upload-section" onClick={handleTakePhoto}>
-        <View className="upload-btn">
-          <Text className="upload-icon">📷</Text>
-          <Text className="upload-text">拍照记录</Text>
+    <View className={`photo-page${manageMode ? ' manage-mode' : ''}`}>
+      {/* 上传按钮：管理模式下隐藏，聚焦选择 */}
+      {!manageMode && (
+        <View className="upload-section" onClick={handleTakePhoto}>
+          <View className="upload-btn">
+            <Text className="upload-icon">📷</Text>
+            <Text className="upload-text">拍照记录</Text>
+          </View>
         </View>
-      </View>
+      )}
+
+      {/* 相册信息 + 管理入口 */}
+      {timeline.length > 0 && (
+        <View className="album-meta">
+          <Text className="album-count">共 {allPhotos.length} 张</Text>
+          <Text className="album-manage" onClick={toggleManage}>
+            {manageMode ? '取消' : '管理'}
+          </Text>
+        </View>
+      )}
 
       {/* 照片时间线 */}
       {loading ? (
@@ -121,26 +165,64 @@ export default function PhotoPage() {
                 <Text className="date-count">{item.photos.length}张</Text>
               </View>
               <View className="photo-grid">
-                {item.photos.map((photo) => (
-                  <View
-                    key={photo.id}
-                    className="photo-item"
-                    onClick={() => handlePreview(photo, item.photos)}
-                    onLongPress={() => handleDeletePhoto(photo.id)}
-                  >
-                    <Image
-                      className="photo-img"
-                      src={photo.url}
-                      mode="aspectFill"
-                    />
-                    {photo.note && (
-                      <Text className="photo-note">{photo.note}</Text>
-                    )}
-                  </View>
-                ))}
+                {item.photos.map((photo) => {
+                  const selected = selectedIds.includes(photo.id);
+                  return (
+                    <View
+                      key={photo.id}
+                      className="photo-item"
+                      onClick={() =>
+                        manageMode
+                          ? toggleSelect(photo.id)
+                          : handlePreview(photo, item.photos)
+                      }
+                      onLongPress={() => {
+                        if (!manageMode) enterManageWith(photo.id);
+                      }}
+                    >
+                      <Image
+                        className="photo-img"
+                        src={photo.url}
+                        mode="aspectFill"
+                      />
+                      {manageMode && (
+                        <View
+                          className={`photo-check${selected ? ' checked' : ''}`}
+                        >
+                          {selected && (
+                            <Text className="photo-check-icon">✓</Text>
+                          )}
+                        </View>
+                      )}
+                      {photo.note && (
+                        <Text className="photo-note">{photo.note}</Text>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             </View>
           ))}
+        </View>
+      )}
+
+      {/* 管理模式底部操作栏 */}
+      {manageMode && (
+        <View className="manage-bar">
+          <View className="manage-select-all" onClick={toggleSelectAll}>
+            <View className={`manage-circle${allSelected ? ' checked' : ''}`}>
+              {allSelected && <Text className="manage-circle-icon">✓</Text>}
+            </View>
+            <Text>全选</Text>
+          </View>
+          <View
+            className={`manage-delete${selectedIds.length > 0 ? '' : ' disabled'}`}
+            onClick={handleBatchDelete}
+          >
+            <Text>
+              删除{selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+            </Text>
+          </View>
         </View>
       )}
     </View>
