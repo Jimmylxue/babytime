@@ -11,6 +11,8 @@ import agreementIcon from '../../assets/icons/agreement.svg'
 import privacyIcon from '../../assets/icons/privacy.svg'
 import feedbackIcon from '../../assets/icons/feedback.svg'
 import serviceIcon from '../../assets/icons/service.svg'
+import cloudIcon from '../../assets/icons/cloud.svg'
+import trendingUpIcon from '../../assets/icons/trending-up.svg'
 import logoutIcon from '../../assets/icons/logout.svg'
 import parentIcon from '../../assets/icons/parent.svg'
 import TabBar from '../../components/TabBar'
@@ -106,9 +108,12 @@ export default function MinePage() {
 
 	const getRoleText = (role?: string) => {
 		switch (role) {
-			case 'father': return '爸爸'
-			case 'mother': return '妈妈'
-			default: return ''
+			case 'father':
+				return '爸爸'
+			case 'mother':
+				return '妈妈'
+			default:
+				return ''
 		}
 	}
 
@@ -132,15 +137,15 @@ export default function MinePage() {
 					{/* 卖点 */}
 					<View className="mine-perks">
 						<View className="perk">
-							<Text className="perk-icon">☁️</Text>
+							<Image className="perk-icon-img" src={cloudIcon} />
 							<Text className="perk-text">云端记录</Text>
 						</View>
 						<View className="perk">
-							<Text className="perk-icon">📈</Text>
+							<Image className="perk-icon-img" src={trendingUpIcon} />
 							<Text className="perk-text">成长统计</Text>
 						</View>
 						<View className="perk">
-							<Text className="perk-icon">👨‍👩‍👧</Text>
+							<Image className="perk-icon-img" src={familyIcon} />
 							<Text className="perk-text">家庭共享</Text>
 						</View>
 					</View>
@@ -215,7 +220,10 @@ export default function MinePage() {
 						<Text className="mi-arrow">›</Text>
 					</View>
 				</View>
-				<View className="mine-item" onClick={() => Taro.navigateTo({ url: '/pages/family/index' })}>
+				<View
+					className="mine-item"
+					onClick={() => Taro.navigateTo({ url: '/pages/family/index' })}
+				>
 					<View className="mi-icon mi-icon-2">
 						<Image className="mi-icon-img" src={familyIcon} />
 					</View>
@@ -323,7 +331,11 @@ export default function MinePage() {
 								<Text className="edit-label">头像</Text>
 								<View className="edit-avatar-right">
 									{editAvatar ? (
-										<Image className="edit-avatar-img" src={editAvatar} mode="aspectFill" />
+										<Image
+											className="edit-avatar-img"
+											src={editAvatar}
+											mode="aspectFill"
+										/>
 									) : (
 										<View className="edit-avatar-placeholder">
 											<Text>📷</Text>

@@ -1,6 +1,6 @@
 import { View, Text, Image } from '@tarojs/components';
 import Taro, { useDidShow, useRouter } from '@tarojs/taro';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { photoApi } from '../../utils/request';
 import { takePhotoAndSave } from '../../utils/upload';
 import './index.scss';
@@ -24,15 +24,24 @@ export default function PhotoPage() {
   const { babyId } = router.params;
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const previewingRef = useRef(false);
 
   useDidShow(() => {
+    // previewImage 关闭时也会触发 onShow，这次不需要重新拉取列表
+    if (previewingRef.current) {
+      previewingRef.current = false;
+      return;
+    }
     if (babyId) {
       fetchTimeline();
     }
   });
 
   const fetchTimeline = async () => {
-    setLoading(true);
+    // 已有数据时静默刷新，避免整页闪"加载中"
+    if (timeline.length === 0) {
+      setLoading(true);
+    }
     try {
       const res = await photoApi.getTimeline(babyId);
       setTimeline(res.data || []);
@@ -60,6 +69,17 @@ export default function PhotoPage() {
       Taro.showToast({ title: '删除成功', icon: 'success' });
       fetchTimeline();
     }
+  };
+
+  const handlePreview = (photo: Photo, itemPhotos: Photo[]) => {
+    previewingRef.current = true;
+    Taro.previewImage({
+      current: photo.url,
+      urls: itemPhotos.map((p) => p.url),
+      fail: () => {
+        previewingRef.current = false;
+      },
+    });
   };
 
   const formatDate = (dateStr: string) => {
@@ -105,12 +125,7 @@ export default function PhotoPage() {
                   <View
                     key={photo.id}
                     className="photo-item"
-                    onClick={() =>
-                      Taro.previewImage({
-                        current: photo.url,
-                        urls: item.photos.map((p) => p.url),
-                      })
-                    }
+                    onClick={() => handlePreview(photo, item.photos)}
                     onLongPress={() => handleDeletePhoto(photo.id)}
                   >
                     <Image

@@ -4,7 +4,11 @@ import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { userApi } from '../../utils/request'
-import babyFacePink from '../../assets/icons/baby-face-pink.svg'
+import appLogo from '../../assets/app-logo.png'
+import editIcon from '../../assets/icons/edit.svg'
+import trendingUpIcon from '../../assets/icons/trending-up.svg'
+import familyIcon from '../../assets/icons/family.svg'
+import messageCircleIcon from '../../assets/icons/message-circle.svg'
 import './index.scss'
 
 export default function LoginPage() {
@@ -81,7 +85,7 @@ export default function LoginPage() {
 			<View className="login-content">
 				<View className="logo-section">
 					<View className="logo-circle">
-						<Image className="logo-icon-img" src={babyFacePink} />
+						<Image className="logo-icon-img" src={appLogo} />
 					</View>
 					<Text className="app-title">育娃手记</Text>
 					<Text className="app-subtitle">记录宝宝成长的每一天</Text>
@@ -90,21 +94,21 @@ export default function LoginPage() {
 				<View className="features">
 					<View className="feature-card">
 						<View className="feature-icon-wrap fi-1">
-							<Text>📝</Text>
+							<Image className="feature-icon-img" src={editIcon} />
 						</View>
 						<Text className="feature-text">快速记录</Text>
 						<Text className="feature-desc">吃睡玩一键记</Text>
 					</View>
 					<View className="feature-card">
 						<View className="feature-icon-wrap fi-2">
-							<Text>📈</Text>
+							<Image className="feature-icon-img" src={trendingUpIcon} />
 						</View>
 						<Text className="feature-text">成长统计</Text>
 						<Text className="feature-desc">趋势一目了然</Text>
 					</View>
 					<View className="feature-card">
 						<View className="feature-icon-wrap fi-3">
-							<Text>👨‍👩‍👧</Text>
+							<Image className="feature-icon-img" src={familyIcon} />
 						</View>
 						<Text className="feature-text">家庭共享</Text>
 						<Text className="feature-desc">全家一起看娃</Text>
@@ -115,7 +119,7 @@ export default function LoginPage() {
 					className={`login-btn ${!agreed ? 'login-btn-disabled' : ''}`}
 					onClick={handleLogin}
 				>
-					<Text className="login-btn-icon">💬</Text>
+					<Image className="login-btn-icon-img" src={messageCircleIcon} />
 					<Text className="login-btn-text">
 						{loading ? '登录中...' : '微信一键登录'}
 					</Text>
