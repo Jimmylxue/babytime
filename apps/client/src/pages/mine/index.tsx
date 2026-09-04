@@ -1,4 +1,4 @@
-import { View, Text, Image, Input } from '@tarojs/components'
+import { View, Text, Image, Input, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
@@ -9,6 +9,8 @@ import babyIcon from '../../assets/icons/baby.svg'
 import familyIcon from '../../assets/icons/family.svg'
 import agreementIcon from '../../assets/icons/agreement.svg'
 import privacyIcon from '../../assets/icons/privacy.svg'
+import feedbackIcon from '../../assets/icons/feedback.svg'
+import serviceIcon from '../../assets/icons/service.svg'
 import logoutIcon from '../../assets/icons/logout.svg'
 import parentIcon from '../../assets/icons/parent.svg'
 import TabBar from '../../components/TabBar'
@@ -253,6 +255,39 @@ export default function MinePage() {
 						<Text className="mi-arrow">›</Text>
 					</View>
 				</View>
+			</View>
+
+			{/* 帮助与反馈 */}
+			<View className="mine-section-label">
+				<Text>帮助与反馈</Text>
+			</View>
+			<View className="mine-card">
+				<Button
+					className="mine-item mi-native-btn"
+					hoverClass="none"
+					openType="feedback"
+				>
+					<View className="mi-icon mi-icon-5">
+						<Image className="mi-icon-img" src={feedbackIcon} />
+					</View>
+					<Text className="mi-text">意见反馈</Text>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</Button>
+				<Button
+					className="mine-item mi-native-btn"
+					hoverClass="none"
+					openType="contact"
+				>
+					<View className="mi-icon mi-icon-6">
+						<Image className="mi-icon-img" src={serviceIcon} />
+					</View>
+					<Text className="mi-text">联系客服</Text>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</Button>
 			</View>
 
 			{/* 退出登录 */}

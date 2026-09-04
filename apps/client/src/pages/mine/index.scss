@@ -249,7 +249,26 @@
 .mi-icon-2 { background: #F0F7EC; }
 .mi-icon-3 { background: #EEF4FA; }
 .mi-icon-4 { background: #FFF6E5; }
+.mi-icon-5 { background: #EAF7F3; }
+.mi-icon-6 { background: #F3EFFA; }
 .mi-icon-danger { background: #FFF5F5; }
+
+// 原生能力入口（意见反馈/联系客服）：Button 重置，外观对齐 .mine-item
+.mi-native-btn {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  line-height: normal;
+  text-align: left;
+  font-size: inherit;
+
+  &::after {
+    border: none;
+  }
+}
 
 .mi-text {
   flex: 1;

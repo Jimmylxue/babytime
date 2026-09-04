@@ -45,8 +45,6 @@ const quickActions = [
 const moreActions = [
 	{ type: 'water', icon: '💧', label: '喝水' },
 	{ type: 'bath', icon: '🛁', label: '洗澡' },
-	{ type: 'height_weight', metric: 'height', icon: '📏', label: '身高' },
-	{ type: 'height_weight', metric: 'weight', icon: '⚖️', label: '体重' },
 	{ type: 'medicine', icon: '💊', label: '用药' },
 	{ type: 'outdoor', icon: '🌳', label: '户外活动' },
 ]
@@ -972,11 +970,9 @@ export default function Index() {
 							<View className="sheet-grid">
 								{moreActions.map(action => (
 									<View
-										key={`${action.type}-${action.metric ?? ''}`}
+										key={action.type}
 										className="sheet-item"
-										onClick={() =>
-											navigateToRecord(action.type, action.metric)
-										}
+										onClick={() => navigateToRecord(action.type)}
 									>
 										<View className="sheet-item-icon">
 											<Text>{action.icon}</Text>
