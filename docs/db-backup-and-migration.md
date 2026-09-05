@@ -2,6 +2,7 @@
 
 > 背景：生产环境已关闭 TypeORM `synchronize`（由 `DB_SYNCHRONIZE` 控制，生产默认 false）。
 > 从此表结构变更必须手写 SQL，部署前会自动做数据库快照。
+> 日常运维速查（发布流程、备份命令、应急处理）见 [ops-runbook.md](ops-runbook.md)。
 
 ## 一、备份机制
 
