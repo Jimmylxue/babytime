@@ -42,6 +42,40 @@ export interface Distribution {
 	babyGenders: BabyGenderDistribution[];
 }
 
+// 疫苗提醒漏斗
+export interface VaccineFunnel {
+	configured: boolean;
+	totalUsers: number;
+	subscribedUsers: number;
+	rejectedUsers: number;
+	authRate: number;
+	planBabies: number;
+	deliveries: number;
+	sent: number;
+	failed: number;
+	sendSuccessRate: number;
+	clicks: number;
+	clickUsers: number;
+	clickRate: number;
+	errorCodes: { code: string; count: number }[];
+	weekTrend: { date: string; sent: number; failed: number }[];
+}
+
+// 相册模块指标
+export interface AlbumMetrics {
+	totalPhotos: number;
+	usersWithPhotos: number;
+	avgPerUser: number;
+	photos7: number;
+	photos30: number;
+	daily7: { date: string; count: number }[];
+	entryClicks7: number;
+	entryClicks7FromHome: number;
+	uploadSuccess7: number;
+	uploadFail7: number;
+	uploadSuccessRate: number;
+}
+
 // 用户列表
 export interface AdminUser {
 	id: string;

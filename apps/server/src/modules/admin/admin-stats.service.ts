@@ -218,6 +218,171 @@ export class AdminStatsService {
     };
   }
 
+  // 疫苗提醒漏斗：授权 → 发送 → 点击，含错误码分布与近 7 天发送趋势
+  async getVaccineFunnel() {
+    const templateId = process.env.WECHAT_SUBSCRIBE_VACCINE_TEMPLATE_ID || '';
+    if (!templateId) {
+      return {
+        configured: false,
+        totalUsers: 0,
+        subscribedUsers: 0,
+        rejectedUsers: 0,
+        authRate: 0,
+        planBabies: 0,
+        deliveries: 0,
+        sent: 0,
+        failed: 0,
+        sendSuccessRate: 0,
+        clicks: 0,
+        clickUsers: 0,
+        clickRate: 0,
+        errorCodes: [],
+        weekTrend: [],
+      };
+    }
+
+    const pct = (part: number, whole: number) =>
+      whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0;
+
+    const [userRow] = await this.dataSource.query(
+      `SELECT COUNT(*) AS totalUsers FROM users`,
+    );
+    const [grantRow] = await this.dataSource.query(
+      `SELECT
+        COUNT(DISTINCT CASE WHEN accepted_count > 0 THEN user_id END) AS subscribedUsers,
+        COUNT(DISTINCT CASE WHEN rejected_count > 0 THEN user_id END) AS rejectedUsers
+       FROM subscription_grants WHERE template_id = ?`,
+      [templateId],
+    );
+    const [planRow] = await this.dataSource.query(
+      `SELECT COUNT(DISTINCT baby_id) AS planBabies FROM vaccine_plans`,
+    );
+    const [deliveryRow] = await this.dataSource.query(
+      `SELECT
+        COUNT(*) AS deliveries,
+        COALESCE(SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END), 0) AS sent,
+        COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed
+       FROM notification_deliveries WHERE template_id = ?`,
+      [templateId],
+    );
+    const errorRows = await this.dataSource.query(
+      `SELECT COALESCE(wechat_code, 'unknown') AS code, COUNT(*) AS count
+       FROM notification_deliveries
+       WHERE template_id = ? AND status = 'failed'
+       GROUP BY wechat_code ORDER BY count DESC LIMIT 8`,
+      [templateId],
+    );
+    const [clickRow] = await this.dataSource.query(
+      `SELECT COUNT(*) AS clicks, COUNT(DISTINCT user_id) AS clickUsers
+       FROM user_events
+       WHERE name = 'notification_open'
+         AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.source')) = 'notification_vaccine'`,
+    );
+
+    // 近 7 天发送趋势，缺失日期补 0
+    const trendRows = await this.dataSource.query(
+      `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
+        COALESCE(SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END), 0) AS sent,
+        COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed
+       FROM notification_deliveries
+       WHERE template_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+       GROUP BY date`,
+      [templateId],
+    );
+    const trendMap = new Map<string, { sent: number; failed: number }>(
+      trendRows.map((row): [string, { sent: number; failed: number }] => [
+        row.date,
+        { sent: Number(row.sent), failed: Number(row.failed) },
+      ]),
+    );
+    const weekTrend: { date: string; sent: number; failed: number }[] = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      const key = this.formatDate(d);
+      const hit = trendMap.get(key) || { sent: 0, failed: 0 };
+      weekTrend.push({ date: key, ...hit });
+    }
+
+    const totalUsers = Number(userRow.totalUsers);
+    const subscribedUsers = Number(grantRow.subscribedUsers);
+    const deliveries = Number(deliveryRow.deliveries);
+    const sent = Number(deliveryRow.sent);
+    const clicks = Number(clickRow.clicks);
+
+    return {
+      configured: true,
+      totalUsers,
+      subscribedUsers,
+      rejectedUsers: Number(grantRow.rejectedUsers),
+      authRate: pct(subscribedUsers, totalUsers),
+      planBabies: Number(planRow.planBabies),
+      deliveries,
+      sent,
+      failed: Number(deliveryRow.failed),
+      sendSuccessRate: pct(sent, deliveries),
+      clicks,
+      clickUsers: Number(clickRow.clickUsers),
+      clickRate: pct(clicks, sent),
+      errorCodes: errorRows.map((row) => ({ code: row.code, count: Number(row.count) })),
+      weekTrend,
+    };
+  }
+
+  // 相册模块指标：总量、人均、近 7 天趋势、入口点击与上传成功率
+  async getAlbumMetrics() {
+    const [row] = await this.dataSource.query(
+      `SELECT
+        (SELECT COUNT(*) FROM photos) AS totalPhotos,
+        (SELECT COUNT(DISTINCT b.user_id) FROM photos p INNER JOIN babies b ON b.id = p.baby_id) AS usersWithPhotos,
+        (SELECT COUNT(*) FROM photos WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS photos7,
+        (SELECT COUNT(*) FROM photos WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)) AS photos30,
+        (SELECT COUNT(*) FROM user_events WHERE name = 'photo_add_click' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS entryClicks7,
+        (SELECT COUNT(*) FROM user_events WHERE name = 'photo_add_click' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.from')) = 'home') AS entryClicks7FromHome,
+        (SELECT COUNT(*) FROM user_events WHERE name = 'photo_upload' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND JSON_EXTRACT(properties, '$.success') = TRUE) AS uploadSuccess7,
+        (SELECT COUNT(*) FROM user_events WHERE name = 'photo_upload' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND JSON_EXTRACT(properties, '$.success') = FALSE) AS uploadFail7
+      `,
+    );
+
+    const photoRows = await this.dataSource.query(
+      `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS count
+       FROM photos WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+       GROUP BY date`,
+    );
+    const photoMap = new Map<string, number>(
+      photoRows.map((row): [string, number] => [row.date, Number(row.count)]),
+    );
+    const today = new Date();
+    const daily7: { date: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      const key = this.formatDate(d);
+      daily7.push({ date: key, count: photoMap.get(key) ?? 0 });
+    }
+
+    const totalPhotos = Number(row.totalPhotos);
+    const usersWithPhotos = Number(row.usersWithPhotos);
+    const uploadSuccess7 = Number(row.uploadSuccess7);
+    const uploadFail7 = Number(row.uploadFail7);
+
+    return {
+      totalPhotos,
+      usersWithPhotos,
+      avgPerUser: usersWithPhotos > 0 ? Math.round((totalPhotos / usersWithPhotos) * 10) / 10 : 0,
+      photos7: Number(row.photos7),
+      photos30: Number(row.photos30),
+      daily7,
+      entryClicks7: Number(row.entryClicks7),
+      entryClicks7FromHome: Number(row.entryClicks7FromHome),
+      uploadSuccess7,
+      uploadFail7,
+      uploadSuccessRate:
+        uploadSuccess7 + uploadFail7 > 0
+          ? Math.round((uploadSuccess7 / (uploadSuccess7 + uploadFail7)) * 1000) / 10
+          : 0,
+    };
+  }
+
   private formatDate(date: Date) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');

@@ -1,7 +1,7 @@
 import { View, Text, Image } from '@tarojs/components';
 import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
 import { useRef, useState } from 'react';
-import { photoApi, PhotoTimelineGroup } from '../../utils/request';
+import { photoApi, trackEvent, PhotoTimelineGroup } from '../../utils/request';
 import { takePhotoAndSave } from '../../utils/upload';
 import albumBaby from '../../assets/album-baby.png';
 import cameraIcon from '../../assets/icons/camera-white.svg';
@@ -131,6 +131,7 @@ export default function PhotoPage() {
   };
 
   const handleTakePhoto = async () => {
+    void trackEvent('photo_add_click', { from: 'album_page' });
     const success = await takePhotoAndSave(babyId);
     if (success) {
       fetchFirstPage();

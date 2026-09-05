@@ -445,6 +445,7 @@ export default function Index() {
 			return
 		}
 		if (type === 'photo') {
+			void trackEvent('photo_add_click', { from: 'home' })
 			takePhotoAndSave(currentBaby.id, {
 				goAlbum: true,
 				babyName: currentBaby.name,

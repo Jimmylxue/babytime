@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Card, Col, Progress, Row, Segmented, Statistic, Typography } from 'antd';
+import { Card, Col, Progress, Row, Segmented, Statistic, Table, Typography } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import { apiGet } from '../api/client';
-import type { Engagement, Funnel, Retention } from '../types';
+import type { AlbumMetrics, Engagement, Funnel, Retention, VaccineFunnel } from '../types';
 
 const COHORT_OPTIONS = [
 	{ label: '近 90 天注册', value: 90 },
@@ -17,6 +17,8 @@ export default function Analytics() {
 	const [retention, setRetention] = useState<Retention>();
 	const [days, setDays] = useState(90);
 	const [engagement, setEngagement] = useState<Engagement>();
+	const [vaccine, setVaccine] = useState<VaccineFunnel>();
+	const [album, setAlbum] = useState<AlbumMetrics>();
 
 	const loadFunnel = useCallback(async () => {
 		const data = await apiGet<Funnel>('/stats/funnel');
@@ -31,6 +33,8 @@ export default function Analytics() {
 	useEffect(() => {
 		loadFunnel();
 		apiGet<Engagement>('/stats/engagement').then(setEngagement);
+		apiGet<VaccineFunnel>('/stats/vaccine-funnel').then(setVaccine);
+		apiGet<AlbumMetrics>('/stats/album').then(setAlbum);
 	}, [loadFunnel]);
 
 	useEffect(() => {
@@ -43,12 +47,12 @@ export default function Analytics() {
 			{
 				name: '转化漏斗',
 				type: 'funnel',
-				left: '10%',
-				width: '80%',
+				left: '6%',
+				width: '58%',
 				top: 20,
 				bottom: 20,
 				minSize: '30%',
-				label: { formatter: '{b}: {c}' },
+				label: { formatter: '{b}: {c}', fontSize: 12 },
 				data: [
 					{ name: '注册用户', value: funnel?.totalUsers ?? 0 },
 					{ name: '创建宝宝档案', value: funnel?.usersWithBaby ?? 0 },
@@ -144,6 +148,121 @@ export default function Analytics() {
 					<Col xs={12} md={6}><Statistic title="发送成功 / 失败" value={`${engagement?.sentMessages ?? 0} / ${engagement?.failedMessages ?? 0}`} /></Col>
 					<Col xs={12} md={6}><Statistic title="消息点击用户" value={engagement?.notificationOpenUsers ?? 0} suffix={` / ${engagement?.notificationOpens ?? 0} 次`} /></Col>
 				</Row>
+			</Card>
+
+			<Card
+				title="疫苗提醒漏斗"
+				className="chart-card"
+				style={{ marginTop: 16 }}
+				extra={<Typography.Text type="secondary">授权 → 发送 → 点击</Typography.Text>}
+			>
+				{vaccine && !vaccine.configured ? (
+					<Typography.Paragraph type="secondary">
+						未配置疫苗订阅消息模板（WECHAT_SUBSCRIBE_VACCINE_TEMPLATE_ID），暂无数据。
+					</Typography.Paragraph>
+				) : (
+					<>
+						<Row gutter={[16, 16]}>
+							<Col xs={12} md={4}><Statistic title="全部用户" value={vaccine?.totalUsers ?? 0} /></Col>
+							<Col xs={12} md={4}>
+								<Statistic title="消息授权" value={vaccine?.subscribedUsers ?? 0} suffix={` (${vaccine?.authRate ?? 0}%)`} />
+							</Col>
+							<Col xs={12} md={4}><Statistic title="设置接种计划的宝宝" value={vaccine?.planBabies ?? 0} /></Col>
+							<Col xs={12} md={4}>
+								<Statistic title="发送成功 / 失败" value={`${vaccine?.sent ?? 0} / ${vaccine?.failed ?? 0}`} suffix={` (${vaccine?.sendSuccessRate ?? 0}%)`} />
+							</Col>
+							<Col xs={12} md={4}>
+								<Statistic title="消息点击" value={vaccine?.clicks ?? 0} suffix={` (${vaccine?.clickRate ?? 0}%)`} />
+							</Col>
+							<Col xs={12} md={4}><Statistic title="拒绝过授权用户" value={vaccine?.rejectedUsers ?? 0} /></Col>
+						</Row>
+
+						<Row gutter={16} style={{ marginTop: 16 }}>
+							<Col xs={24} md={14}>
+								<ReactECharts
+									option={{
+										tooltip: { trigger: 'axis' },
+										legend: { data: ['发送成功', '发送失败'] },
+										grid: { left: 40, right: 16, top: 36, bottom: 28 },
+										xAxis: { type: 'category', data: (vaccine?.weekTrend ?? []).map((d) => d.date.slice(5)) },
+										yAxis: { type: 'value', minInterval: 1 },
+										series: [
+											{ name: '发送成功', type: 'bar', stack: 'total', data: (vaccine?.weekTrend ?? []).map((d) => d.sent), itemStyle: { color: '#73d13d' } },
+											{ name: '发送失败', type: 'bar', stack: 'total', data: (vaccine?.weekTrend ?? []).map((d) => d.failed), itemStyle: { color: '#ff7875' } },
+										],
+									}}
+									style={{ height: 240 }}
+									notMerge
+								/>
+							</Col>
+							<Col xs={24} md={10}>
+								<Typography.Text type="secondary">发送失败原因分布（微信错误码）</Typography.Text>
+								<Table
+									size="small"
+									style={{ marginTop: 8 }}
+									pagination={false}
+									rowKey="code"
+									dataSource={(vaccine?.errorCodes ?? []).map((item) => ({ ...item, key: item.code }))}
+									columns={[
+										{
+											title: '错误码',
+											dataIndex: 'code',
+											render: (code: string) =>
+												code === '43101' ? '43101（用户拒收/次数用尽）' : code === 'unknown' ? '未知' : code,
+										},
+										{ title: '次数', dataIndex: 'count', width: 80 },
+									]}
+									locale={{ emptyText: '暂无失败记录 🎉' }}
+								/>
+							</Col>
+						</Row>
+					</>
+				)}
+			</Card>
+
+			<Card
+				title="相册模块指标"
+				className="chart-card"
+				style={{ marginTop: 16 }}
+				extra={<Typography.Text type="secondary">近 7 天新增照片与上传质量</Typography.Text>}
+			>
+				<Row gutter={[16, 16]}>
+					<Col xs={12} md={4}><Statistic title="照片总量" value={album?.totalPhotos ?? 0} /></Col>
+					<Col xs={12} md={4}><Statistic title="用过相册的用户" value={album?.usersWithPhotos ?? 0} /></Col>
+					<Col xs={12} md={4}><Statistic title="人均照片" value={album?.avgPerUser ?? 0} suffix="张" /></Col>
+					<Col xs={12} md={4}><Statistic title="近 7 天新增" value={album?.photos7 ?? 0} suffix={`/ 近30天 ${album?.photos30 ?? 0}`} /></Col>
+					<Col xs={12} md={4}>
+						<Statistic title="拍照入口点击（7天）" value={album?.entryClicks7 ?? 0} suffix={` / 首页 ${album?.entryClicks7FromHome ?? 0}`} />
+					</Col>
+					<Col xs={12} md={4}>
+						<Statistic
+							title="上传成功率（7天）"
+							value={album?.uploadSuccessRate ?? 0}
+							suffix="%"
+						/>
+					</Col>
+				</Row>
+				<ReactECharts
+					option={{
+						tooltip: { trigger: 'axis' },
+						grid: { left: 40, right: 16, top: 24, bottom: 28 },
+						xAxis: { type: 'category', data: (album?.daily7 ?? []).map((d) => d.date.slice(5)) },
+						yAxis: { type: 'value', minInterval: 1 },
+						series: [
+							{
+								name: '新增照片',
+								type: 'bar',
+								data: (album?.daily7 ?? []).map((d) => d.count),
+								itemStyle: { color: '#ff85c0' },
+							},
+						],
+					}}
+					style={{ height: 240, marginTop: 8 }}
+					notMerge
+				/>
+				<Typography.Text type="secondary" style={{ fontSize: 12 }}>
+					入口点击与上传成功率为新版客户端（含埋点）发布后开始累计；上传失败不含用户主动取消。
+				</Typography.Text>
 			</Card>
 		</div>
 	);

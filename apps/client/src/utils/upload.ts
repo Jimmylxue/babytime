@@ -1,16 +1,22 @@
 import Taro from '@tarojs/taro';
-import { uploadFile, photoApi } from './request';
+import { uploadFile, photoApi, trackEvent } from './request';
 import { API_BASE } from '../config/env';
 
 /**
  * 选择图片并上传到后端
  * @param options.sizeType 图片质量：['compressed'] 压缩（默认，头像等小图用）；
  *                         ['original', 'compressed'] 相册会出现「原图」勾选框（相册等看重大图的场景用）
+ * @param options.trackPhoto 为 true 时上报上传成功/失败埋点（photo_upload），用于相册指标
  * @returns 上传后的图片 URL
  */
 export const chooseAndUploadImage = async (
-  options: { sizeType?: string[] } = {}
+  options: { sizeType?: string[]; trackPhoto?: boolean } = {}
 ): Promise<string | null> => {
+  const trackUpload = (success: boolean) => {
+    if (options.trackPhoto) {
+      trackEvent('photo_upload', { success });
+    }
+  };
   try {
     const res = await Taro.chooseImage({
       count: 1,
@@ -25,6 +31,7 @@ export const chooseAndUploadImage = async (
         ? uploadRes.url
         : `${API_BASE}${uploadRes.url}`;
       Taro.hideLoading();
+      trackUpload(true);
       return imageUrl;
     }
     return null;
@@ -35,6 +42,7 @@ export const chooseAndUploadImage = async (
       return null;
     }
     Taro.hideLoading();
+    trackUpload(false);
     Taro.showToast({ title: '上传失败', icon: 'none' });
     return null;
   }
@@ -50,7 +58,7 @@ export const takePhotoAndSave = async (
   options: { babyName?: string; goAlbum?: boolean } = {}
 ): Promise<boolean> => {
   try {
-    const imageUrl = await chooseAndUploadImage();
+    const imageUrl = await chooseAndUploadImage({ trackPhoto: true });
     if (!imageUrl) return false;
 
     const today = new Date();

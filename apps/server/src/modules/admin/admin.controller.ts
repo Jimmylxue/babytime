@@ -68,6 +68,20 @@ export class AdminController {
   }
 
   @UseGuards(AdminJwtGuard)
+  @Get('stats/vaccine-funnel')
+  async getVaccineFunnel() {
+    const data = await this.adminStatsService.getVaccineFunnel();
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('stats/album')
+  async getAlbumMetrics() {
+    const data = await this.adminStatsService.getAlbumMetrics();
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
   @Get('babies')
   async getBabies(
     @Query('page') page?: string,
