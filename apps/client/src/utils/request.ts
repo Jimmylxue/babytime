@@ -143,6 +143,25 @@ export const recordApi = {
 }
 
 // 照片相关 API
+export interface PhotoTimelineGroup {
+	date: string
+	photos: {
+		id: string
+		url: string
+		thumbnail?: string
+		photoDate: string
+		note?: string
+	}[]
+}
+
+export interface PhotoTimelinePage {
+	items: PhotoTimelineGroup[]
+	total: number
+	page: number
+	pageSize: number
+	hasMore: boolean
+}
+
 export const photoApi = {
 	create: (data: {
 		babyId: string
@@ -155,8 +174,10 @@ export const photoApi = {
 		request<any>({
 			url: `/photo/baby/${babyId}?page=${page || 1}&pageSize=${pageSize || 20}`,
 		}),
-	getTimeline: (babyId: string) =>
-		request<any[]>({ url: `/photo/timeline/${babyId}` }),
+	getTimeline: (babyId: string, page = 1, pageSize = 30) =>
+		request<PhotoTimelinePage>({
+			url: `/photo/timeline/${babyId}?page=${page}&pageSize=${pageSize}`,
+		}),
 	delete: (id: string) =>
 		request<any>({ url: `/photo/${id}`, method: 'DELETE' }),
 	deleteBatch: (ids: string[]) =>

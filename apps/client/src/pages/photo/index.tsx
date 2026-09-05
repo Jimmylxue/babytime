@@ -1,8 +1,12 @@
 import { View, Text, Image } from '@tarojs/components';
-import Taro, { useDidShow, useRouter } from '@tarojs/taro';
+import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
 import { useRef, useState } from 'react';
-import { photoApi } from '../../utils/request';
+import { photoApi, PhotoTimelineGroup } from '../../utils/request';
 import { takePhotoAndSave } from '../../utils/upload';
+import albumBaby from '../../assets/album-baby.png';
+import cameraIcon from '../../assets/icons/camera-white.svg';
+import albumPinkIcon from '../../assets/icons/album-pink.svg';
+import heartIcon from '../../assets/icons/heart-pink.svg';
 import './index.scss';
 
 interface Photo {
@@ -19,11 +23,19 @@ interface TimelineItem {
   photos: Photo[];
 }
 
+const PAGE_SIZE = 30;
+
+const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
 export default function PhotoPage() {
   const router = useRouter();
   const { babyId } = router.params;
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [manageMode, setManageMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const previewingRef = useRef(false);
@@ -35,18 +47,28 @@ export default function PhotoPage() {
       return;
     }
     if (babyId) {
-      fetchTimeline();
+      fetchFirstPage();
     }
   });
 
-  const fetchTimeline = async () => {
+  // 触底加载下一页
+  useReachBottom(() => {
+    if (babyId) {
+      loadMore();
+    }
+  });
+
+  const fetchFirstPage = async () => {
     // 已有数据时静默刷新，避免整页闪"加载中"
     if (timeline.length === 0) {
       setLoading(true);
     }
     try {
-      const res = await photoApi.getTimeline(babyId);
-      setTimeline(res.data || []);
+      const res = await photoApi.getTimeline(babyId, 1, PAGE_SIZE);
+      setTimeline((res.data?.items as TimelineItem[]) || []);
+      setTotal(res.data?.total || 0);
+      setPage(1);
+      setHasMore(!!res.data?.hasMore);
     } catch (error) {
       console.error('获取相册失败', error);
     } finally {
@@ -54,10 +76,46 @@ export default function PhotoPage() {
     }
   };
 
+  const loadMore = async () => {
+    if (!hasMore || loading || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await photoApi.getTimeline(babyId, nextPage, PAGE_SIZE);
+      const items = ((res.data?.items as TimelineItem[]) || []).map((item) => ({
+        date: item.date,
+        photos: item.photos,
+      }));
+      setTimeline((prev) => {
+        if (
+          items.length > 0 &&
+          prev.length > 0 &&
+          prev[prev.length - 1].date === items[0].date
+        ) {
+          // 同一日期跨页：合并进已有分组
+          const merged = [...prev];
+          merged[merged.length - 1] = {
+            date: prev[prev.length - 1].date,
+            photos: [...prev[prev.length - 1].photos, ...items[0].photos],
+          };
+          return [...merged, ...items.slice(1)];
+        }
+        return [...prev, ...items];
+      });
+      setTotal(res.data?.total || 0);
+      setPage(nextPage);
+      setHasMore(!!res.data?.hasMore);
+    } catch (error) {
+      console.error('加载更多失败', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const handleTakePhoto = async () => {
     const success = await takePhotoAndSave(babyId);
     if (success) {
-      fetchTimeline();
+      fetchFirstPage();
     }
   };
 
@@ -97,7 +155,7 @@ export default function PhotoPage() {
       Taro.showToast({ title: '删除成功', icon: 'success' });
       setManageMode(false);
       setSelectedIds([]);
-      fetchTimeline();
+      fetchFirstPage();
     } catch (error) {
       Taro.showToast({ title: '删除失败', icon: 'none' });
     }
@@ -114,95 +172,128 @@ export default function PhotoPage() {
     });
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDateParts = (dateStr: string) => {
     const date = new Date(dateStr);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    const weekDay = weekDays[date.getDay()];
-    return `${month}月${day}日 ${weekDay}`;
+    return {
+      date: `${date.getMonth() + 1}月${date.getDate()}日`,
+      weekDay: weekDays[date.getDay()],
+    };
   };
 
   return (
-    <View className={`photo-page${manageMode ? ' manage-mode' : ''}`}>
-      {/* 上传按钮：管理模式下隐藏，聚焦选择 */}
+    <View className={`album-page${manageMode ? ' manage-mode' : ''}`}>
+      {/* 顶部宝宝插画（装饰，不响应点击）：顶部锚定状态栏，位置见 SCSS */}
+      <Image className="album-hero-art" src={albumBaby} mode="aspectFit" />
+
+      {/* 自定义导航区：标题 + 副标题（顶部留白见 SCSS 的 safe-area 计算） */}
+      <View className="album-nav">
+        <View className="album-title-wrap">
+          <Text className="album-title">育娃手记</Text>
+          <Image className="album-title-heart" src={heartIcon} />
+        </View>
+        <Text className="album-subtitle">记录成长每一刻，留住美好回忆</Text>
+      </View>
+
+      {/* 拍照记录主按钮 */}
       {!manageMode && (
-        <View className="upload-section" onClick={handleTakePhoto}>
-          <View className="upload-btn">
-            <Text className="upload-icon">📷</Text>
-            <Text className="upload-text">拍照记录</Text>
+        <View className="album-cta" onClick={handleTakePhoto}>
+          <Image className="album-cta-icon" src={cameraIcon} />
+          <Text className="album-cta-text">拍照记录</Text>
+        </View>
+      )}
+
+      {/* 成长相册标题行 */}
+      {timeline.length > 0 && (
+        <View className="album-section-head">
+          <View className="album-section-left">
+            <Image className="album-section-icon" src={albumPinkIcon} />
+            <Text className="album-section-label">成长相册</Text>
+          </View>
+          <View className="album-section-right">
+            <Text className="album-count">共 {total} 张</Text>
+            <Text className="album-manage" onClick={toggleManage}>
+              {manageMode ? '取消' : '管理'}
+            </Text>
           </View>
         </View>
       )}
 
-      {/* 相册信息 + 管理入口 */}
-      {timeline.length > 0 && (
-        <View className="album-meta">
-          <Text className="album-count">共 {allPhotos.length} 张</Text>
-          <Text className="album-manage" onClick={toggleManage}>
-            {manageMode ? '取消' : '管理'}
-          </Text>
-        </View>
-      )}
-
-      {/* 照片时间线 */}
+      {/* 内容区 */}
       {loading ? (
-        <View className="loading-state">
-          <Text className="loading-text">加载中...</Text>
+        <View className="album-state">
+          <Text className="album-state-text">加载中...</Text>
         </View>
       ) : timeline.length === 0 ? (
-        <View className="empty-state">
-          <Text className="empty-icon">📸</Text>
-          <Text className="empty-text">还没有照片</Text>
-          <Text className="empty-desc">点击上方按钮拍照记录宝宝成长</Text>
+        <View className="album-state album-state-empty">
+          <Text className="album-state-icon">📸</Text>
+          <Text className="album-state-title">还没有照片</Text>
+          <Text className="album-state-desc">点击上方按钮，拍下宝宝的第一个瞬间</Text>
         </View>
       ) : (
-        <View className="timeline">
-          {timeline.map((item) => (
-            <View key={item.date} className="timeline-item">
-              <View className="timeline-date">
-                <Text className="date-text">{formatDate(item.date)}</Text>
-                <Text className="date-count">{item.photos.length}张</Text>
-              </View>
-              <View className="photo-grid">
-                {item.photos.map((photo) => {
-                  const selected = selectedIds.includes(photo.id);
-                  return (
-                    <View
-                      key={photo.id}
-                      className="photo-item"
-                      onClick={() =>
-                        manageMode
-                          ? toggleSelect(photo.id)
-                          : handlePreview(photo, item.photos)
-                      }
-                      onLongPress={() => {
-                        if (!manageMode) enterManageWith(photo.id);
-                      }}
-                    >
-                      <Image
-                        className="photo-img"
-                        src={photo.url}
-                        mode="aspectFill"
-                      />
-                      {manageMode && (
+        <View className="album-timeline">
+          <View className="timeline-line" />
+          {timeline.map((item, index) => {
+            const { date, weekDay } = formatDateParts(item.date);
+            return (
+              <View key={item.date} className="timeline-item">
+                <View className={`timeline-dot${index === 0 ? ' solid' : ''}`} />
+                <View className="timeline-card">
+                  <View className="card-head">
+                    <View className="card-date-wrap">
+                      <Text className="card-date">{date}</Text>
+                      <Text className="card-weekday">{weekDay}</Text>
+                    </View>
+                    <Text className="card-count">{item.photos.length}张</Text>
+                  </View>
+                  <View className="card-grid">
+                    {item.photos.map((photo) => {
+                      const selected = selectedIds.includes(photo.id);
+                      return (
                         <View
-                          className={`photo-check${selected ? ' checked' : ''}`}
+                          key={photo.id}
+                          className="card-photo"
+                          onClick={() =>
+                            manageMode
+                              ? toggleSelect(photo.id)
+                              : handlePreview(photo, item.photos)
+                          }
+                          onLongPress={() => {
+                            if (!manageMode) enterManageWith(photo.id);
+                          }}
                         >
-                          {selected && (
-                            <Text className="photo-check-icon">✓</Text>
+                          <Image
+                            className="card-photo-img"
+                            src={photo.thumbnail || photo.url}
+                            mode="aspectFill"
+                          />
+                          {manageMode && (
+                            <View
+                              className={`photo-check${selected ? ' checked' : ''}`}
+                            >
+                              {selected && (
+                                <Text className="photo-check-icon">✓</Text>
+                              )}
+                            </View>
                           )}
                         </View>
-                      )}
-                      {photo.note && (
-                        <Text className="photo-note">{photo.note}</Text>
-                      )}
-                    </View>
-                  );
-                })}
+                      );
+                    })}
+                  </View>
+                </View>
               </View>
+            );
+          })}
+
+          {/* 分页加载尾部状态 */}
+          {loadingMore ? (
+            <View className="timeline-footer">
+              <Text className="timeline-footer-text">加载中...</Text>
             </View>
-          ))}
+          ) : !hasMore && total > PAGE_SIZE ? (
+            <View className="timeline-footer">
+              <Text className="timeline-footer-text">— 已经到底啦 —</Text>
+            </View>
+          ) : null}
         </View>
       )}
 

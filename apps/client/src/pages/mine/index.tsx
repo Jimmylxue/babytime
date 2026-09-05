@@ -3,7 +3,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
-import { userApi } from '../../utils/request'
+import { userApi, notificationApi, trackEvent } from '../../utils/request'
 import { chooseAndUploadImage } from '../../utils/upload'
 import babyIcon from '../../assets/icons/baby.svg'
 import familyIcon from '../../assets/icons/family.svg'
@@ -13,6 +13,7 @@ import feedbackIcon from '../../assets/icons/feedback.svg'
 import serviceIcon from '../../assets/icons/service.svg'
 import cloudIcon from '../../assets/icons/cloud.svg'
 import trendingUpIcon from '../../assets/icons/trending-up.svg'
+import bellIcon from '../../assets/icons/bell.svg'
 import logoutIcon from '../../assets/icons/logout.svg'
 import parentIcon from '../../assets/icons/parent.svg'
 import TabBar from '../../components/TabBar'
@@ -25,13 +26,48 @@ export default function MinePage() {
 	const [editNickname, setEditNickname] = useState('')
 	const [editAvatar, setEditAvatar] = useState('')
 	const [editRole, setEditRole] = useState('')
+	const [reviewTemplateId, setReviewTemplateId] = useState('')
+	const [reviewSubscribed, setReviewSubscribed] = useState(false)
 
 	useDidShow(() => {
 		if (isLoggedIn) {
 			fetchProfile()
 			fetchBabies()
+			notificationApi
+				.getConfig()
+				.then(res => {
+					setReviewTemplateId(
+						res.data?.reviewEnabled ? res.data.reviewTemplateId : '',
+					)
+				})
+				.catch(() => {})
 		}
 	})
+
+	// 晚间回顾订阅：从首页今日记录模块迁移至此
+	const handleReviewSubscribe = async () => {
+		if (!reviewTemplateId) return
+		try {
+			const result = await (Taro as any).requestSubscribeMessage({
+				tmplIds: [reviewTemplateId],
+			})
+			const status = result?.[reviewTemplateId] || 'unknown'
+			await notificationApi.saveSubscriptions({ [reviewTemplateId]: status })
+			void trackEvent('subscription_prompt_result', {
+				template: 'daily_review',
+				status,
+			})
+			if (status === 'accept') {
+				setReviewSubscribed(true)
+				Taro.showToast({ title: '晚间回顾已开启', icon: 'success' })
+			}
+		} catch {
+			void trackEvent('subscription_prompt_result', {
+				template: 'daily_review',
+				status: 'error',
+			})
+		}
+	}
 
 	const goLogin = () => {
 		Taro.navigateTo({ url: '/pages/login/index' })
@@ -233,6 +269,28 @@ export default function MinePage() {
 					</View>
 				</View>
 			</View>
+
+			{/* 提醒 */}
+			{reviewTemplateId ? (
+				<>
+					<View className="mine-section-label">
+						<Text>提醒</Text>
+					</View>
+					<View className="mine-card">
+						<View className="mine-item" onClick={handleReviewSubscribe}>
+							<View className="mi-icon mi-icon-7">
+								<Image className="mi-icon-img" src={bellIcon} />
+							</View>
+							<Text className="mi-text">晚间回顾提醒</Text>
+							<View className="mi-right">
+								<Text className="mi-badge">
+									{reviewSubscribed ? '已开启' : '开启提醒'}
+								</Text>
+							</View>
+						</View>
+					</View>
+				</>
+			) : null}
 
 			{/* 通用 */}
 			<View className="mine-section-label">

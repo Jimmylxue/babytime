@@ -22,11 +22,52 @@
 }
 
 .home-topbar-title {
+  align-self: flex-start;
   margin-left: 30px;
   color: #2D2A2E;
   font-size: 36px;
   font-weight: 800;
   letter-spacing: 1px;
+}
+
+// 一键生成今日日报：导航栏胶囊按钮（顶部偏移/高度由 JS 按微信胶囊对齐）
+.daily-pill {
+  position: relative;
+  align-self: flex-start;
+  margin-left: auto;
+  margin-right: 190px;
+  padding: 0 16px 0 5px;
+  border-radius: 999px;
+  background: #FFEEF2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.daily-pill-icon {
+  width: 48px;
+  height: 48px;
+  background: #FFFFFF;
+  border-radius: 13px;
+}
+
+.daily-pill-text {
+  font-size: 25px;
+  font-weight: 600;
+  color: #FC2E7D;
+}
+
+.daily-pill-sparkle {
+  position: absolute;
+  top: -10px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
 }
 
 // 未登录：示例数据提示横幅
@@ -764,22 +805,6 @@
 }
 
 // 今日记录标题行的「生成日报」迷你图标
-.daily-report-entry {
-  margin-left: auto;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  background: #FFF0F4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.daily-report-entry-icon {
-  width: 28px;
-  height: 28px;
-}
-
 // 喂奶节奏提示胶囊
 .return-cue-row {
   display: flex;
@@ -817,6 +842,51 @@
 .review-reminder-entry.enabled {
   background: #f3fbf5;
   color: #4f9c62;
+}
+
+// 今日概览：一行式摘要卡
+.today-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 24px 26px;
+  box-shadow: 0 10px 26px rgba(215, 143, 162, 0.08);
+}
+
+.today-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.today-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFF6F0;
+  border-radius: 999px;
+  padding: 10px 22px;
+}
+
+.today-chip-emoji {
+  font-size: 28px;
+}
+
+.today-chip-text {
+  font-size: 25px;
+  color: #6D5A55;
+  font-weight: 600;
+}
+
+.today-empty-tip {
+  display: block;
+  margin-top: 14px;
+  font-size: 25px;
+  color: #B8A99A;
+}
+
+// 回顾入口嵌在概览卡内时收掉外边距
+.today-card .review-reminder-entry {
+  margin: 16px 0 0;
 }
 
 // 今日统计列表
@@ -1122,7 +1192,7 @@
 
 .add-guide-bubble {
   position: absolute;
-  top: 24px;
+  // top 由 JS 按状态栏高度动态锚定（胶囊下方），见 index.tsx
   right: 24px;
   width: 440px;
   background: #FFFFFF;

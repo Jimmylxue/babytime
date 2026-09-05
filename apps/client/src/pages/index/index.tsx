@@ -43,7 +43,8 @@ import {
 	markAutoRedirectedToOnboarding,
 } from '../../utils/onboarding'
 import { DailyMetric } from '../../utils/dailyPoster'
-import reportIcon from '../../assets/icons/dailyReport.svg'
+import reportPlusIcon from '../../assets/icons/report-plus.svg'
+import sparklePinkIcon from '../../assets/icons/sparkle-pink.svg'
 import { deliverDailyPoster } from '../../utils/chartExport'
 import TabBar from '../../components/TabBar'
 import './index.scss'
@@ -71,12 +72,6 @@ interface RecentPhoto {
 	id: string
 	url: string
 	thumbnail?: string
-}
-
-const feedingMethodLabel: Record<string, string> = {
-	breast: '母乳',
-	formula: '奶粉',
-	mixed: '混合',
 }
 
 function formatVaccineDate(date: string) {
@@ -127,13 +122,27 @@ export default function Index() {
 	const [statusBarHeight] = useState(
 		() => Taro.getSystemInfoSync().statusBarHeight || 20,
 	)
+	// 胶囊相对状态栏的偏移与高度（pt），用于顶栏按钮与胶囊垂直对齐
+	const [capsuleBand] = useState(() => {
+		let topOffset = 4
+		let height = 32
+		try {
+			const menu = Taro.getMenuButtonBoundingClientRect()
+			if (menu && menu.height) {
+				const statusBar = Taro.getSystemInfoSync().statusBarHeight || 20
+				topOffset = Math.max(0, menu.top - statusBar)
+				height = menu.height
+			}
+		} catch (error) {
+			// 取不到胶囊信息时用默认值
+		}
+		return { topOffset, height }
+	})
 	const [vaccineTemplateId, setVaccineTemplateId] = useState('')
 	const [vaccineState, setVaccineState] = useState<
 		'never' | 'active' | 'exhausted'
 	>('never')
 	const [nextVaccine, setNextVaccine] = useState<VaccinePlanItem | null>(null)
-	const [reviewTemplateId, setReviewTemplateId] = useState('')
-	const [reviewSubscribed, setReviewSubscribed] = useState(false)
 	const [recentPhotos, setRecentPhotos] = useState<RecentPhoto[]>([])
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
@@ -197,11 +206,10 @@ export default function Index() {
 
 	const fetchRecentPhotos = (babyId: string) => {
 		photoApi
-			.getTimeline(babyId)
+			.getTimeline(babyId, 1, 9)
 			.then(res => {
-				const timeline = (res.data || []) as { photos: RecentPhoto[] }[]
-				// 接口按日期倒序返回，拍平后取最近几张
-				setRecentPhotos(timeline.flatMap(item => item.photos).slice(0, 9))
+				const items = (res.data?.items || []) as { photos: RecentPhoto[] }[]
+				setRecentPhotos(items.flatMap(item => item.photos).slice(0, 9))
 			})
 			.catch(() => {})
 	}
@@ -241,9 +249,6 @@ export default function Index() {
 				.then(res => {
 					setVaccineTemplateId(
 						res.data?.vaccineEnabled ? res.data.vaccineTemplateId : '',
-					)
-					setReviewTemplateId(
-						res.data?.reviewEnabled ? res.data.reviewTemplateId : '',
 					)
 				})
 				.catch(() => {})
@@ -406,30 +411,6 @@ export default function Index() {
 				? '本次提醒已发送，点击卡片可再次订阅'
 				: '开启订阅，接种日前 3 天微信提醒你'
 
-	const requestReviewSubscription = async () => {
-		if (!reviewTemplateId) return
-		try {
-			const result = await (Taro as any).requestSubscribeMessage({
-				tmplIds: [reviewTemplateId],
-			})
-			const status = result?.[reviewTemplateId] || 'unknown'
-			await notificationApi.saveSubscriptions({ [reviewTemplateId]: status })
-			void trackEvent('subscription_prompt_result', {
-				template: 'daily_review',
-				status,
-			})
-			if (status === 'accept') {
-				setReviewSubscribed(true)
-				Taro.showToast({ title: '晚间回顾已开启', icon: 'success' })
-			}
-		} catch {
-			void trackEvent('subscription_prompt_result', {
-				template: 'daily_review',
-				status: 'error',
-			})
-		}
-	}
-
 	const formatElapsed = (date?: string | null) => {
 		if (!date) return ''
 		const minutes = Math.max(
@@ -476,72 +457,6 @@ export default function Index() {
 			}`,
 		})
 		setShowMore(false)
-	}
-
-	// 从记录中提取辅助信息
-	const todayRecords = records || []
-	const feedingRecords = todayRecords.filter(r => r.type === 'feeding')
-	const diaperRecords = todayRecords.filter(r => r.type === 'diaper')
-	const sleepRecords = todayRecords.filter(r => r.type === 'sleep')
-	const foodRecords = todayRecords.filter(r => r.type === 'food')
-
-	// 最近一次喂奶方式
-	const lastFeeding = feedingRecords.length > 0 ? feedingRecords[0] : null
-	const lastFeedingMethod = lastFeeding?.feedingMethod || null
-
-	// 尿布类型统计
-	const diaperBreakdown = diaperRecords.reduce(
-		(acc, r) => {
-			if (r.diaperStatus === 'wet') acc.wet++
-			else if (r.diaperStatus === 'dirty') acc.dirty++
-			else if (r.diaperStatus === 'both') acc.both++
-			return acc
-		},
-		{ wet: 0, dirty: 0, both: 0 },
-	)
-	const diaperDetailParts: string[] = []
-	if (diaperBreakdown.wet > 0)
-		diaperDetailParts.push(`尿${diaperBreakdown.wet}`)
-	if (diaperBreakdown.dirty > 0)
-		diaperDetailParts.push(`拉${diaperBreakdown.dirty}`)
-	if (diaperBreakdown.both > 0)
-		diaperDetailParts.push(`都有${diaperBreakdown.both}`)
-
-	// 最近一次辅食
-	const lastFoodName = foodRecords.length > 0 ? foodRecords[0].foodName : null
-
-	// 最近一次睡眠时长
-	const lastSleepDuration =
-		sleepRecords.length > 0 ? sleepRecords[0].duration : null
-
-	// 查看喂奶明细
-	const goToFeedingDetail = () => {
-		if (!isLoggedIn) {
-			needLogin()
-			return
-		}
-		if (!currentBaby) {
-			Taro.navigateTo({ url: '/pages/onboarding/index' })
-			return
-		}
-		Taro.navigateTo({
-			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=feeding`,
-		})
-	}
-
-	// 查看尿布明细（含上传的尿布照片）
-	const goToDiaperDetail = () => {
-		if (!isLoggedIn) {
-			needLogin()
-			return
-		}
-		if (!currentBaby) {
-			Taro.navigateTo({ url: '/pages/onboarding/index' })
-			return
-		}
-		Taro.navigateTo({
-			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=diaper`,
-		})
 	}
 
 	// 未登录时使用 mock 数据
@@ -674,7 +589,29 @@ export default function Index() {
 				className="home-topbar"
 				style={{ paddingTop: `${statusBarHeight}px` }}
 			>
-				<Text className="home-topbar-title">育娃手记</Text>
+				<Text
+					className="home-topbar-title"
+					style={{
+						marginTop: `${capsuleBand.topOffset}px`,
+						lineHeight: `${capsuleBand.height}px`,
+					}}
+				>
+					育娃手记
+				</Text>
+				{isLoggedIn && currentBaby && (
+					<View
+						className="daily-pill"
+						style={{
+							marginTop: `${capsuleBand.topOffset}px`,
+							height: `${capsuleBand.height}px`,
+						}}
+						onClick={() => handleDailyReport('share')}
+					>
+						<Image className="daily-pill-icon" src={reportPlusIcon} />
+						<Text className="daily-pill-text">一键生成今日日报</Text>
+						<Image className="daily-pill-sparkle" src={sparklePinkIcon} />
+					</View>
+				)}
 			</View>
 			{/* 未登录：示例数据提示 */}
 			{!isLoggedIn && (
@@ -987,169 +924,6 @@ export default function Index() {
 				</View>
 			)}
 
-			{/* 今日记录 */}
-			{displaySummary && (
-				<View className="stats-section">
-					<View className="section-head">
-						<View className="section-accent" />
-						<Text className="section-label">今日记录</Text>
-						{isLoggedIn && currentBaby && (
-							<View
-								className="daily-report-entry"
-								onClick={() => handleDailyReport('share')}
-							>
-								<Image className="daily-report-entry-icon" src={reportIcon} />
-							</View>
-						)}
-					</View>
-					{isLoggedIn && currentBaby && reviewTemplateId && (
-						<View
-							className={`review-reminder-entry${reviewSubscribed ? ' enabled' : ''}`}
-							onClick={requestReviewSubscription}
-						>
-							<Text>
-								{reviewSubscribed ? '晚间回顾已开启' : '今晚接收宝宝记录回顾'}
-							</Text>
-							<Text>{reviewSubscribed ? '已开启' : '开启提醒'}</Text>
-						</View>
-					)}
-					<View className="stats-list-container">
-						{/* 喂奶 */}
-						<View
-							className="stat-list-item t-feeding"
-							onClick={() => goToFeedingDetail()}
-						>
-							<View className="stat-icon-wrap feeding">
-								<Text className="stat-icon">🍼</Text>
-							</View>
-							<View className="stat-main">
-								<View className="stat-info-left">
-									<View className="stat-title-row">
-										<Text className="stat-label">喂奶</Text>
-										<Text className="stat-value">
-											{displaySummary.feedingCount}
-											<Text className="stat-unit">次</Text>
-										</Text>
-									</View>
-								</View>
-								<View className="stat-info-right">
-									{displaySummary.totalMilk > 0 ? (
-										<Text className="stat-detail">
-											共{displaySummary.totalMilk}ml
-										</Text>
-									) : (
-										<Text className="stat-detail">-</Text>
-									)}
-									{lastFeedingMethod && (
-										<Text className="stat-sub">
-											{feedingMethodLabel[lastFeedingMethod] ||
-												lastFeedingMethod}
-											{lastFeedingMethod === 'mixed' &&
-											(lastFeeding?.breastAmount || lastFeeding?.formulaAmount)
-												? `(母${lastFeeding?.breastAmount || 0}+奶${lastFeeding?.formulaAmount || 0})`
-												: ''}
-										</Text>
-									)}
-								</View>
-							</View>
-							<View className="stat-arrow">
-								<Text className="arrow-icon">›</Text>
-							</View>
-						</View>
-
-						{/* 尿布 */}
-						<View
-							className="stat-list-item t-diaper"
-							onClick={() => goToDiaperDetail()}
-						>
-							<View className="stat-icon-wrap diaper">
-								<Text className="stat-icon">💩</Text>
-							</View>
-							<View className="stat-main">
-								<View className="stat-info-left">
-									<View className="stat-title-row">
-										<Text className="stat-label">尿布</Text>
-										<Text className="stat-value">
-											{displaySummary.diaperCount}
-											<Text className="stat-unit">次</Text>
-										</Text>
-									</View>
-								</View>
-								<View className="stat-info-right">
-									{diaperDetailParts.length > 0 ? (
-										<Text className="stat-detail">
-											{diaperDetailParts.join(' ')}
-										</Text>
-									) : (
-										<Text className="stat-detail">-</Text>
-									)}
-								</View>
-							</View>
-							<View className="stat-arrow">
-								<Text className="arrow-icon">›</Text>
-							</View>
-						</View>
-
-						{/* 睡觉 */}
-						<View className="stat-list-item t-sleep">
-							<View className="stat-icon-wrap sleep">
-								<Text className="stat-icon">😴</Text>
-							</View>
-							<View className="stat-main">
-								<View className="stat-info-left">
-									<View className="stat-title-row">
-										<Text className="stat-label">睡觉</Text>
-										<Text className="stat-value">
-											{displaySummary.sleepCount}
-											<Text className="stat-unit">次</Text>
-										</Text>
-									</View>
-								</View>
-								<View className="stat-info-right">
-									{displaySummary.sleepTotal > 0 ? (
-										<Text className="stat-detail">
-											共{formatDurationLong(displaySummary.sleepTotal)}
-										</Text>
-									) : (
-										<Text className="stat-detail">-</Text>
-									)}
-									{lastSleepDuration != null && lastSleepDuration > 0 && (
-										<Text className="stat-sub">
-											最近{formatDurationLong(lastSleepDuration)}
-										</Text>
-									)}
-								</View>
-							</View>
-						</View>
-
-						{/* 辅食 */}
-						<View className="stat-list-item t-food">
-							<View className="stat-icon-wrap food">
-								<Text className="stat-icon">🍚</Text>
-							</View>
-							<View className="stat-main">
-								<View className="stat-info-left">
-									<View className="stat-title-row">
-										<Text className="stat-label">辅食</Text>
-										<Text className="stat-value">
-											{displaySummary.foodCount}
-											<Text className="stat-unit">次</Text>
-										</Text>
-									</View>
-								</View>
-								<View className="stat-info-right">
-									{lastFoodName ? (
-										<Text className="stat-detail">{lastFoodName}</Text>
-									) : (
-										<Text className="stat-detail">-</Text>
-									)}
-								</View>
-							</View>
-						</View>
-					</View>
-				</View>
-			)}
-
 			{/* 最近的瞬间：相册入口前置到首页 */}
 			{displayBaby && (
 				<View className="moments-section">
@@ -1165,7 +939,7 @@ export default function Index() {
 									})
 								}
 							>
-								<Text className="moments-album-entry-text">相册 ›</Text>
+								<Text className="moments-album-entry-text">全部瞬间 ›</Text>
 							</View>
 						)}
 					</View>
@@ -1282,7 +1056,11 @@ export default function Index() {
 			{/* 「添加到我的小程序」引导浮层：气泡指向右上角胶囊 */}
 			{showAddGuide && (
 				<View className="add-guide-overlay" onClick={dismissAddGuide}>
-					<View className="add-guide-bubble" onClick={e => e.stopPropagation()}>
+					<View
+						className="add-guide-bubble"
+						style={{ top: `${statusBarHeight + 50}px` }}
+						onClick={e => e.stopPropagation()}
+					>
 						<View className="add-guide-arrow" />
 						<Text className="add-guide-title">
 							把育娃手记添加到「我的小程序」

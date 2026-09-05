@@ -82,15 +82,17 @@ export class PhotoService {
     return { deleted: result.affected ?? 0 };
   }
 
-  async getTimeline(userId: string, babyId: string) {
+  async getTimeline(userId: string, babyId: string, page = 1, pageSize = 30) {
     await this.babyService.findOne(babyId, userId);
 
-    const photos = await this.photoRepository.find({
+    const [photos, total] = await this.photoRepository.findAndCount({
       where: { babyId },
       order: { photoDate: 'DESC', createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    // 按日期分组
+    // 当前页内按日期分组；同一日期跨页时由前端合并
     const timeline: { [key: string]: Photo[] } = {};
     photos.forEach((photo) => {
       const date = photo.photoDate;
@@ -100,9 +102,12 @@ export class PhotoService {
       timeline[date].push(photo);
     });
 
-    return Object.entries(timeline).map(([date, photos]) => ({
-      date,
-      photos,
-    }));
+    return {
+      items: Object.entries(timeline).map(([date, photos]) => ({ date, photos })),
+      total,
+      page,
+      pageSize,
+      hasMore: page * pageSize < total,
+    };
   }
 }

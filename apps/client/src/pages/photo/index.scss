@@ -1,163 +1,244 @@
-.photo-page {
+// 相册页：粉调时间线（按设计稿高保真还原）
+.album-page {
+  position: relative;
   min-height: 100vh;
-  background: #FFFAF9;
-  padding: 32px 24px;
+  background: linear-gradient(180deg, #FAE8EB 0%, #FBF0F1 45%, #FFFAF9 82%);
+  padding: 0 40px 90px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-// 上传按钮
-.upload-section {
-  margin-bottom: 40px;
-  animation: fadeUp 0.6s ease;
+// 顶部宝宝插画：贴右上角，顶部锚定状态栏下方 52pt，纯装饰
+.album-hero-art {
+  position: absolute;
+  top: 120px;
+  top: calc(env(safe-area-inset-top) + 40px);
+  right: -24px;
+  width: 375px;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.upload-btn {
+// 自定义导航区：标题顶 = 状态栏下方 44pt（对齐 UI 图）
+.album-nav {
+  position: relative;
+  z-index: 1;
+  padding-left: 8px;
+  padding-top: 130px;
+  padding-top: calc(env(safe-area-inset-top) + 150px);
+}
+
+.album-title-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.album-title {
+  font-size: 52px;
+  font-weight: 800;
+  color: #3A2E2E;
+  letter-spacing: 4px;
+}
+
+.album-title-heart {
+  width: 28px;
+  height: 28px;
+  position: absolute;
+  top: -22px;
+  right: -26px;
+  transform: rotate(75deg);
+}
+
+.album-subtitle {
+  display: block;
+  margin-top: 16px;
+  font-size: 26px;
+  color: #A79292;
+  letter-spacing: 1px;
+}
+
+// 拍照记录主按钮
+.album-cta {
+  position: relative;
+  z-index: 1;
+  margin-top: 50px;
+  height: 98px;
+  border-radius: 49px;
+  background: linear-gradient(135deg, #F996AC 0%, #F87696 100%);
+  box-shadow: 0 14px 30px rgba(247, 134, 160, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100px;
-  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
-  border-radius: 24px;
-  box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
+  gap: 16px;
   transition: transform 0.2s;
 
   &:active {
-    transform: scale(0.96);
+    transform: scale(0.97);
   }
 }
 
-.upload-icon {
-  font-size: 40px;
-  margin-right: 12px;
+.album-cta-icon {
+  width: 42px;
+  height: 42px;
 }
 
-.upload-text {
-  font-size: 32px;
+.album-cta-text {
+  font-size: 34px;
   font-weight: 700;
-  color: #fff;
+  color: #FFFFFF;
+  letter-spacing: 4px;
 }
 
-// 时间线
-.timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  animation: fadeUp 0.6s ease 0.1s both;
-}
-
-.timeline-item {
-  background: #fff;
-  border-radius: 36px;
-  padding: 32px;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
-}
-
-.timeline-date {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px dashed #F0EDE6;
-}
-
-.date-text {
-  font-size: 32px;
-  font-weight: 700;
-  color: #2D2A2E;
-}
-
-.date-count {
-  font-size: 26px;
-  color: #A8A59E;
-}
-
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.photo-item {
+// 成长相册标题行
+.album-section-head {
   position: relative;
-  aspect-ratio: 1;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(130, 110, 90, 0.05);
-}
-
-.photo-img {
-  width: 100%;
-  height: 100%;
-}
-
-.photo-note {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.5);
-  font-size: 20px;
-  color: #fff;
-  text-align: center;
-}
-
-// 加载状态
-.loading-state {
-  display: flex;
-  justify-content: center;
-  padding: 80px 0;
-}
-
-.loading-text {
-  font-size: 28px;
-  color: #9CA3AF;
-}
-
-// 空状态
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 100px 40px;
-}
-
-.empty-icon {
-  font-size: 80px;
-  margin-bottom: 24px;
-}
-
-.empty-text {
-  font-size: 32px;
-  font-weight: 600;
-  color: #1A1A2E;
-  margin-bottom: 12px;
-}
-
-.empty-desc {
-  font-size: 26px;
-  color: #9CA3AF;
-}
-
-// 相册信息行（总数 + 管理入口）
-.album-meta {
+  z-index: 1;
+  margin: 64px 4px 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px 20px;
+}
+
+.album-section-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.album-section-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.album-section-label {
+  font-size: 32px;
+  font-weight: 800;
+  color: #4A3B3B;
+}
+
+.album-section-right {
+  display: flex;
+  align-items: center;
 }
 
 .album-count {
-  font-size: 24px;
-  color: #B8B5AC;
+  font-size: 25px;
+  color: #C4AEAE;
 }
 
 .album-manage {
-  font-size: 26px;
-  color: #F78CA6;
-  font-weight: 600;
-  padding: 8px 12px;
+  font-size: 27px;
+  color: #F56A93;
+  font-weight: 700;
+  margin-left: 24px;
+  padding: 6px 8px;
+}
+
+// 时间线
+.album-timeline {
+  position: relative;
+  z-index: 1;
+  padding-left: 44px;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 13px;
+  top: 48px;
+  bottom: 70px;
+  width: 4px;
+  border-radius: 2px;
+  background: #F6CFDA;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 36px;
+}
+
+// 分页加载尾部
+.timeline-footer {
+  padding: 8px 0 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.timeline-footer-text {
+  font-size: 24px;
+  color: #D3BDBD;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -40px;
+  top: 44px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 5px solid #F8A9BD;
+  box-sizing: border-box;
+}
+
+.timeline-dot.solid {
+  background: #F8809F;
+  border-color: #F8809F;
+}
+
+.timeline-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 28px 26px 30px;
+  box-shadow: 0 10px 26px rgba(215, 143, 162, 0.08);
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.card-date-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-date {
+  font-size: 36px;
+  font-weight: 800;
+  color: #453434;
+}
+
+.card-weekday {
+  margin-top: 6px;
+  font-size: 24px;
+  color: #C4AEAE;
+}
+
+.card-count {
+  font-size: 24px;
+  color: #C4AEAE;
+  padding-top: 8px;
+}
+
+.card-grid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.card-photo {
+  position: relative;
+  aspect-ratio: 0.88;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #FBF3F1;
+}
+
+.card-photo-img {
+  width: 100%;
+  height: 100%;
 }
 
 // 管理模式：选择圈角标
@@ -177,8 +258,8 @@
 }
 
 .photo-check.checked {
-  background: #FF8FA9;
-  border-color: #FF8FA9;
+  background: #F8809F;
+  border-color: #F8809F;
 }
 
 .photo-check-icon {
@@ -187,12 +268,43 @@
   font-weight: 700;
 }
 
-// 管理模式下给底部操作栏留出空间
-.photo-page.manage-mode {
-  padding-bottom: 180px;
+// 加载与空状态
+.album-state {
+  position: relative;
+  z-index: 1;
+  padding: 140px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-// 底部管理操作栏
+.album-state-text {
+  font-size: 28px;
+  color: #C4AEAE;
+}
+
+.album-state-icon {
+  font-size: 88px;
+  margin-bottom: 24px;
+}
+
+.album-state-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #6B5555;
+  margin-bottom: 14px;
+}
+
+.album-state-desc {
+  font-size: 26px;
+  color: #C4AEAE;
+}
+
+// 管理模式底部操作栏
+.album-page.manage-mode {
+  padding-bottom: 200px;
+}
+
 .manage-bar {
   position: fixed;
   left: 0;
@@ -203,7 +315,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 30px;
+  padding: 20px 40px;
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
   box-shadow: 0 -6px 20px rgba(130, 110, 90, 0.08);
 }
@@ -228,8 +340,8 @@
 }
 
 .manage-circle.checked {
-  background: #FF8FA9;
-  border-color: #FF8FA9;
+  background: #F8809F;
+  border-color: #F8809F;
 }
 
 .manage-circle-icon {
@@ -239,13 +351,13 @@
 }
 
 .manage-delete {
-  background: #FF8A8A;
+  background: #F87696;
   color: #fff;
   font-size: 28px;
   font-weight: 600;
   padding: 18px 52px;
   border-radius: 44px;
-  box-shadow: 0 8px 20px rgba(255, 138, 138, 0.3);
+  box-shadow: 0 8px 20px rgba(248, 118, 150, 0.3);
 }
 
 .manage-delete.disabled {

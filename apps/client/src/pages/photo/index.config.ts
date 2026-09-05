@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationTitleText: '宝宝相册',
+  navigationStyle: 'custom',
+  backgroundColor: '#FAE8EB',
 })

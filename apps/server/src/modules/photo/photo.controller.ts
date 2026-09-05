@@ -51,12 +51,22 @@ export class PhotoController {
   }
 
   @Get('timeline/:babyId')
-  async getTimeline(@Param('babyId') babyId: string, @Request() req) {
-    const timeline = await this.photoService.getTimeline(req.user.id, babyId);
+  async getTimeline(
+    @Param('babyId') babyId: string,
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+    @Request() req,
+  ) {
+    const result = await this.photoService.getTimeline(
+      req.user.id,
+      babyId,
+      page ? Math.max(1, parseInt(page)) : 1,
+      pageSize ? Math.min(100, Math.max(1, parseInt(pageSize))) : 30,
+    );
     return {
       code: 0,
       message: 'success',
-      data: timeline,
+      data: result,
     };
   }
 
