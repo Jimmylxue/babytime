@@ -40,7 +40,14 @@ import { NotificationModule } from './modules/notification/notification.module';
         password: configService.get('DB_PASSWORD', ''),
         database: configService.get('DB_DATABASE', 'baby_time'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true, // 开发环境自动同步表结构
+        // 生产默认关闭自动同步：改字段名/删字段时自动 ALTER 会直接丢数据。
+        // 表结构变更需手写 SQL（见 docs/db-backup-and-migration.md）。
+        // DB_SYNCHRONIZE=true 可显式开启（非生产环境默认开启）。
+        synchronize:
+          configService.get(
+            'DB_SYNCHRONIZE',
+            process.env.NODE_ENV === 'production' ? 'false' : 'true',
+          ) === 'true',
         charset: 'utf8mb4',
       }),
     }),

@@ -29,7 +29,21 @@ command -v pm2 >/dev/null 2>&1 || { warn "未安装 pm2，正在安装..."; npm 
 NODE_VER=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
 [ "$NODE_VER" -lt 18 ] && error "Node.js 版本需要 >= 18，当前: $(node -v)"
 
-# 2. 拉取最新代码（如果是 git 仓库）
+# 2. 部署前数据库快照（失败不阻塞部署，但会大声警告）
+log "部署前数据库快照..."
+if bash "$SCRIPT_DIR/backup-db.sh" pre-deploy; then
+    log "快照完成，继续部署"
+else
+    warn "快照失败！数据库可能没有还原点，建议中止排查（备份目录: $SCRIPT_DIR/backups）"
+    warn "如确认可继续，重新运行本脚本并检查 backups/ 下的错误信息"
+    read -r -p "是否忽略快照失败继续部署? [y/N] " CONTINUE_DEPLOY
+    case "$CONTINUE_DEPLOY" in
+        [yY]*) warn "已忽略快照失败，继续部署" ;;
+        *) error "已中止部署（安全起见）" ;;
+    esac
+fi
+
+# 3. 拉取最新代码（如果是 git 仓库）
 if [ -d "$SCRIPT_DIR/.git" ]; then
     log "拉取最新代码..."
     cd "$SCRIPT_DIR"
