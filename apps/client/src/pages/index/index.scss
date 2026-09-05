@@ -1,6 +1,8 @@
 // 首页 —— 按参考稿高保真还原（粉白底 + 渐变 Hero 卡 + 绿色疫苗卡 + 五列快速入口）
 .page {
   min-height: 100vh;
+  // border-box：min-height 含内边距，否则页面恒比视口高 320rpx（空状态会露出多余滚动）
+  box-sizing: border-box;
   background: #FFFAF9;
   // 顶部栏为 fixed，给页面内容预留状态栏和导航栏高度。
   padding: 180px 26px 140px;
@@ -80,6 +82,7 @@
   padding: 16px 20px;
   margin-bottom: 20px;
   animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  margin-top: 10px;
 }
 
 .demo-banner-emoji {
@@ -105,6 +108,126 @@
   font-size: 24px;
   font-weight: 700;
   color: #FFFFFF;
+}
+
+// 已登录未建档：全屏空状态（按 UI 稿 1:1 还原）
+// 布局实测（750 设计稿）：插画顶 ~380、标题顶 ~672、CTA 330×76 @841、功能区 @1064
+// 高度 = 视口减去 .page 的上下内边距（180+140），刚好一屏不出现滚动
+.empty-baby-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: calc(100vh - 320px);
+  padding: 196px 40px 0;
+  box-sizing: border-box;
+}
+
+.ebs-illustration {
+  width: 318px;
+  height: 271px;
+}
+
+.ebs-title {
+  margin-top: 54px;
+  font-size: 38px;
+  font-weight: 800;
+  color: #3A3A3C;
+  text-align: center;
+}
+
+.ebs-desc {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ebs-desc-line {
+  font-size: 26px;
+  color: #9C9993;
+  line-height: 1.85;
+  text-align: center;
+}
+
+.ebs-cta {
+  margin-top: 54px;
+  width: 330px;
+  height: 76px;
+  border-radius: 38px;
+  background: #FE9AA7;
+  box-shadow: 0 12px 26px rgba(254, 154, 167, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.ebs-cta-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.ebs-cta-text {
+  font-size: 30px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: 2px;
+}
+
+.ebs-features {
+  margin-top: 140px;
+  display: flex;
+  gap: 88px;
+}
+
+.ebs-feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ebs-feature-circle {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.t-amber {
+    background: #FFF6E5;
+  }
+
+  &.t-pink {
+    background: #FFF0F4;
+  }
+
+  &.t-green {
+    background: #F0F7EC;
+  }
+}
+
+.ebs-feature-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.ebs-feature-name {
+  margin-top: 18px;
+  font-size: 27px;
+  font-weight: 600;
+  color: #3A3A3C;
+}
+
+.ebs-feature-desc {
+  margin-top: 8px;
+  font-size: 22px;
+  color: #B8B5AE;
 }
 
 // 宝宝档案（渐变 Hero 卡）

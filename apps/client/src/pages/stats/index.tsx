@@ -1027,7 +1027,7 @@ export default function StatsPage() {
 						onClick={() =>
 							Taro.navigateTo({
 								url: isLoggedIn
-									? '/pages/onboarding/index'
+									? '/pages/baby-edit/index'
 									: '/pages/login/index',
 							})
 						}

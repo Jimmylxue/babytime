@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationTitleText: '编辑宝贝',
+  navigationStyle: 'custom',
+  backgroundColor: '#FDF9F9',
 })

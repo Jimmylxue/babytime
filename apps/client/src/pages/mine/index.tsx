@@ -218,9 +218,6 @@ export default function MinePage() {
 						) : (
 							<Image className="mine-avatar-icon" src={parentIcon} />
 						)}
-						<View className="mine-avatar-badge">
-							<Text className="mine-avatar-badge-icon">📷</Text>
-						</View>
 					</View>
 					<View className="mine-info">
 						<Text className="mine-name">

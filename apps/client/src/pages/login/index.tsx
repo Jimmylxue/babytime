@@ -54,7 +54,7 @@ export default function LoginPage() {
 					if (hasBaby) {
 						Taro.switchTab({ url: '/pages/index/index' })
 					} else {
-						Taro.redirectTo({ url: '/pages/onboarding/index' })
+						Taro.redirectTo({ url: '/pages/baby-edit/index' })
 					}
 				} catch {
 					Taro.switchTab({ url: '/pages/index/index' })

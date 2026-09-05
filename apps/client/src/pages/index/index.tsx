@@ -35,6 +35,11 @@ import miniProgramCode from '../../assets/mini-program-code.jpg'
 import babyIllustration from '../../assets/baby-illustration.jpg'
 import babyIllustrationGirl from '../../assets/baby-illustration-girl.jpg'
 import vaccineSafety from '../../assets/vaccine-safety.jpg'
+import emptyBabyIllustration from '../../assets/empty-baby.jpg'
+import plusCircleIcon from '../../assets/icons/plus-circle-white.svg'
+import editIcon from '../../assets/icons/edit.svg'
+import trendingUpIcon from '../../assets/icons/trending-up.svg'
+import familyIcon from '../../assets/icons/family.svg'
 import { MOCK_BABY, MOCK_STATS, MOCK_SUMMARY } from '../../utils/mock'
 import babyFacePink from '../../assets/icons/baby-face-pink.svg'
 import babyFaceBlue from '../../assets/icons/baby-face-blue.svg'
@@ -284,7 +289,7 @@ export default function Index() {
 				} else if (!hasAutoRedirectedToOnboarding()) {
 					// 已登录但没有宝宝档案，进引导页创建
 					markAutoRedirectedToOnboarding()
-					Taro.navigateTo({ url: '/pages/onboarding/index' })
+					Taro.navigateTo({ url: '/pages/baby-edit/index' })
 				}
 			})
 		}
@@ -441,7 +446,7 @@ export default function Index() {
 			return
 		}
 		if (!currentBaby) {
-			Taro.navigateTo({ url: '/pages/onboarding/index' })
+			Taro.navigateTo({ url: '/pages/baby-edit/index' })
 			return
 		}
 		if (type === 'photo') {
@@ -633,15 +638,54 @@ export default function Index() {
 				</View>
 			)}
 
-			{/* 宝宝档案 */}
-			<View
-				className="baby-card"
-				onClick={
-					isLoggedIn && !currentBaby
-						? () => Taro.navigateTo({ url: '/pages/onboarding/index' })
-						: undefined
-				}
-			>
+			{/* 宝宝档案：已登录未建档时显示专属空状态（按 UI 稿还原），其余走原宝宝卡 */}
+			{isLoggedIn && !currentBaby ? (
+				<View className="empty-baby-state">
+					<Image
+						className="ebs-illustration"
+						src={emptyBabyIllustration}
+						mode="aspectFit"
+					/>
+					<Text className="ebs-title">还没有宝宝信息</Text>
+					<View className="ebs-desc">
+						<Text className="ebs-desc-line">
+							创建宝宝信息，记录成长点滴，
+						</Text>
+						<Text className="ebs-desc-line">生成专属成长统计</Text>
+					</View>
+					<View
+						className="ebs-cta"
+						onClick={() => Taro.navigateTo({ url: '/pages/baby-edit/index' })}
+					>
+						<Image className="ebs-cta-icon" src={plusCircleIcon} />
+						<Text className="ebs-cta-text">去创建宝宝</Text>
+					</View>
+					<View className="ebs-features">
+						<View className="ebs-feature">
+							<View className="ebs-feature-circle t-amber">
+								<Image className="ebs-feature-icon" src={editIcon} />
+							</View>
+							<Text className="ebs-feature-name">快速记录</Text>
+							<Text className="ebs-feature-desc">吃睡玩一键记</Text>
+						</View>
+						<View className="ebs-feature">
+							<View className="ebs-feature-circle t-pink">
+								<Image className="ebs-feature-icon" src={trendingUpIcon} />
+							</View>
+							<Text className="ebs-feature-name">成长统计</Text>
+							<Text className="ebs-feature-desc">趋势一目了然</Text>
+						</View>
+						<View className="ebs-feature">
+							<View className="ebs-feature-circle t-green">
+								<Image className="ebs-feature-icon" src={familyIcon} />
+							</View>
+							<Text className="ebs-feature-name">家庭共享</Text>
+							<Text className="ebs-feature-desc">全家一起看娃</Text>
+						</View>
+					</View>
+				</View>
+			) : (
+			<View className="baby-card">
 				<View className="baby-deco baby-deco-a" />
 				<View className="baby-deco baby-deco-b" />
 				<Image
@@ -811,7 +855,8 @@ export default function Index() {
 						<Text className="baby-tip-arrow">›</Text>
 					</View>
 				)}
-			</View>
+				</View>
+			)}
 
 			{(isLoggedIn
 				? Boolean(currentBaby && vaccineTemplateId)

@@ -1,197 +1,336 @@
+// 创建/编辑宝宝：按 UI 稿 1:1 还原
+// 实测（750 稿）：标题顶 202、首卡顶 360、卡两侧 34、CTA 高 76 色 #FD7690、页面底 #FDF9F9
 .edit-page {
   min-height: 100vh;
-  background: #FFFAF9;
-  padding: 32px;
+  background: #FDF9F9;
+  // 底部留出固定操作栏高度 + 安全区
+  padding: 0 34px calc(180px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
-// 头像选择
-.avatar-section {
+// 返回按钮：与微信胶囊同带对称，fixed 不随滚动（top/left/宽高由 JS 注入）
+.edit-back {
+  position: fixed;
+  z-index: 200;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 4px 14px rgba(215, 143, 162, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+.edit-back-icon {
+  font-size: 40px;
+  font-weight: 700;
+  color: #4A3B3B;
+  line-height: 1;
+  margin-top: -4px;
+}
+
+// 顶部：标题 + 插画
+.edit-header {
+  position: relative;
+  padding-top: 176px;
+  min-height: 184px;
+  margin-bottom: 8px;
+}
+
+.edit-header-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.edit-title {
+  display: block;
+  font-size: 44px;
+  font-weight: 800;
+  color: #3A2E2E;
+  letter-spacing: 2px;
+}
+
+.edit-subtitle {
+  display: block;
+  margin-top: 16px;
+  font-size: 25px;
+  color: #A79292;
+  letter-spacing: 1px;
+}
+
+.edit-illustration {
+  position: absolute;
+  top: 24px;
+  right: 0px;
+  width: 330px;
+  pointer-events: none;
+}
+
+// 卡片
+.edit-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 30px 30px 34px;
+  margin-bottom: 24px;
+  box-shadow: 0 6px 20px rgba(215, 143, 162, 0.05);
+}
+
+.edit-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.edit-label-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #FD7690;
+}
+
+.edit-label {
+  font-size: 29px;
+  font-weight: 700;
+  color: #3A2E2E;
+}
+
+// 头像行
+.avatar-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 26px;
+}
+
+.avatar-upload {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 48px;
-  animation: fadeUp 0.6s ease;
+  gap: 10px;
 }
 
-.avatar-wrapper {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  margin-bottom: 16px;
-}
-
-.avatar-img {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.05);
-}
-
-.avatar-placeholder {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.05);
-
-  &.male {
-    background: #EEF4FA;
-  }
-
-  &.female {
-    background: #FFF0ED;
-  }
-}
-
-.avatar-icon {
-  font-size: 80px;
-  animation: float 5s ease-in-out infinite;
-}
-
-.avatar-badge {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 4px solid #FFFAF9;
-  box-shadow: 0 4px 8px rgba(255, 165, 180, 0.3);
-}
-
-.badge-icon {
-  font-size: 24px;
-}
-
-.avatar-tip {
-  font-size: 26px;
-  color: #A8A59E;
-}
-
-// 表单
-.form-card {
-  background: #fff;
-  border-radius: 36px;
-  padding: 40px 32px;
-  margin-bottom: 48px;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
-  animation: fadeUp 0.6s ease 0.1s both;
-}
-
-.form-group {
-  margin-bottom: 32px;
-
-  &:last-of-type {
-    margin-bottom: 0;
-  }
-}
-
-.form-label {
-  font-size: 28px;
-  font-weight: 600;
-  color: #8E8B82;
-  margin-bottom: 16px;
-  display: block;
-}
-
-.form-input {
-  width: 100%;
+.avatar-upload-circle {
+  width: 96px;
   height: 96px;
-  background: #F9F9F9;
-  border-radius: 20px;
-  padding: 0 24px;
-  font-size: 28px;
-  color: #2D2A2E;
-  box-sizing: border-box;
-  transition: all 0.3s;
-  
-  &:focus {
-    background: #fff;
-    border: 2px solid #FFC4D0;
-    box-shadow: 0 0 0 4px rgba(255, 165, 180, 0.1);
+  border-radius: 50%;
+  background: #FDEEEF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-upload-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.avatar-upload-text {
+  font-size: 20px;
+  color: #FD7690;
+}
+
+.avatar-option {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.avatar-option-img {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+}
+
+.avatar-option.active {
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 4px solid #FD8BA4;
   }
 }
 
-.date-picker {
+.avatar-check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #FD4E79;
+  border: 3px solid #FFFFFF;
   display: flex;
   align-items: center;
+  justify-content: center;
+  z-index: 1;
 }
 
-.placeholder {
-  color: #A8A59E;
+.avatar-check-icon {
+  font-size: 20px;
+  color: #fff;
+  font-weight: 700;
 }
 
-.gender-select {
+// 昵称
+.nickname-input-wrap {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  background: #F7F5F4;
+  border-radius: 20px;
+  padding: 0 26px;
+  height: 88px;
+}
+
+.nickname-input {
+  flex: 1;
+  font-size: 28px;
+  color: #3A2E2E;
+}
+
+.nickname-placeholder {
+  color: #C0BBB5;
+}
+
+.nickname-count {
+  font-size: 24px;
+  color: #C0BBB5;
+}
+
+// 性别
+.gender-row {
+  display: flex;
+  gap: 24px;
 }
 
 .gender-option {
   flex: 1;
-  height: 108px;
+  height: 104px;
+  border-radius: 24px;
+  background: #F7F5F4;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #F9F9F9;
-  border-radius: 20px;
-  font-size: 26px;
-  color: #8E8B82;
-  border: 2px solid transparent;
+  gap: 16px;
   transition: all 0.2s;
-
-  &.active {
-    background: #FFF0ED;
-    color: #FFA5B4;
-    border-color: #FFA5B4;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(255, 165, 180, 0.15);
-  }
 }
 
-.gender-icon {
-  font-size: 40px;
-  margin-bottom: 6px;
+.gender-option.active {
+  background: #FEEFF4;
+  border: 2px solid #FDC3D2;
 }
 
-// 提交按钮
-.submit-btn {
-  height: 96px;
-  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
-  border-radius: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
-  transition: transform 0.2s;
-  animation: fadeUp 0.6s ease 0.2s both;
-
-  &:active {
-    transform: scale(0.96);
-  }
-}
-
-.submit-text {
-  font-size: 32px;
-  font-weight: 700;
-  color: #fff;
-}
-
-// SVG 图标尺寸
-.avatar-icon-img {
+.gender-thumb {
   width: 64px;
   height: 64px;
+  border-radius: 50%;
 }
 
-.gender-icon-img {
-  width: 36px;
-  height: 36px;
+.gender-text {
+  font-size: 29px;
+  color: #8E8B82;
+  font-weight: 600;
+}
+
+.gender-text.active {
+  color: #FD4E79;
+  font-weight: 700;
+}
+
+// 出生日期
+.date-field {
+  display: flex;
+  align-items: center;
+  background: #F7F5F4;
+  border-radius: 20px;
+  padding: 0 26px;
+  height: 88px;
+  gap: 16px;
+}
+
+.date-field-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.date-field-text {
+  flex: 1;
+  font-size: 28px;
+  color: #3A2E2E;
+
+  &.placeholder {
+    color: #C0BBB5;
+  }
+}
+
+.date-field-arrow {
+  font-size: 36px;
+  color: #C9C4BE;
+}
+
+// 出生信息
+.birth-info-row {
+  display: flex;
+  gap: 24px;
+}
+
+.birth-info-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #F7F5F4;
+  border-radius: 20px;
+  padding: 0 24px;
+  height: 88px;
+  gap: 14px;
+}
+
+.birth-info-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.birth-info-input {
+  flex: 1;
+  font-size: 27px;
+  color: #3A2E2E;
+}
+
+.birth-info-placeholder {
+  color: #C0BBB5;
+}
+
+// 保存按钮：固定底部常驻
+.edit-submit {
+  position: fixed;
+  left: 34px;
+  right: 34px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  z-index: 100;
+  height: 96px;
+  border-radius: 48px;
+  background: #FD7690;
+  box-shadow: 0 14px 30px rgba(253, 118, 143, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.edit-submit-text {
+  font-size: 32px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 2px;
 }
