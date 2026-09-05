@@ -8,6 +8,33 @@
   overflow: hidden;
 }
 
+// 返回按钮：与微信胶囊同带对称，fixed 定位不随页面滚动
+// top/left/width/height 由 JS 按胶囊矩形注入，见 index.tsx
+.album-back {
+  position: fixed;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 4px 14px rgba(215, 143, 162, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+.album-back-icon {
+  font-size: 40px;
+  font-weight: 700;
+  color: #F56A93;
+  line-height: 1;
+  // 箭头字符基线偏上，手动光学居中
+  margin-top: -4px;
+}
+
 // 顶部宝宝插画：贴右上角，顶部锚定状态栏下方 52pt，纯装饰
 .album-hero-art {
   position: absolute;

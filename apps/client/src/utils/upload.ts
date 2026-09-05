@@ -4,13 +4,17 @@ import { API_BASE } from '../config/env';
 
 /**
  * 选择图片并上传到后端
+ * @param options.sizeType 图片质量：['compressed'] 压缩（默认，头像等小图用）；
+ *                         ['original', 'compressed'] 相册会出现「原图」勾选框（相册等看重大图的场景用）
  * @returns 上传后的图片 URL
  */
-export const chooseAndUploadImage = async (): Promise<string | null> => {
+export const chooseAndUploadImage = async (
+  options: { sizeType?: string[] } = {}
+): Promise<string | null> => {
   try {
     const res = await Taro.chooseImage({
       count: 1,
-      sizeType: ['compressed'],
+      sizeType: options.sizeType || ['compressed'],
       sourceType: ['album', 'camera'],
     });
 

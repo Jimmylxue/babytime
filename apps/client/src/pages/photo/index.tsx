@@ -39,6 +39,24 @@ export default function PhotoPage() {
   const [manageMode, setManageMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const previewingRef = useRef(false);
+  // 微信胶囊矩形（pt）：返回按钮与其同带、左右对称放置
+  const [menuBand] = useState(() => {
+    let top = (Taro.getSystemInfoSync().statusBarHeight || 20) + 4;
+    let height = 32;
+    let leftInset = 10;
+    try {
+      const menu = Taro.getMenuButtonBoundingClientRect();
+      if (menu && menu.height) {
+        const si = Taro.getSystemInfoSync();
+        top = menu.top;
+        height = menu.height;
+        leftInset = Math.max(6, si.windowWidth - menu.right);
+      }
+    } catch (error) {
+      // 取不到胶囊信息时用默认值
+    }
+    return { top, height, leftInset };
+  });
 
   useDidShow(() => {
     // previewImage 关闭时也会触发 onShow，这次不需要重新拉取列表
@@ -161,6 +179,16 @@ export default function PhotoPage() {
     }
   };
 
+  const handleBack = () => {
+    const pages = Taro.getCurrentPages();
+    if (pages.length > 1) {
+      Taro.navigateBack();
+    } else {
+      // 从分享卡/扫码直接进入本页（无页面栈），回首页兜底
+      Taro.switchTab({ url: '/pages/index/index' });
+    }
+  };
+
   const handlePreview = (photo: Photo, itemPhotos: Photo[]) => {
     previewingRef.current = true;
     Taro.previewImage({
@@ -182,6 +210,20 @@ export default function PhotoPage() {
 
   return (
     <View className={`album-page${manageMode ? ' manage-mode' : ''}`}>
+      {/* 返回按钮：自定义导航无系统返回，与微信胶囊同带对称、fixed 不随滚动 */}
+      <View
+        className="album-back"
+        style={{
+          top: `${menuBand.top}px`,
+          left: `${menuBand.leftInset}px`,
+          width: `${menuBand.height}px`,
+          height: `${menuBand.height}px`,
+        }}
+        onClick={handleBack}
+      >
+        <Text className="album-back-icon">‹</Text>
+      </View>
+
       {/* 顶部宝宝插画（装饰，不响应点击）：顶部锚定状态栏，位置见 SCSS */}
       <Image className="album-hero-art" src={albumBaby} mode="aspectFit" />
 

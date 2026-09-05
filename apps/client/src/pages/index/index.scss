@@ -30,12 +30,11 @@
   letter-spacing: 1px;
 }
 
-// 一键生成今日日报：导航栏胶囊按钮（顶部偏移/高度由 JS 按微信胶囊对齐）
+// 一键生成今日日报：导航栏胶囊按钮（顶部偏移/高度/右边距由 JS 按微信胶囊实时对齐）
 .daily-pill {
   position: relative;
   align-self: flex-start;
   margin-left: auto;
-  margin-right: 190px;
   padding: 0 16px 0 5px;
   border-radius: 999px;
   background: #FFEEF2;

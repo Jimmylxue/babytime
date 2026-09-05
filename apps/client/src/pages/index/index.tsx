@@ -122,21 +122,23 @@ export default function Index() {
 	const [statusBarHeight] = useState(
 		() => Taro.getSystemInfoSync().statusBarHeight || 20,
 	)
-	// 胶囊相对状态栏的偏移与高度（pt），用于顶栏按钮与胶囊垂直对齐
+	// 胶囊相对状态栏的偏移、高度、与屏幕右缘的距离（pt），用于顶栏按钮与胶囊对齐避让
 	const [capsuleBand] = useState(() => {
 		let topOffset = 4
 		let height = 32
+		let rightGap = 102
 		try {
 			const menu = Taro.getMenuButtonBoundingClientRect()
 			if (menu && menu.height) {
 				const statusBar = Taro.getSystemInfoSync().statusBarHeight || 20
 				topOffset = Math.max(0, menu.top - statusBar)
 				height = menu.height
+				rightGap = Math.max(90, Taro.getSystemInfoSync().windowWidth - menu.left)
 			}
 		} catch (error) {
 			// 取不到胶囊信息时用默认值
 		}
-		return { topOffset, height }
+		return { topOffset, height, rightGap }
 	})
 	const [vaccineTemplateId, setVaccineTemplateId] = useState('')
 	const [vaccineState, setVaccineState] = useState<
@@ -604,6 +606,7 @@ export default function Index() {
 						style={{
 							marginTop: `${capsuleBand.topOffset}px`,
 							height: `${capsuleBand.height}px`,
+							marginRight: `${capsuleBand.rightGap + 8}px`,
 						}}
 						onClick={() => handleDailyReport('share')}
 					>
