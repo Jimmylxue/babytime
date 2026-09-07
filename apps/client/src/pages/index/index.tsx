@@ -459,11 +459,18 @@ export default function Index() {
 			})
 			return
 		}
-		Taro.navigateTo({
-			url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}${
-				metric ? `&metric=${metric}` : ''
-			}`,
-		})
+		if (type === 'feeding') {
+			// 喂奶记录使用独立设计页
+			Taro.navigateTo({
+				url: `/pages/feeding/index?babyId=${currentBaby.id}`,
+			})
+		} else {
+			Taro.navigateTo({
+				url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}${
+					metric ? `&metric=${metric}` : ''
+				}`,
+			})
+		}
 		setShowMore(false)
 	}
 

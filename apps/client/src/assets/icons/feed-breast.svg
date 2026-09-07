@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="milkBody" x1="30" y1="24" x2="86" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FDEBEC"/>
+      <stop offset="1" stop-color="#F9C6CD"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(20 60 62)">
+    <circle cx="60" cy="13" r="7" stroke="#EE8290" stroke-width="7"/>
+    <path d="M45 32 Q43 26.5 49 26 L71 26 Q77 26.5 75 32 C81 42 85 52 85 64 C85 86 73 96 60 96 C47 96 35 86 35 64 C35 52 39 42 45 32 Z" fill="url(#milkBody)" stroke="#EE8290" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M53 46 C51.5 56 51.5 66 54.5 75" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+  </g>
+</svg>

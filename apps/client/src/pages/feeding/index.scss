@@ -1,0 +1,524 @@
+/* 喂奶记录独立页：按设计稿 1:1 还原（粉白渐变底 + 白色表单卡 + 刻度尺选奶量） */
+
+.feeding-page {
+  min-height: 100vh;
+  // 顶部粉调向下渐隐到奶白底，与原生导航栏 #FDF2F1 无缝衔接
+  background: linear-gradient(180deg, #FDF2F1 0%, #FEF8F6 620rpx, #FFFAF9 900rpx, #FFFAF9 100%);
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
+}
+
+/* ---------- 顶部 hero ---------- */
+
+.hero {
+  position: relative;
+  padding: 42rpx 40rpx 0 68rpx;
+}
+
+.hero-title-row {
+  display: flex;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #261F21;
+  line-height: 1.3;
+}
+
+.hero-emoji {
+  font-size: 38rpx;
+  margin-left: 14rpx;
+}
+
+.hero-sub {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8B8187;
+}
+
+.hero-illus {
+  position: absolute;
+  right: 28rpx;
+  top: 0;
+  width: 232rpx;
+  height: 212rpx;
+}
+
+/* ---------- 上次记录提示条 ---------- */
+
+.last-card {
+  display: flex;
+  align-items: center;
+  margin: 22rpx 40rpx 0;
+  padding: 12rpx 22rpx 12rpx 16rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 999rpx;
+  position: relative;
+  z-index: 10;
+}
+
+.last-chip {
+  flex-shrink: 0;
+  padding: 5rpx 15rpx;
+  background: #F4868C;
+  border-radius: 10rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #FFFFFF;
+}
+
+.last-summary {
+  margin-left: 18rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #3A3A3E;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.last-time {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #DFA3AB;
+}
+
+/* ---------- 表单卡 ---------- */
+
+.form-card {
+  margin: 20rpx 40rpx 0;
+  padding: 30rpx 24rpx 40rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  box-shadow: 0 12rpx 36rpx rgba(246, 178, 170, 0.10);
+}
+
+/* 日期 / 时间 */
+
+.datetime-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.datetime-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.datetime-cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 96rpx;
+  padding: 0 16rpx 0 20rpx;
+  background: #FAFAFA;
+  border-radius: 16rpx;
+}
+
+.datetime-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+
+  &.pink {
+    background: #FDEDEE;
+  }
+
+  &.amber {
+    background: #FEF3E4;
+  }
+}
+
+.datetime-icon-img {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.datetime-info {
+  flex: 1;
+  min-width: 0;
+  margin-left: 16rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.datetime-label {
+  font-size: 22rpx;
+  color: #9CA0A8;
+  line-height: 1.3;
+}
+
+.datetime-value {
+  margin-top: 4rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #22262E;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.datetime-chevron {
+  flex-shrink: 0;
+  width: 28rpx;
+  height: 28rpx;
+  opacity: 0.55;
+}
+
+/* 区块标题 */
+
+.section-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #363A41;
+  line-height: 1.4;
+}
+
+.method-title {
+  margin-top: 36rpx;
+}
+
+.section-header {
+  margin-top: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.amount-tip {
+  display: flex;
+  align-items: center;
+}
+
+.amount-tip-text {
+  font-size: 24rpx;
+  color: #F59AA4;
+}
+
+.amount-tip-arrow {
+  margin-left: 4rpx;
+  font-size: 30rpx;
+  color: #F59AA4;
+  line-height: 1;
+}
+
+/* 喂养方式 */
+
+.method-grid {
+  margin-top: 24rpx;
+  display: flex;
+  gap: 16rpx;
+}
+
+.method-card {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 148rpx;
+  background: #FAFAFA;
+  border: 2rpx solid #F1F0EE;
+  border-radius: 16rpx;
+
+  &.active {
+    background: #FDF1F1;
+    border-color: #F8B9C0;
+
+    .method-label {
+      color: #6E3A3E;
+    }
+  }
+}
+
+.method-badge {
+  position: absolute;
+  top: -16rpx;
+  right: -12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FA9BA4, #F58692);
+}
+
+.method-badge-check {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1;
+}
+
+.method-icon {
+  width: 88rpx;
+  height: 88rpx;
+}
+
+.method-label {
+  margin-top: 4rpx;
+  font-size: 26rpx;
+  color: #4B4B4B;
+}
+
+/* 步进器 + 刻度尺 */
+
+.stepper {
+  position: relative;
+  margin-top: 20rpx;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16rpx;
+  background: #FAFAFA;
+  border-radius: 20rpx;
+}
+
+.step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #FDE6E6;
+
+  &.disabled {
+    opacity: 0.45;
+  }
+
+  &:active {
+    opacity: 0.75;
+  }
+}
+
+.step-glyph {
+  font-size: 44rpx;
+  font-weight: 500;
+  color: #F8838E;
+  line-height: 1;
+}
+
+.stepper-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+}
+
+.stepper-value {
+  font-size: 56rpx;
+  font-weight: 600;
+  color: #2F3238;
+  line-height: 1.1;
+}
+
+.stepper-unit {
+  margin-left: 10rpx;
+  font-size: 24rpx;
+  color: #B9B7BE;
+}
+
+.ruler {
+  position: relative;
+  margin-top: 4rpx;
+  height: 112rpx;
+  overflow: hidden;
+}
+
+.ruler-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  will-change: transform;
+
+  &.snapping {
+    transition: transform 0.22s ease-out;
+  }
+}
+
+.ruler-tick-wrap {
+  position: absolute;
+  bottom: 36rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 30rpx;
+  transform: translateX(-50%);
+}
+
+.ruler-tick {
+  width: 3rpx;
+  height: 16rpx;
+  border-radius: 2rpx;
+  background: #D9D6D4;
+
+  &.major {
+    height: 26rpx;
+    background: #C6C3C1;
+  }
+}
+
+.ruler-label {
+  position: absolute;
+  top: 36rpx;
+  font-size: 24rpx;
+  color: #AEB0B6;
+  line-height: 1;
+}
+
+.ruler-indicator {
+  position: absolute;
+  left: 50%;
+  bottom: 36rpx;
+  transform: translateX(-50%);
+  width: 8rpx;
+  height: 34rpx;
+  border-radius: 4rpx;
+  background: #F693A0;
+  pointer-events: none;
+}
+
+/* 时长 / 备注 */
+
+.duration-title,
+.note-title {
+  margin-top: 40rpx;
+}
+
+.duration-input {
+  margin-top: 18rpx;
+  display: flex;
+  align-items: center;
+  height: 68rpx;
+  padding: 0 24rpx;
+  background: #FAFAFA;
+  border-radius: 14rpx;
+}
+
+.duration-field {
+  flex: 1;
+  font-size: 26rpx;
+  color: #3A3A3E;
+}
+
+.duration-unit {
+  margin-left: 12rpx;
+  font-size: 26rpx;
+  color: #9EA1A8;
+}
+
+.note-box {
+  margin-top: 18rpx;
+  padding: 20rpx 24rpx;
+  background: #FAFAFA;
+  border-radius: 14rpx;
+}
+
+.note-field {
+  width: 100%;
+  height: 96rpx;
+  font-size: 26rpx;
+  color: #3A3A3E;
+  line-height: 1.5;
+}
+
+.note-counter {
+  display: block;
+  margin-top: 8rpx;
+  text-align: right;
+  font-size: 22rpx;
+  color: #B9B7BA;
+  line-height: 1;
+}
+
+/* ---------- 底部操作栏 ---------- */
+
+.bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 20rpx 44rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255, 250, 249, 0) 0%, rgba(255, 250, 249, 0.94) 36rpx, #FFFAF9 100%);
+}
+
+.save-btn {
+  flex: 1;
+  margin-left: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 76rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #FAB6C0, #F5A3B2);
+  box-shadow: 0 10rpx 24rpx rgba(244, 158, 173, 0.30);
+
+  &.disabled {
+    opacity: 0.65;
+  }
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.save-icon {
+  width: 30rpx;
+  height: 30rpx;
+  margin-right: 12rpx;
+}
+
+.save-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.stats-btn {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 132rpx;
+  height: 76rpx;
+  border-radius: 999rpx;
+  background: #FFFFFF;
+  box-shadow: 0 10rpx 26rpx rgba(233, 180, 180, 0.22);
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.stats-icon {
+  width: 34rpx;
+  height: 34rpx;
+}
+
+.stats-label {
+  margin-top: 2rpx;
+  font-size: 20rpx;
+  color: #8A8A8E;
+  line-height: 1.2;
+}

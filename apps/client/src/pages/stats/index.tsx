@@ -1,4 +1,11 @@
-import {View, Text, ScrollView, Picker, Image, Canvas } from '@tarojs/components'
+import {
+	View,
+	Text,
+	ScrollView,
+	Picker,
+	Image,
+	Canvas,
+} from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../stores/authStore'
@@ -29,12 +36,14 @@ import TabBar from '../../components/TabBar'
 import LineChart, { LineChartPoint } from '../../components/LineChart'
 import BarChart from '../../components/BarChart'
 import GrowthCurveChart from '../../components/GrowthCurveChart'
-import {
-	deliverChartPoster,
-	ChartPosterOptions,
-} from '../../utils/chartExport'
+import { deliverChartPoster, ChartPosterOptions } from '../../utils/chartExport'
 import downloadIcon from '../../assets/icons/download.svg'
 import shareIcon from '../../assets/icons/share.svg'
+import pencilWhiteIcon from '../../assets/icons/pencil-white.svg'
+import growthBoyIllu from '../../assets/growth-baby-boy.jpg'
+import growthGirlIllu from '../../assets/growth-baby-girl.jpg'
+import scaleBabyBoyIllu from '../../assets/scale-baby-boy.jpg'
+import scaleBabyGirlIllu from '../../assets/scale-baby-girl.jpg'
 import miniProgramCode from '../../assets/mini-program-code.jpg'
 import './index.scss'
 
@@ -89,33 +98,24 @@ export default function StatsPage() {
 	const [prevDaySummary, setPrevDaySummary] = useState<DetailSummary | null>(
 		null,
 	)
-	// 身高体重页签的视图：近 N 天趋势 / WHO 成长曲线
-	const [growthView, setGrowthView] = useState<'trend' | 'who'>('trend')
 	// 成长曲线用全量身高体重历史（stats 接口无 days 上限）
 	const [whoSeries, setWhoSeries] = useState<HeightWeightTrendPoint[]>([])
 	const [growthChartRatio, setGrowthChartRatio] = useState(0.46)
 
 	// 拉取选中日期的明细/汇总，完成后拷贝到本页状态，之后 store 再被谁覆盖都不影响本页展示
-	const loadDayDetail = async (
-		babyId: string,
-		type: string,
-		date: string,
-	) => {
-		const metric =
-			type === 'height_weight' ? activeMetric || undefined : undefined
+	const loadDayDetail = async (babyId: string, type: string, date: string) => {
+		// 身高/体重页签只看趋势图（单日明细/汇总视图已移除），不发明细请求
+		if (type === 'height_weight') return
 		// store 的 detailSummary 是单值，前一日和当日只能串行取：先取前一日（较昨日对比用），再取当日覆盖
-		await fetchDetail(babyId, type, { date, metric })
+		await fetchDetail(babyId, type, { date })
 		setDayItems(useRecordStore.getState().detailItems)
 		try {
-			await fetchDetailSummary(babyId, type, {
-				date: shiftDate(date, -1),
-				metric,
-			})
+			await fetchDetailSummary(babyId, type, { date: shiftDate(date, -1) })
 			setPrevDaySummary(useRecordStore.getState().detailSummary)
 		} catch {
 			setPrevDaySummary(null)
 		}
-		await fetchDetailSummary(babyId, type, { date, metric })
+		await fetchDetailSummary(babyId, type, { date })
 		setDaySummary(useRecordStore.getState().detailSummary)
 	}
 
@@ -140,14 +140,9 @@ export default function StatsPage() {
 		}
 	}, [isLoggedIn, currentBaby?.id, activeType, activeMetric, selectedDate])
 
-	// 进入「成长曲线」视图时拉取全量身高体重历史
+	// 身高/体重页签：成长曲线直接展示，进入页签即拉全量身高体重历史
 	useEffect(() => {
-		if (
-			!isLoggedIn ||
-			!currentBaby ||
-			activeType !== 'height_weight' ||
-			growthView !== 'who'
-		) {
+		if (!isLoggedIn || !currentBaby || activeType !== 'height_weight') {
 			return
 		}
 		recordApi
@@ -156,7 +151,7 @@ export default function StatsPage() {
 				setWhoSeries(res.data?.heightWeightTrend || [])
 			})
 			.catch(() => setWhoSeries([]))
-	}, [isLoggedIn, currentBaby?.id, activeType, growthView])
+	}, [isLoggedIn, currentBaby?.id, activeType])
 
 	useEffect(() => {
 		// 宽高比只被温度趋势图使用（身高/体重已改为 Canvas 绘制）
@@ -203,7 +198,26 @@ export default function StatsPage() {
 		Taro.navigateTo({
 			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}${metricParam}`,
 		})
+	}
+
+	// 英雄卡「记录身高/体重」：跳转记录页并带上当前指标
+	const handleGrowthRecord = () => {
+		if (!isLoggedIn) {
+			needLogin()
+			return
 		}
+		if (!currentBaby) {
+			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
+			return
+		}
+		Taro.navigateTo({
+			url: `/pages/record/index?type=height_weight&babyId=${currentBaby.id}&metric=${growthMetric}`,
+			fail: err => {
+				console.error('跳转记录页失败', err)
+				Taro.showToast({ title: '跳转失败，请重试', icon: 'none' })
+			},
+		})
+	}
 
 	// 海报头部统计周期文案
 	const dateRangeText = (() => {
@@ -225,25 +239,27 @@ export default function StatsPage() {
 		action: 'save' | 'share',
 	) => {
 		try {
-			await deliverChartPoster({ ...opts, miniProgramCodeUrl: miniProgramCode }, action)
+			await deliverChartPoster(
+				{ ...opts, miniProgramCodeUrl: miniProgramCode },
+				action,
+			)
 		} catch (error) {
 			Taro.showToast({ title: '操作失败，请重试', icon: 'none' })
 		}
 	}
 
 	// 成长曲线的实测点：全量历史中的真实测量值换算为月龄
-	const babyCurvePoints =
-		currentBaby && growthView === 'who'
-			? whoSeries
-					.filter(point => point[growthMetric] != null)
-					.map(point => ({
-						ageMonths:
-							(new Date(point.date).getTime() -
-								new Date(currentBaby.birthday).getTime()) /
-							(30.4375 * 24 * 3600 * 1000),
-						value: point[growthMetric] as number,
-					}))
-			: []
+	const babyCurvePoints = currentBaby
+		? whoSeries
+				.filter(point => point[growthMetric] != null)
+				.map(point => ({
+					ageMonths:
+						(new Date(point.date).getTime() -
+							new Date(currentBaby.birthday).getTime()) /
+						(30.4375 * 24 * 3600 * 1000),
+					value: point[growthMetric] as number,
+				}))
+		: []
 
 	const renderChartActions = (posterOpts: ChartPosterOptions) => (
 		<View className="chart-actions">
@@ -314,7 +330,10 @@ export default function StatsPage() {
 		let metaTexts: string[]
 		let reviewText: string
 		if (key === 'totalMilk') {
-			metaTexts = [`近${days}天共 ${total}ml`, `日均 ${Math.round(total / days)}ml`]
+			metaTexts = [
+				`近${days}天共 ${total}ml`,
+				`日均 ${Math.round(total / days)}ml`,
+			]
 			reviewText = `${rangeWord}奶量稳定，日均 ${Math.round(total / days)}ml，宝宝吃得棒棒哒！`
 		} else if (key === 'sleepTotal') {
 			metaTexts = [`近${days}天共 ${formatDurationLong(total)}`]
@@ -511,11 +530,10 @@ export default function StatsPage() {
 
 		const lastValue = points[points.length - 1][key] as number
 		const metricLabel = key === 'height' ? '身高' : '体重'
-		const firstMeasured = points.find(
-			point =>
-				key === 'height'
-					? (point as GrowthSeriesPoint).heightMeasured
-					: (point as GrowthSeriesPoint).weightMeasured,
+		const firstMeasured = points.find(point =>
+			key === 'height'
+				? (point as GrowthSeriesPoint).heightMeasured
+				: (point as GrowthSeriesPoint).weightMeasured,
 		)?.[key] as number | undefined
 		const reviewText =
 			firstMeasured != null
@@ -552,11 +570,11 @@ export default function StatsPage() {
 		}
 
 		return (
-			<View className='chart-card growth-chart-card'>
-				<View className='growth-chart-header'>
-					<Text className='chart-title'>{label}</Text>
-					<View className='chart-actions'>
-						<Text className='growth-chart-range'>
+			<View className="chart-card growth-chart-card">
+				<View className="growth-chart-header">
+					<Text className="chart-title">{label}</Text>
+					<View className="chart-actions">
+						<Text className="growth-chart-range">
 							{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}
 							{unit}
 						</Text>
@@ -829,7 +847,8 @@ export default function StatsPage() {
 		displayHeightWeightTrend,
 		days,
 	)
-	const displayItems = isLoggedIn && currentBaby ? dayItems : MOCK_DETAIL[activeType].items
+	const displayItems =
+		isLoggedIn && currentBaby ? dayItems : MOCK_DETAIL[activeType].items
 	const summary =
 		isLoggedIn && currentBaby ? daySummary : MOCK_DETAIL[activeType].summary
 	// 身高/体重分开记录后，同一类型下只统计与展示当前指标的记录
@@ -837,6 +856,157 @@ export default function StatsPage() {
 		activeType === 'height_weight'
 			? displayItems.filter(item => item[growthMetric] != null)
 			: displayItems
+
+	// 英雄卡：最新一次身高/体重测量（登录取成长曲线的全量历史，未登录示例退回窗口数据）
+	const growthHistory =
+		isLoggedIn && whoSeries.length > 0 ? whoSeries : displayHeightWeightTrend
+	const measuredGrowthPoints = growthHistory.filter(
+		point => point[growthMetric] != null,
+	)
+	const latestGrowth =
+		measuredGrowthPoints.length > 0
+			? measuredGrowthPoints[measuredGrowthPoints.length - 1]
+			: null
+	const latestGrowthValue = latestGrowth
+		? (latestGrowth[growthMetric] as number).toFixed(1)
+		: null
+	const latestGrowthDate = latestGrowth
+		? formatDate(latestGrowth.date).replace(/-/g, '.')
+		: null
+	const daysSinceLastGrowth = latestGrowth
+		? Math.max(
+				0,
+				Math.floor(
+					(Date.now() - new Date(latestGrowth.date).getTime()) / 86400000,
+				),
+			)
+		: null
+	const growthHeroIllu =
+		currentBaby?.gender === 'male' ? growthBoyIllu : growthGirlIllu
+
+	// 刻度尺联动（固定插画 + 动态尺子）：虚线永远贴宝宝头顶、插画恒定高度踩尺底，
+	// 身高变化只动刻度尺——量程取整档（身高 20cm / 体重 4kg），尺高按 头顶高度×量程÷测量值 反推，
+	// 使虚线落点的刻度读数正好等于测量值（全档位尺高稳定在 197~203pt，视觉无跳变）
+	const growthNum =
+		latestGrowthValue != null ? parseFloat(latestGrowthValue) : null
+	const rulerStep = growthMetric === 'height' ? 20 : 2
+	const rulerMin = growthMetric === 'height' ? 60 : 4
+	// 量程收紧到测量值 1.25 倍左右（整档），头顶上方只留一档内呼吸感，卡片不虚高
+	let rulerMax = growthMetric === 'height' ? 100 : 16
+	if (growthNum != null && growthNum > 0) {
+		rulerMax = Math.max(
+			rulerMin,
+			Math.round((growthNum * 1.25) / rulerStep) * rulerStep,
+		)
+		// 保证头顶与尺顶至少 10% 余量，虚线不顶到尺顶数字
+		if (rulerMax < growthNum * 1.1) {
+			rulerMax += rulerStep
+		}
+	}
+	const rulerTicks = Array.from(
+		{ length: rulerMax / rulerStep + 1 },
+		(_, i) => i * rulerStep,
+	)
+	// 插画固定 130×160pt（aspectFill 裁两侧装饰边）；素材头顶距图顶 5.9%/8.1%
+	const growthIlluHeadPct = currentBaby?.gender === 'male' ? 0.059 : 0.081
+	const growthIlluWidthPt = 158
+	const growthIlluHeightPt = 160
+	const growthMarkHeightPt = growthIlluHeightPt * (1 - growthIlluHeadPct)
+	// 尺高反推：头顶(固定) ÷ (测量值/量程)；无数据用默认尺高 200pt
+	const rulerHeightPt =
+		growthNum != null && growthNum > 0
+			? (growthMarkHeightPt * rulerMax) / growthNum
+			: 200
+
+	// ── 体重仪表盘（同「固定插画 + 动态刻度」思路：宝宝站秤不动，指针角度随体重）──
+	// 量程 = 测量值 1.25 倍取偶数档，向下跨 4 档（8kg 跨度，贴 UI 稿 4-12kg：9.2 → 4-12）
+	const gaugeStep = 2
+	const gaugeMax =
+		growthNum != null && growthNum > 0
+			? Math.max(
+					gaugeStep * 2,
+					Math.round((growthNum * 1.25) / gaugeStep) * gaugeStep,
+				)
+			: 12
+	const gaugeMin = Math.max(0, gaugeMax - gaugeStep * 4)
+	// 角度系：0° = 正上、顺时针为正；弧从 -136°(min) 到 -21°(max)，与 UI 稿一致
+	// 弧心 = 宝宝躯干位置：弧带围着宝宝，脚踩区域底
+	const gaugeStartDeg = -136
+	const gaugeSpanDeg = 115
+	const gaugeCenterX = 100 // pt，左区坐标系
+	const gaugeCenterY = 100
+	const gaugeT =
+		growthNum != null
+			? Math.min(1, Math.max(0, (growthNum - gaugeMin) / (gaugeMax - gaugeMin)))
+			: 0
+	const gaugePointerDeg = gaugeStartDeg + gaugeT * gaugeSpanDeg
+	// 极坐标 → 左区 pt 坐标
+	const gaugePos = (deg: number, radius: number) => ({
+		left: `${gaugeCenterX + radius * Math.sin((deg * Math.PI) / 180)}px`,
+		top: `${gaugeCenterY - radius * Math.cos((deg * Math.PI) / 180)}px`,
+	})
+	// 弧带用 SVG data-URI 渲染（小程序 webview 对 conic-gradient+mask 支持不可靠）：
+	// 轨道浅粉全程，进度深粉 min→当前值；viewBox 200×200 与左区 pt 坐标系 1:1
+	const gaugeDeg2XY = (deg: number, radius: number) => [
+		100 + radius * Math.sin((deg * Math.PI) / 180),
+		100 - radius * Math.cos((deg * Math.PI) / 180),
+	]
+	const gaugeArcPath = (a1: number, a2: number) => {
+		const [x1, y1] = gaugeDeg2XY(a1, 87.5)
+		const [x2, y2] = gaugeDeg2XY(a2, 87.5)
+		const large = a2 - a1 > 180 ? 1 : 0
+		return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A 87.5 87.5 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`
+	}
+	const gaugeProgressDeg = gaugeStartDeg + gaugeT * gaugeSpanDeg
+	// 指针三角画进同一张 SVG（顶点朝外指向弧带），避免 CSS 三角旋转的歧义
+	const gaugePointerSvg =
+		growthNum != null && growthNum > 0
+			? (() => {
+					const [ax, ay] = gaugeDeg2XY(gaugePointerDeg, 76)
+					const [b1x, b1y] = gaugeDeg2XY(gaugePointerDeg - 9, 58)
+					const [b2x, b2y] = gaugeDeg2XY(gaugePointerDeg + 9, 58)
+					return `<polygon points="${ax},${ay} ${b1x},${b1y} ${b2x},${b2y}" fill="#FD4670"/>`
+				})()
+			: ''
+	// 进度起点 = 轨道起点（min 刻度）：轨道圆头帽处叠深粉圆填充，读数末端保持平头精确
+	const [gaugeCapX, gaugeCapY] = gaugeDeg2XY(gaugeStartDeg, 87.5)
+	const gaugeArcSrc =
+		'data:image/svg+xml;charset=utf-8,' +
+		encodeURIComponent(
+			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">` +
+				`<path d="${gaugeArcPath(gaugeStartDeg, gaugeStartDeg + gaugeSpanDeg)}" stroke="#FBC9D5" stroke-width="13" fill="none" stroke-linecap="round"/>` +
+				(gaugeT > 0
+					? `<path d="${gaugeArcPath(gaugeStartDeg, gaugeProgressDeg)}" stroke="#FD7FA0" stroke-width="13" fill="none" stroke-linecap="butt"/>` +
+						`<circle cx="${gaugeCapX.toFixed(2)}" cy="${gaugeCapY.toFixed(2)}" r="6.5" fill="#FD7FA0"/>`
+					: '') +
+				gaugePointerSvg +
+				`</svg>`,
+		)
+	// 刻度：主刻度在偶数档位，档间 3 个副刻度
+	const gaugeTicks: { deg: number; major: boolean }[] = []
+	const gaugeSegDeg = gaugeSpanDeg / ((gaugeMax - gaugeMin) / gaugeStep)
+	for (let kg = gaugeMin; kg <= gaugeMax; kg += gaugeStep) {
+		const deg =
+			gaugeStartDeg + ((kg - gaugeMin) / (gaugeMax - gaugeMin)) * gaugeSpanDeg
+		gaugeTicks.push({ deg, major: true })
+		if (kg < gaugeMax) {
+			for (let m = 1; m <= 3; m++) {
+				gaugeTicks.push({
+					deg: deg + (gaugeSegDeg * m) / 4,
+					major: false,
+				})
+			}
+		}
+	}
+	const gaugeLabels: { deg: number; label: number }[] = []
+	for (let kg = gaugeMin; kg <= gaugeMax; kg += gaugeStep) {
+		gaugeLabels.push({
+			deg: gaugeStartDeg + ((kg - gaugeMin) / (gaugeMax - gaugeMin)) * gaugeSpanDeg,
+			label: kg,
+		})
+	}
+	const gaugeScaleBaby =
+		currentBaby?.gender === 'male' ? scaleBabyBoyIllu : scaleBabyGirlIllu
 
 	const avgIntervalText =
 		summary?.avgIntervalMinutes != null
@@ -868,7 +1038,11 @@ export default function StatsPage() {
 			{
 				label: '总奶量',
 				value: `${summary?.totalAmount ?? 0}ml`,
-				delta: buildDelta(summary?.totalAmount, prevDaySummary?.totalAmount, n => `${n}ml`),
+				delta: buildDelta(
+					summary?.totalAmount,
+					prevDaySummary?.totalAmount,
+					n => `${n}ml`,
+				),
 			},
 			{
 				label: '平均间隔',
@@ -911,49 +1085,6 @@ export default function StatsPage() {
 				),
 			},
 		]
-	} else if (activeType === 'height_weight') {
-		// 后端已按当前指标过滤，汇总次数可覆盖完整结果集。
-		const metricCount = `${summary?.count ?? 0}次`
-		summaryTiles =
-			growthMetric === 'weight'
-				? [
-						{
-							label: '测量次数',
-							value: metricCount,
-							delta: buildDelta(summary?.count, prevDaySummary?.count),
-						},
-						{
-							label: '最新体重',
-							value:
-								summary?.latestWeight != null
-									? `${summary.latestWeight}kg`
-									: '-',
-							delta: buildDelta(
-								summary?.latestWeight,
-								prevDaySummary?.latestWeight,
-								n => `${n.toFixed(1)}kg`,
-							),
-						},
-					]
-				: [
-						{
-							label: '测量次数',
-							value: metricCount,
-							delta: buildDelta(summary?.count, prevDaySummary?.count),
-						},
-						{
-							label: '最新身高',
-							value:
-								summary?.latestHeight != null
-									? `${summary.latestHeight}cm`
-									: '-',
-							delta: buildDelta(
-								summary?.latestHeight,
-								prevDaySummary?.latestHeight,
-								n => `${n.toFixed(1)}cm`,
-							),
-						},
-					]
 	} else if (activeType === 'temperature') {
 		summaryTiles = [
 			{
@@ -1037,7 +1168,7 @@ export default function StatsPage() {
 						</Text>
 					</View>
 				</View>
-				)}
+			)}
 
 			{/* 类型切换：身高/体重为独立入口，单行展示 */}
 			<View className="type-tabs">
@@ -1052,7 +1183,9 @@ export default function StatsPage() {
 									needLogin()
 									return
 								}
-								Taro.navigateTo({ url: `/pages/vaccine-timeline/index?babyId=${currentBaby.id}` })
+								Taro.navigateTo({
+									url: `/pages/vaccine-timeline/index?babyId=${currentBaby.id}`,
+								})
 								return
 							}
 							setActiveType(tab.type)
@@ -1066,264 +1199,381 @@ export default function StatsPage() {
 				))}
 			</View>
 
-			{/* 日期切换 */}
-					<View className="date-nav">
+			{/* 最新身高/体重英雄卡：身高=动态刻度尺，体重=动态仪表盘；插画固定+信息列共用 */}
+			{activeType === 'height_weight' && (
+				<View className="growth-hero-card">
+					{growthMetric === 'height' ? (
 						<View
-							className="date-arrow"
-							onClick={() => handleDateChange(shiftDate(selectedDate, -1))}
+							className="growth-hero-left"
+							style={{ height: `${rulerHeightPt}px` }}
 						>
-							<Text>‹</Text>
-						</View>
-						<Picker
-							mode="date"
-							value={selectedDate}
-							end={formatDate(new Date())}
-							onChange={e => handleDateChange(e.detail.value as string)}
-						>
-							<View className="date-label-wrap">
-								<Text className="date-label">{getDateLabel(selectedDate)}</Text>
-								<Text className="date-icon">📅</Text>
+							<View className="growth-hero-ruler">
+								{rulerTicks.map(num => (
+									<Text
+										key={num}
+										className={`growth-ruler-num ${
+											num === rulerMax ? 'at-top' : num === 0 ? 'at-bottom' : ''
+										}`}
+										style={{ top: `${(1 - num / rulerMax) * 100}%` }}
+									>
+										{num}
+									</Text>
+								))}
+								<View className="growth-ruler-ticks" />
+								<View className="growth-ruler-line" />
 							</View>
-						</Picker>
-						<View
-							className={`date-arrow ${isToday(selectedDate) ? 'disabled' : ''}`}
-							onClick={() =>
-								!isToday(selectedDate) &&
-								handleDateChange(shiftDate(selectedDate, 1))
-							}
-						>
-							<Text>›</Text>
+							{/* 数值刻度线：位置恒等于头顶（bottom 固定），身高变化由尺子刻度吸收 */}
+							{growthNum != null && growthNum > 0 && (
+								<View
+									className="growth-hero-mark"
+									style={{ bottom: `${growthMarkHeightPt}px` }}
+								/>
+							)}
+							{/* 宝宝插画固定尺寸踩尺底，不随测量值缩放 */}
+							<Image
+								className="growth-hero-illu"
+								style={{
+									width: `${growthIlluWidthPt}px`,
+									height: `${growthIlluHeightPt}px`,
+								}}
+								src={growthHeroIllu}
+								mode="aspectFill"
+							/>
+						</View>
+					) : (
+						/* 体重仪表盘：弧带进度(SVG) + 刻度数字 + 指针 + 数值气泡 + 站秤宝宝 */
+						<View className="growth-gauge-region">
+							{/* 弧带：SVG 轨道 + 进度（兼容性最稳的画法） */}
+							<Image
+								className="growth-gauge-arc"
+								src={gaugeArcSrc}
+							/>
+							{gaugeTicks.map((tick, i) => (
+								<View
+									key={`t${i}`}
+									className={`growth-gauge-tick ${
+										tick.major ? 'major' : 'minor'
+									}`}
+									style={{
+										...gaugePos(tick.deg, 92.5),
+										transform: `translate(-50%,-50%) rotate(${tick.deg}deg)`,
+									}}
+								/>
+							))}
+							{gaugeLabels.map(({ deg, label }) => (
+								<Text
+									key={label}
+									className="growth-gauge-num"
+									style={gaugePos(deg, 99)}
+								>
+									{label}
+								</Text>
+							))}
+							<Text className="growth-gauge-unit" style={gaugePos(-150, 99)}>
+								kg
+							</Text>
+							{/* 数值气泡：浮在表盘内、指针旁（r=48 恒在区内） */}
+							{latestGrowthValue && (
+								<View
+									className="growth-gauge-bubble"
+									style={gaugePos(gaugePointerDeg, 48)}
+								>
+									<Text className="growth-gauge-bubble-text">
+										{latestGrowthValue}
+										kg
+									</Text>
+								</View>
+							)}
+							{/* 站秤宝宝：盒子宽度按素材比例显式给定（防 image 默认 320rpx 盒溢出盖住按钮点击区） */}
+							<Image
+								className="growth-gauge-baby"
+								style={{
+									height: '150px',
+									width: `${
+										currentBaby?.gender === 'male' ? 90 : 92
+									}px`,
+								}}
+								src={gaugeScaleBaby}
+								mode="aspectFit"
+							/>
+						</View>
+					)}
+					<View className="growth-hero-info">
+						<Text className="growth-hero-label">
+							最新{growthMetric === 'height' ? '身高' : '体重'}
+						</Text>
+						<View className="growth-hero-value-row">
+							<Text className="growth-hero-value">
+								{latestGrowthValue ?? '--'}
+							</Text>
+							<Text className="growth-hero-unit">
+								{growthMetric === 'height' ? 'cm' : 'kg'}
+							</Text>
+						</View>
+						{latestGrowthDate && (
+							<Text className="growth-hero-date">
+								记录于 {latestGrowthDate}
+							</Text>
+						)}
+						<View className="growth-hero-btn" onClick={handleGrowthRecord}>
+							<Image className="growth-hero-btn-icon" src={pencilWhiteIcon} />
+							<Text className="growth-hero-btn-text">
+								记录{growthMetric === 'height' ? '身高' : '体重'}
+							</Text>
+						</View>
+						{daysSinceLastGrowth != null && (
+							<Text className="growth-hero-last">
+								距离上次记录 {daysSinceLastGrowth} 天
+							</Text>
+						)}
+					</View>
+				</View>
+			)}
+
+			{/* 日期切换：身高/体重看趋势图即可，无单日视图 */}
+			{activeType !== 'height_weight' && (
+				<View className="date-nav">
+					<View
+						className="date-arrow"
+						onClick={() => handleDateChange(shiftDate(selectedDate, -1))}
+					>
+						<Text>‹</Text>
+					</View>
+					<Picker
+						mode="date"
+						value={selectedDate}
+						end={formatDate(new Date())}
+						onChange={e => handleDateChange(e.detail.value as string)}
+					>
+						<View className="date-label-wrap">
+							<Text className="date-label">{getDateLabel(selectedDate)}</Text>
+							<Text className="date-icon">📅</Text>
+						</View>
+					</Picker>
+					<View
+						className={`date-arrow ${isToday(selectedDate) ? 'disabled' : ''}`}
+						onClick={() =>
+							!isToday(selectedDate) &&
+							handleDateChange(shiftDate(selectedDate, 1))
+						}
+					>
+						<Text>›</Text>
+					</View>
+				</View>
+			)}
+
+			{/* 明细卡：仅每日多次记录类型展示；身高/体重只看趋势图，入口在图表下方按钮 */}
+			{activeType !== 'height_weight' && (
+				<View className="detail-card">
+					<View className="detail-card-header">
+						<View className="section-heading">
+							<View className="section-heading-icon summary-heading-icon">
+								<View className="summary-icon-bar summary-icon-bar-short" />
+								<View className="summary-icon-bar summary-icon-bar-medium" />
+								<View className="summary-icon-bar summary-icon-bar-tall" />
+							</View>
+							<Text className="section-heading-title">
+								{isToday(selectedDate)
+									? '今日总结'
+									: `${getDateLabel(selectedDate)}总结`}
+							</Text>
+						</View>
+						<View className="detail-link" onClick={() => goToFullDetail()}>
+							<Text>完整明细 ›</Text>
 						</View>
 					</View>
 
-						{/* 明细卡 */}
-						<View className="detail-card">
-							<View className="detail-card-header">
-								<View className="section-heading">
-									<View className="section-heading-icon summary-heading-icon">
-										<View className="summary-icon-bar summary-icon-bar-short" />
-										<View className="summary-icon-bar summary-icon-bar-medium" />
-										<View className="summary-icon-bar summary-icon-bar-tall" />
-									</View>
-									<Text className="section-heading-title">
-										{isToday(selectedDate)
-											? '今日总结'
-											: `${getDateLabel(selectedDate)}总结`}
-									</Text>
-								</View>
-								<View className="detail-link" onClick={() => goToFullDetail()}>
-								<Text>完整明细 ›</Text>
+					<View className="summary-tiles">
+						{summaryTiles.map(tile => (
+							<View key={tile.label} className="summary-tile">
+								<Text className="summary-tile-value">{tile.value}</Text>
+								<Text className="summary-tile-label">{tile.label}</Text>
+								{tile.delta && (
+									<Text className="summary-tile-delta">{tile.delta}</Text>
+								)}
 							</View>
-						</View>
+						))}
+					</View>
 
-						<View className="summary-tiles">
-							{summaryTiles.map(tile => (
-								<View key={tile.label} className="summary-tile">
-									<Text className="summary-tile-value">{tile.value}</Text>
-									<Text className="summary-tile-label">{tile.label}</Text>
-									{tile.delta && (
-										<Text className="summary-tile-delta">{tile.delta}</Text>
-									)}
+					{growthItems.length > 0 ? (
+						<View className="timeline">
+							{growthItems.map((item, idx) => (
+								<View key={item.id} className="timeline-item">
+									<View className="timeline-track">
+										<View className="timeline-dot" />
+										{idx < growthItems.length - 1 && (
+											<View className="timeline-line" />
+										)}
+									</View>
+									<View className="timeline-content">
+										<View className="timeline-row">
+											<Text className="timeline-time">
+												{formatHM(item.startTime)}
+											</Text>
+											<Text className="timeline-interval">
+												{getIntervalText(activeType, item.intervalMinutes)}
+											</Text>
+										</View>
+										<View className="timeline-text-row">
+											<View className="timeline-text-content">
+												<Text className="timeline-text">
+													{getRecordMainText(activeType, item, growthMetric)}
+												</Text>
+												{item.note && (
+													<Text className="timeline-note">
+														备注：{item.note}
+													</Text>
+												)}
+											</View>
+											{activeType === 'diaper' && item.diaperImage && (
+												<Image
+													className="timeline-thumb"
+													src={item.diaperImage}
+													mode="aspectFill"
+													onClick={() =>
+														Taro.previewImage({
+															current: item.diaperImage,
+															urls: [item.diaperImage],
+														})
+													}
+												/>
+											)}
+										</View>
+									</View>
 								</View>
 							))}
 						</View>
+					) : (
+						<View className="timeline-empty">
+							<Text>这一天还没有记录</Text>
+						</View>
+					)}
+				</View>
+			)}
 
-						{growthItems.length > 0 ? (
-							<View className="timeline">
-								{growthItems.map((item, idx) => (
-									<View key={item.id} className="timeline-item">
-										<View className="timeline-track">
-											<View className="timeline-dot" />
-											{idx < growthItems.length - 1 && (
-												<View className="timeline-line" />
-											)}
-										</View>
-										<View className="timeline-content">
-											<View className="timeline-row">
-												<Text className="timeline-time">
-													{formatHM(item.startTime)}
-												</Text>
-													<Text className="timeline-interval">
-														{getIntervalText(activeType, item.intervalMinutes)}
-													</Text>
-											</View>
-											<View className="timeline-text-row">
-												<View className="timeline-text-content">
-													<Text className="timeline-text">
-														{getRecordMainText(activeType, item, growthMetric)}
-													</Text>
-													{item.note && (
-														<Text className="timeline-note">
-															备注：{item.note}
-														</Text>
-													)}
-												</View>
-												{activeType === 'diaper' && item.diaperImage && (
-													<Image
-														className="timeline-thumb"
-														src={item.diaperImage}
-														mode="aspectFill"
-														onClick={() =>
-															Taro.previewImage({
-																current: item.diaperImage,
-																urls: [item.diaperImage],
-															})
-														}
-													/>
-												)}
-											</View>
-										</View>
-									</View>
-								))}
+			{/* 统计图表 */}
+			{displayDailyStats.length > 0 && (
+				<View className="charts-section">
+					<View className="section-heading chart-section-heading">
+						<View className="section-heading-icon trend-heading-icon">
+							<View className="trend-icon-line trend-icon-line-left" />
+							<View className="trend-icon-line trend-icon-line-middle" />
+							<View className="trend-icon-line trend-icon-line-right" />
+						</View>
+						<Text className="section-heading-title">
+							{activeType === 'height_weight' ? '成长图表' : '趋势图表'}
+						</Text>
+					</View>
+					{/* 时间范围（身高/体重下作用于趋势图；成长曲线始终全量） */}
+					<View className="time-range">
+						{[7, 14, 30].map(d => (
+							<View
+								key={d}
+								className={`range-item ${days === d ? 'active' : ''}`}
+								onClick={() => handleDaysChange(d)}
+							>
+								<Text>{d}天</Text>
 							</View>
-						) : (
-							<View className="timeline-empty">
+						))}
+					</View>
+					{activeType === 'feeding' &&
+						renderBarChart(displayDailyStats, 'feedingCount', '喂奶次数', '次')}
+					{activeType === 'feeding' &&
+						renderBarChart(displayDailyStats, 'totalMilk', '奶量', 'ml')}
+					{activeType === 'diaper' &&
+						renderBarChart(displayDailyStats, 'diaperCount', '尿布次数', '次')}
+					{activeType === 'sleep' &&
+						renderBarChart(displayDailyStats, 'sleepTotal', '睡眠时长', '时')}
+					{/* 身高/体重：趋势折线图 + WHO 成长曲线两图并列展示 */}
+					{activeType === 'height_weight' &&
+						displayHeightWeightSeries.some(
+							point => point[growthMetric] != null,
+						) &&
+						renderHeightWeightLineChart(
+							displayHeightWeightSeries,
+							growthMetric,
+							growthMetric === 'height' ? '身高趋势' : '体重趋势',
+							growthMetric === 'height' ? 'cm' : 'kg',
+						)}
+					{activeType === 'height_weight' &&
+						!displayHeightWeightSeries.some(
+							point => point[growthMetric] != null,
+						) && (
+							<View className="chart-card growth-empty">
 								<Text>
-									{activeType === 'height_weight'
-										? growthMetric === 'height'
-											? '这一天还没有身高记录'
-											: '这一天还没有体重记录'
-										: '这一天还没有记录'}
+									{growthMetric === 'height'
+										? '所选时间内暂无身高记录'
+										: '所选时间内暂无体重记录'}
 								</Text>
 							</View>
 						)}
-					</View>
+					{activeType === 'height_weight' &&
+						currentBaby &&
+						babyCurvePoints.length > 0 && (
+							<View className="chart-card growth-chart-card">
+								<View className="growth-chart-header">
+									<Text className="chart-title">
+										{growthMetric === 'height' ? '身高' : '体重'}成长曲线
+									</Text>
+									{renderChartActions({
+										kind: 'growth',
+										title: `${growthMetric === 'height' ? '身高' : '体重'}成长曲线`,
+										babyName: currentBaby.name,
+										avatarUrl: currentBaby.avatar,
+										genderText,
+										rangeText: '0-36月龄',
+										metaTexts: [
+											'WHO 生长标准',
+											`共 ${babyCurvePoints.length} 次测量`,
+										],
+										reviewTitle: '成长小结',
+										reviewText: '对照 WHO 生长标准，看见宝宝成长的每一步～',
+										data: {
+											metric: growthMetric,
+											gender: currentBaby.gender,
+											points: babyCurvePoints,
+										},
+									})}
+								</View>
+								<GrowthCurveChart
+									canvasId="growth-who-chart"
+									metric={growthMetric}
+									gender={currentBaby.gender}
+									babyName={currentBaby.name}
+									points={babyCurvePoints}
+								/>
+								<Text className="who-disclaimer">
+									参考线为
+									WHO《儿童生长标准》P3~P97，仅供日常参考，具体以儿保医生评估为准
+								</Text>
+							</View>
+						)}
+					{activeType === 'height_weight' &&
+						currentBaby &&
+						babyCurvePoints.length === 0 && (
+							<View className="chart-card growth-empty">
+								<Text>记录身高体重后，这里会画出宝宝的成长曲线</Text>
+							</View>
+						)}
+					{activeType === 'temperature' &&
+						displayTemperatureTrend.length > 0 &&
+						renderTemperatureLineChart(displayTemperatureTrend)}
+					{activeType === 'temperature' &&
+						displayTemperatureTrend.length === 0 && (
+							<View className="chart-card growth-empty">
+								<Text>所选时间内暂无体温记录</Text>
+							</View>
+						)}
+				</View>
+			)}
 
-					{/* 统计图表 */}
-						{displayDailyStats.length > 0 && (
-							<View className="charts-section">
-								<View className="section-heading chart-section-heading">
-									<View className="section-heading-icon trend-heading-icon">
-										<View className="trend-icon-line trend-icon-line-left" />
-										<View className="trend-icon-line trend-icon-line-middle" />
-										<View className="trend-icon-line trend-icon-line-right" />
-									</View>
-									<Text className="section-heading-title">趋势图表</Text>
-									{activeType === 'height_weight' && (
-										<View className="growth-view-toggle">
-											<View
-												className={`gvt-item ${growthView === 'trend' ? 'active' : ''}`}
-												onClick={() => setGrowthView('trend')}
-											>
-												<Text>趋势</Text>
-											</View>
-											<View
-												className={`gvt-item ${growthView === 'who' ? 'active' : ''}`}
-												onClick={() => setGrowthView('who')}
-											>
-												<Text>成长曲线</Text>
-											</View>
-										</View>
-									)}
-								</View>
-							{(activeType !== 'height_weight' || growthView === 'trend') && (
-								<View className="time-range">
-									{[7, 14, 30].map(d => (
-										<View
-											key={d}
-											className={`range-item ${days === d ? 'active' : ''}`}
-											onClick={() => handleDaysChange(d)}
-										>
-											<Text>{d}天</Text>
-										</View>
-									))}
-								</View>
-							)}
-							{activeType === 'feeding' &&
-								renderBarChart(
-									displayDailyStats,
-									'feedingCount',
-									'喂奶次数',
-									'次',
-								)}
-							{activeType === 'feeding' &&
-								renderBarChart(displayDailyStats, 'totalMilk', '奶量', 'ml')}
-							{activeType === 'diaper' &&
-								renderBarChart(
-									displayDailyStats,
-									'diaperCount',
-									'尿布次数',
-									'次',
-								)}
-							{activeType === 'sleep' &&
-								renderBarChart(
-									displayDailyStats,
-									'sleepTotal',
-									'睡眠时长',
-									'时',
-								)}
-							{activeType === 'height_weight' &&
-								growthView === 'trend' &&
-								displayHeightWeightSeries.some(
-									point => point[growthMetric] != null,
-								) &&
-							renderHeightWeightLineChart(
-								displayHeightWeightSeries,
-								growthMetric,
-								growthMetric === 'height' ? '身高趋势' : '体重趋势',
-								growthMetric === 'height' ? 'cm' : 'kg',
-							)}
-							{activeType === 'height_weight' &&
-								growthView === 'trend' &&
-								!displayHeightWeightSeries.some(
-									point => point[growthMetric] != null,
-								) && (
-									<View className="chart-card growth-empty">
-										<Text>
-											{growthMetric === 'height'
-												? '所选时间内暂无身高记录'
-												: '所选时间内暂无体重记录'}
-										</Text>
-									</View>
-								)}
-							{activeType === 'height_weight' &&
-								growthView === 'who' &&
-								currentBaby && (
-									<View className="chart-card growth-chart-card">
-										<View className="growth-chart-header">
-											<Text className="chart-title">
-												{growthMetric === 'height' ? '身高' : '体重'}成长曲线
-											</Text>
-											{renderChartActions({
-												kind: 'growth',
-												title: `${growthMetric === 'height' ? '身高' : '体重'}成长曲线`,
-												babyName: currentBaby.name,
-												avatarUrl: currentBaby.avatar,
-												genderText,
-												rangeText: '0-36月龄',
-												metaTexts: ['WHO 生长标准', `共 ${babyCurvePoints.length} 次测量`],
-												reviewTitle: '成长小结',
-												reviewText: '对照 WHO 生长标准，看见宝宝成长的每一步～',
-												data: {
-													metric: growthMetric,
-													gender: currentBaby.gender,
-													points: babyCurvePoints,
-												},
-											})}
-										</View>
-										<GrowthCurveChart
-											canvasId="growth-who-chart"
-											metric={growthMetric}
-											gender={currentBaby.gender}
-											babyName={currentBaby.name}
-											points={babyCurvePoints}
-										/>
-										<Text className="who-disclaimer">
-											参考线为 WHO《儿童生长标准》P3~P97，仅供日常参考，具体以儿保医生评估为准
-										</Text>
-									</View>
-								)}
-							{activeType === 'temperature' &&
-								displayTemperatureTrend.length > 0 &&
-								renderTemperatureLineChart(displayTemperatureTrend)}
-							{activeType === 'temperature' &&
-								displayTemperatureTrend.length === 0 && (
-									<View className="chart-card growth-empty">
-										<Text>所选时间内暂无体温记录</Text>
-									</View>
-								)}
-						</View>
-					)}
+			{/* 身高/体重：趋势图为主视图，完整明细入口收进图表下方按钮 */}
+			{activeType === 'height_weight' && (
+				<View className="growth-detail-btn" onClick={() => goToFullDetail()}>
+					<Text className="growth-detail-btn-text">查看完整明细</Text>
+					<Text className="growth-detail-btn-arrow">›</Text>
+				</View>
+			)}
 
 			{/* 图表分享海报的离屏画布（尺寸用内联样式，避免 px 被 Taro 转成 rpx） */}
 			<View

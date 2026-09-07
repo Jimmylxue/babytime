@@ -6,6 +6,7 @@ export default defineAppConfig({
     'pages/mine/index',
     'pages/login/index',
     'pages/record/index',
+    'pages/feeding/index',
     'pages/vaccine-timeline/index',
     'pages/record-detail/index',
     'pages/photo/index',

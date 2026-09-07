@@ -69,6 +69,11 @@ export default function RecordDetailPage() {
 
   const openEdit = (item: DetailRecord) => {
     const metricParam = growthMetric ? `&metric=${growthMetric}` : '';
+    if (type === 'feeding') {
+      // 喂奶记录使用独立设计页编辑
+      Taro.navigateTo({ url: `/pages/feeding/index?babyId=${babyId}&id=${item.id}` });
+      return;
+    }
     Taro.navigateTo({ url: `/pages/record/index?type=${type}&babyId=${babyId}&id=${item.id}${metricParam}` });
   };
 

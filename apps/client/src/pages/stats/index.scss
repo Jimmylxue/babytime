@@ -725,26 +725,174 @@
 }
 
 // 身高体重：趋势/成长曲线视图切换
-.growth-view-toggle {
-  margin-left: auto;
+// 身高/体重英雄卡：刻度尺 + 性别宝宝插画 + 最新测量 + 记录按钮（按 UI 稿 1:1）
+.growth-hero-card {
   display: flex;
-  background: #F7F5F0;
-  border-radius: 28px;
-  padding: 4px;
+  align-items: center;
+  background: #fff;
+  border-radius: 40px;
+  padding: 44px 36px 44px 28px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  animation: fadeUp 0.6s ease 0.1s both;
 }
 
-.gvt-item {
-  padding: 8px 22px;
-  border-radius: 24px;
-  font-size: 23px;
-  color: #8E8B82;
+// 左区：刻度尺 + 插画同一坐标系；高度由 JS 按测量值反推内联注入（px=pt 口径）
+.growth-hero-left {
+  position: relative;
+  width: 385px;
+  flex-shrink: 0;
+}
 
-  &.active {
-    background: #FFFFFF;
-    color: #FF8FA9;
-    font-weight: 700;
-    box-shadow: 0 4px 10px rgba(45, 42, 46, 0.08);
+// 左侧刻度尺：浅灰数字 + 粉色刻度与竖线（量程随测量值自适应，0 为尺底）
+.growth-hero-ruler {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 70px;
+  height: 100%;
+}
+
+.growth-ruler-num {
+  position: absolute;
+  right: 26px;
+  width: 64px;
+  text-align: right;
+  transform: translateY(-50%);
+  font-size: 22px;
+  color: #D9D3D6;
+  line-height: 1;
+
+  // 尺顶/尺底两档贴边，不悬出尺子
+  &.at-top {
+    transform: none;
   }
+
+  &.at-bottom {
+    transform: translateY(-100%);
+  }
+}
+
+.growth-ruler-ticks {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 18px;
+  background: repeating-linear-gradient(
+    to bottom,
+    #F8B8CC 0,
+    #F8B8CC 2px,
+    transparent 2px,
+    transparent 12px
+  );
+}
+
+.growth-ruler-line {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #F8B8CC;
+  border-radius: 1px;
+}
+
+// 数值刻度线：bottom 由 JS 内联注入（恒等于头顶高度），身高变化由刻度尺吸收
+.growth-hero-mark {
+  position: absolute;
+  left: 70px;
+  right: 8px;
+  height: 0;
+  border-top: 2px dashed #FC9DB6;
+}
+
+// 宝宝插画：固定 130×160（宽高由 JS 内联注入）踩尺底，aspectFill 裁两侧装饰边
+.growth-hero-illu {
+  position: absolute;
+  left: 85px;
+  bottom: 0;
+  mix-blend-mode: multiply;
+}
+
+.growth-hero-info {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  min-width: 0;
+}
+
+.growth-hero-label {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2E2D2E;
+}
+
+.growth-hero-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.growth-hero-value {
+  font-size: 64px;
+  font-weight: 700;
+  color: #FF4377;
+  line-height: 1.1;
+}
+
+.growth-hero-unit {
+  font-size: 22px;
+  color: #9C999E;
+}
+
+.growth-hero-date {
+  display: block;
+  margin-top: 12px;
+  font-size: 24px;
+  color: #9C999E;
+}
+
+.growth-hero-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 32px;
+  height: 76px;
+  padding: 0 40px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FC7B9C 0%, #FD5B86 100%);
+  box-shadow: 0 10px 20px rgba(253, 93, 134, 0.3);
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.growth-hero-btn-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.growth-hero-btn-text {
+  font-size: 26px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.growth-hero-last {
+  display: block;
+  margin-top: 20px;
+  font-size: 24px;
+  color: #9C999E;
 }
 
 // 图表卡片右上角：保存/分享按钮
@@ -775,6 +923,132 @@
   font-size: 21px;
   color: #B8B5AC;
   line-height: 1.5;
+}
+
+// 身高/体重页签：趋势图下方的「查看完整明细」入口（浅粉描边胶囊，与页内 CTA 语言一致）
+.growth-detail-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 400px;
+  height: 84px;
+  margin: 32px auto 0;
+  border-radius: 999px;
+  background: #FFF0F4;
+  border: 2px solid #FBD5E0;
+  box-sizing: border-box;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.96);
+    background: #FFE3EC;
+  }
+}
+
+.growth-detail-btn-text {
+  font-size: 28px;
+  font-weight: 600;
+  color: #F56A93;
+  line-height: 1;
+}
+
+.growth-detail-btn-arrow {
+  font-size: 30px;
+  color: #F56A93;
+  line-height: 1;
+}
+
+// 体重仪表盘区：弧带 + 刻度数字 + 指针 + 气泡 + 站秤宝宝（位置由 JS 极坐标注入，pt 口径）
+.growth-gauge-region {
+  position: relative;
+  width: 400px;
+  height: 430px;
+  flex-shrink: 0;
+}
+
+// 弧带容器：正方形盖住整个圆，conic 进度色 + mask 挖成环带
+.growth-gauge-arc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 400px;
+  height: 400px;
+}
+
+.growth-gauge-tick {
+  position: absolute;
+  background: #F5A0B8;
+
+  &.major {
+    width: 4px;
+    height: 20px;
+    border-radius: 2px;
+  }
+
+  &.minor {
+    width: 3px;
+    height: 11px;
+    border-radius: 1px;
+    opacity: 0.8;
+  }
+}
+
+.growth-gauge-num {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  color: #6F6A70;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.growth-gauge-unit {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  color: #9C999E;
+  line-height: 1;
+}
+
+// 指针：小三角（border 绘制），rotate 由 JS 注入，指向弧带；浮在宝宝之上
+.growth-gauge-pointer {
+  position: absolute;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 16px solid #FD4670;
+  filter: drop-shadow(0 2px 4px rgba(253, 70, 112, 0.3));
+}
+
+// 数值气泡：深粉胶囊白字（贴合指针）；浮在宝宝之上
+.growth-gauge-bubble {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  background: #FC4472;
+  border-radius: 999px;
+  padding: 10px 20px;
+  box-shadow: 0 6px 14px rgba(252, 68, 114, 0.3);
+}
+
+.growth-gauge-bubble-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+// 站秤宝宝：固定高度居中踩区域底
+.growth-gauge-baby {
+  position: absolute;
+  left: 180px;
+  z-index: 2;
+  mix-blend-mode: multiply;
+  top: 45px;
 }
 
 // 图表分享海报的离屏画布：负偏移移出屏幕

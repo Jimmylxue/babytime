@@ -222,7 +222,7 @@ export default function BabyEditPage() {
         });
         if (res.confirm) {
           Taro.navigateTo({
-            url: `/pages/record/index?type=feeding&babyId=${baby.id}`,
+            url: `/pages/feeding/index?babyId=${baby.id}`,
           });
         } else {
           safeBack();
