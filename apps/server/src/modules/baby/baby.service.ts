@@ -1,8 +1,12 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, In, DataSource } from 'typeorm';
 import { Baby } from './entities/baby.entity';
 import { FamilyMember, InviteStatus } from '../family/entities/family-member.entity';
+import { FamilyInvite } from '../family/entities/family-invite.entity';
+import { Record } from '../record/entities/record.entity';
+import { Photo } from '../photo/entities/photo.entity';
+import { VaccinePlan } from '../notification/entities/vaccine-plan.entity';
 import { CreateBabyDto, UpdateBabyDto } from './dto/create-baby.dto';
 
 @Injectable()
@@ -12,6 +16,7 @@ export class BabyService {
     private babyRepository: Repository<Baby>,
     @InjectRepository(FamilyMember)
     private familyRepository: Repository<FamilyMember>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async create(userId: string, createBabyDto: CreateBabyDto) {
@@ -123,7 +128,17 @@ export class BabyService {
 
   async remove(id: string, userId: string) {
     const baby = await this.creatorOnlyFindOne(id, userId);
-    await this.babyRepository.remove(baby);
+
+    // records/photos/family_* 的外键是 RESTRICT，须在同一事务内先清子表再删宝宝；
+    // vaccine_plans 虽有 DB 级 CASCADE，也一并显式删除保证幂等
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(Record, { babyId: id });
+      await manager.delete(Photo, { babyId: id });
+      await manager.delete(VaccinePlan, { babyId: id });
+      await manager.delete(FamilyInvite, { babyId: id });
+      await manager.delete(FamilyMember, { babyId: id });
+      await manager.delete(Baby, { id });
+    });
     return { success: true };
   }
 }
