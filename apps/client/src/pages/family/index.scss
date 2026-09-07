@@ -1,161 +1,200 @@
+// 家庭成员页：按 UI 稿 1:1 还原
+// 实测（750 稿）：大标题 44rpx@264、副标题 24rpx@340、首卡 607rpx、头像 120rpx、
+// 退出按钮高 ~96rpx 渐变 #FEA9B4→#FE8F97、页面底 #FEF8F7→#FEFEFE
 .family-page {
   min-height: 100vh;
-  background: #FFFAF9;
-  padding: 24px 24px 140px;
+  background: linear-gradient(180deg, #FEF8F7 0%, #FEFCFC 45%, #FEFEFE 100%);
+  padding: 0 34px 60px;
+  box-sizing: border-box;
 }
 
-// Section card
-.section-card {
-  background: #fff;
-  border-radius: 36px;
-  padding: 32px;
-  margin-bottom: 24px;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
-  animation: fadeUp 0.6s ease;
-}
-
-.section-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: #2D2A2E;
-  display: block;
-  margin-bottom: 16px;
-  margin-top: 0;
-}
-
-.section-desc {
-  font-size: 26px;
-  color: #A8A59E;
-  display: block;
-  margin-bottom: 24px;
-}
-
-// Members list
-.members-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.member-item {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 24px 0;
-  border-bottom: 1px dashed #F0EDE6;
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.member-avatar {
-  width: 88px;
-  height: 88px;
+// 返回按钮：与微信胶囊同带对称，fixed 不随滚动（top/left/宽高由 JS 注入）
+.family-back {
+  position: fixed;
+  z-index: 200;
   border-radius: 50%;
-  background: #F9F9F9;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 4px 14px rgba(215, 143, 162, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
-  flex-shrink: 0;
-  overflow: hidden;
+  transition: transform 0.2s;
 
-  image {
-    width: 88px;
-    height: 88px;
-    object-fit: cover;
+  &:active {
+    transform: scale(0.92);
   }
+}
+
+.family-back-icon {
+  font-size: 40px;
+  font-weight: 700;
+  color: #4A3B3B;
+  line-height: 1;
+  margin-top: -4px;
+}
+
+// 导航行：居中标题（padding-top/height 由 JS 按胶囊注入，条带=胶囊带→标题与胶囊垂直同轴）
+.family-navbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.family-navbar-title {
+  // 与微信默认导航栏标题一致的样式：16pt 常规字重
+  font-size: 28px;
+  font-weight: 400;
+  color: #000000;
+}
+
+// 头部：大标题 + 插画
+.family-hero {
+  position: relative;
+  padding: 40px 0 20px;
+  min-height: 200px;
+}
+
+.family-hero-copy {
+  position: relative;
+  z-index: 1;
+  padding-top: 24px;
+}
+
+.family-hero-title {
+  display: block;
+  font-size: 46px;
+  font-weight: 800;
+  color: #2D2A2E;
+  letter-spacing: 2px;
+}
+
+.family-hero-desc {
+  display: block;
+  margin-top: 18px;
+  font-size: 25px;
+  color: #A79292;
+  letter-spacing: 1px;
+}
+
+.family-hero-illustration {
+  position: absolute;
+  top: -120px;
+  right: -30px;
+  width: 320px;
+  pointer-events: none;
+}
+
+// 成员卡片
+.family-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 30px 30px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 24px rgba(218, 161, 175, 0.07);
+}
+
+.member-card {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+
+.member-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #FDEEF1;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.member-avatar-img {
+  width: 120px;
+  height: 120px;
+}
+
+.member-avatar-icon {
+  width: 56px;
+  height: 56px;
 }
 
 .member-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .member-name {
-  font-size: 30px;
-  font-weight: 600;
+  font-size: 33px;
+  font-weight: 700;
   color: #2D2A2E;
-  display: block;
 }
 
-.member-role-tag {
-  font-size: 24px;
-  color: #FFA5B4;
-  background: #FFF0ED;
-  padding: 4px 16px;
-  border-radius: 12px;
-  font-weight: 600;
-  display: inline-block;
-  margin-top: 8px;
+.member-role-pill {
+  background: #FDE8EE;
+  border-radius: 10px;
+  padding: 5px 18px;
 }
 
-.member-role-owner {
-  font-size: 24px;
-  color: #8BCBFF;
-  background: #EEF4FA;
-  padding: 4px 16px;
-  border-radius: 12px;
-  font-weight: 600;
-  display: inline-block;
-  margin-top: 8px;
-}
-
-.member-delete {
-  padding: 12px 24px;
-  background: #FFF5F5;
-  border-radius: 16px;
-  flex-shrink: 0;
-  transition: background 0.2s;
-
-  &:active {
-    background: #FFE5E5;
-  }
-}
-
-.member-delete-text {
-  font-size: 26px;
-  color: #FF8A8A;
+.member-role-pill-text {
+  font-size: 23px;
+  color: #F0609E;
   font-weight: 600;
 }
 
-// Members empty
+.member-arrow {
+  font-size: 40px;
+  color: #C9C4BE;
+}
+
+// 空状态
 .members-empty {
-  padding: 40px 0;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 50px 30px;
 }
 
 .members-empty-text {
-  font-size: 28px;
-  color: #A8A59E;
-  display: block;
-  margin-bottom: 8px;
+  font-size: 29px;
+  font-weight: 700;
+  color: #3A2E2E;
+  margin-bottom: 12px;
 }
 
 .members-empty-desc {
   font-size: 24px;
-  color: #D1D5DB;
-  display: block;
+  color: #B8A99A;
 }
 
-// Invite code
+// 邀请 / 加入
+.invite-panel {
+  display: flex;
+  flex-direction: column;
+}
+
 .invite-code-box {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #FFFAF9;
-  border: 1px solid #FFC4D0;
+  background: #FEF4F6;
+  border: 1px solid #FFD9E2;
   border-radius: 20px;
-  padding: 24px 28px;
-  margin-bottom: 8px;
+  padding: 22px 26px;
 }
 
 .invite-code-text {
   flex: 1;
-  font-size: 40px;
+  font-size: 34px;
   font-weight: 700;
-  color: #FFA5B4;
-  letter-spacing: 4px;
+  color: #FD7690;
+  letter-spacing: 3px;
 }
 
 .invite-copy-btn {
@@ -163,165 +202,27 @@
   color: #fff;
   padding: 12px 28px;
   border-radius: 16px;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(255, 165, 180, 0.2);
-}
-
-.invite-generate-btn {
-  background: linear-gradient(135deg, #FFA5B4, #FFC4D0);
-  color: #fff;
-  height: 96px;
-  border-radius: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  font-weight: 700;
-  box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
-  transition: transform 0.2s;
-
-  &:active {
-    transform: scale(0.96);
-  }
-}
-
-// Invite input
-.invite-input-row {
-  display: flex;
-  gap: 16px;
-}
-
-.invite-input {
-  flex: 1;
-  height: 96px;
-  background: #F9F9F9;
-  border-radius: 20px;
-  padding: 0 24px;
-  font-size: 28px;
-  color: #2D2A2E;
-  box-sizing: border-box;
-  transition: all 0.3s;
-
-  &:focus {
-    background: #fff;
-    border: 2px solid #FFC4D0;
-    box-shadow: 0 0 0 4px rgba(255, 165, 180, 0.1);
-  }
-}
-
-.invite-join-btn {
-  background: linear-gradient(135deg, #8BCBFF, #B8DFFF);
-  color: #fff;
-  padding: 0 40px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  font-weight: 700;
-  box-shadow: 0 8px 24px rgba(139, 203, 255, 0.3);
-  flex-shrink: 0;
-  transition: transform 0.2s;
-
-  &:active {
-    transform: scale(0.96);
-  }
-}
-
-// Leave family button
-.leave-btn {
-  background: #FFF5F5;
-  height: 96px;
-  border-radius: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-
-  &:active {
-    background: #FFE5E5;
-  }
-}
-
-.leave-btn-text {
-  font-size: 30px;
-  color: #FF8A8A;
-  font-weight: 600;
-}
-
-// Empty state
-.empty-state {
-  background: #fff;
-  border-radius: 36px;
-  padding: 100px 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
-  animation: fadeUp 0.6s ease;
-}
-
-.empty-icon {
-  font-size: 100px;
-  margin-bottom: 32px;
-  animation: float 4s ease-in-out infinite;
-}
-
-.empty-text {
-  font-size: 36px;
-  font-weight: 700;
-  color: #2D2A2E;
-  margin-bottom: 12px;
-}
-
-.empty-desc {
-  font-size: 28px;
-  color: #A8A59E;
-}
-
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-// 邀请卡面板
-.invite-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 .invite-expiry {
-  font-size: 23px;
-  color: #B8B5AC;
-  text-align: center;
+  margin-top: 14px;
+  font-size: 22px;
+  color: #B8A99A;
 }
 
-// 微信分享按钮（重置 Button 默认样式）
 .invite-share-btn {
-  margin: 0;
-  height: 92px;
-  border-radius: 46px;
+  margin: 22px 0 0;
+  height: 88px;
+  border-radius: 44px;
   background: linear-gradient(135deg, #FFA5B4 0%, #FFC4A3 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 10px 22px rgba(255, 165, 180, 0.32);
   border: none;
-  line-height: 92px;
+  line-height: 88px;
 
   &::after {
     border: none;
@@ -329,7 +230,7 @@
 }
 
 .invite-share-btn-text {
-  font-size: 30px;
+  font-size: 29px;
   font-weight: 700;
   color: #FFFFFF;
   letter-spacing: 2px;
@@ -338,10 +239,102 @@
 .invite-regen {
   display: flex;
   justify-content: center;
-  padding: 4px 0 8px;
+  margin-top: 18px;
 }
 
 .invite-regen-text {
-  font-size: 24px;
-  color: #B8B5AC;
+  font-size: 23px;
+  color: #B8A99A;
+}
+
+.invite-generate-btn {
+  background: linear-gradient(135deg, #FFA5B4, #FFC4D0);
+  color: #fff;
+  height: 88px;
+  border-radius: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 29px;
+  font-weight: 700;
+  box-shadow: 0 10px 22px rgba(255, 165, 180, 0.32);
+}
+
+.invite-input-row {
+  display: flex;
+  gap: 16px;
+}
+
+.invite-input {
+  flex: 1;
+  height: 88px;
+  background: #F7F5F4;
+  border-radius: 20px;
+  padding: 0 26px;
+  font-size: 28px;
+  color: #3A2E2E;
+  box-sizing: border-box;
+}
+
+.invite-join-btn {
+  background: linear-gradient(135deg, #FFA5B4, #FFC4D0);
+  color: #fff;
+  padding: 0 40px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+// 卡片内段落标签（与 baby-edit 同语言）
+.edit-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.edit-label-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #FD7690;
+}
+
+.edit-label {
+  font-size: 29px;
+  font-weight: 700;
+  color: #3A2E2E;
+}
+
+// 退出家庭：渐变胶囊
+.leave-family-btn {
+  margin-top: 40px;
+  height: 96px;
+  border-radius: 48px;
+  background: linear-gradient(135deg, #FEABB6 0%, #FE8F97 100%);
+  box-shadow: 0 14px 30px rgba(254, 143, 151, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.leave-family-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.leave-family-text {
+  font-size: 31px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 2px;
 }

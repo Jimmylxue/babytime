@@ -1,59 +1,140 @@
+// 宝贝管理页：按 UI 稿 1:1 还原
+// 暖奶油→粉白渐变背景 + 白色大圆角卡 + 右上小熊插画 + 双栏操作区
 .baby-page {
   min-height: 100vh;
-  background: #FFFAF9;
-  padding: 32px 24px 140px;
+  background: linear-gradient(
+    180deg,
+    #FDF5EA 0%,
+    #FEF7EE 14%,
+    #FEFAF4 24%,
+    #FEFDFB 36%,
+    #FEFEFE 50%,
+    #FEF8F8 78%,
+    #FEF9F8 100%
+  );
+  padding: 0 32px 120px;
+  box-sizing: border-box;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 40px;
-  animation: fadeUp 0.6s ease;
-}
-
-.page-title {
-  font-size: 40px;
-  font-weight: 700;
-  color: #2D2A2E;
-}
-
-.add-btn {
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
-  border-radius: 20px;
+// 返回按钮：裸箭头（UI 稿无圆底），与微信胶囊同带、fixed 不随滚动
+// top/left/width/height 由 JS 按胶囊矩形注入，见 index.tsx
+.baby-back {
+  position: fixed;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(255, 165, 180, 0.3);
+}
+
+.baby-back-icon {
+  width: 18px;
+  height: 32px;
+}
+
+// 导航行：居中标题，与胶囊垂直同轴（padding-top/height 由 JS 注入）
+.baby-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.baby-navbar-title {
+  font-size: 28px;
+  font-weight: 500;
+  color: #1D1D1A;
+}
+
+// 头部：大标题 + 爱心装饰 + 副标题，右侧添加按钮
+// 上边距 = UI 稿中胶囊带下沿到标题字肩的空隙（约 80rpx）
+.baby-header {
+  margin-top: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: fadeUp 0.6s ease;
+}
+
+.baby-header-copy {
+  min-width: 0;
+}
+
+.baby-title-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.baby-title {
+  font-size: 54px;
+  font-weight: 800;
+  color: #2B2B2C;
+  letter-spacing: 2px;
+  line-height: 1.15;
+}
+
+// 标题右上角爱心装饰：描边爱心旋转 + 右下淡粉小爱心
+.baby-title-heart {
+  width: 44px;
+  height: 55px;
+  position: absolute;
+  top: -24px;
+  right: -46px;
+}
+
+.baby-subtitle {
+  display: block;
+  margin-top: 22px;
+  font-size: 26px;
+  color: #A29E9B;
+  letter-spacing: 1px;
+}
+
+// 添加宝贝胶囊按钮
+.add-btn {
+  flex-shrink: 0;
+  margin-left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 72px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FF9A90 0%, #FE7F78 100%);
+  box-shadow: 0 10px 22px rgba(254, 127, 120, 0.3);
   transition: transform 0.2s;
 
   &:active {
-    transform: scale(0.9);
+    transform: scale(0.94);
   }
 }
 
-.add-icon {
-  font-size: 36px;
+.add-plus {
+  width: 24px;
+  height: 24px;
+}
+
+.add-text {
+  font-size: 24px;
+  font-weight: 600;
   color: #fff;
-  font-weight: 700;
 }
 
 // 宝贝列表
 .baby-list {
+  margin-top: 52px;
   display: flex;
   flex-direction: column;
   gap: 24px;
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
+// 宝贝卡片：溢出裁剪让插画贴右缘截断（同 UI 稿）
 .baby-card {
-  background: #fff;
-  border-radius: 36px;
-  padding: 32px;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
+  position: relative;
+  background: #FFFFFF;
+  border-radius: 40px;
+  padding: 56px 32px 32px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(206, 141, 109, 0.06);
   transition: transform 0.2s ease;
 
   &:active {
@@ -61,126 +142,238 @@
   }
 }
 
+// 右上小熊插画：白底 JPG 用 multiply 键控进白卡，贴右缘被卡片圆角截断
+.baby-illu {
+  position: absolute;
+  top: 60px;
+  right: -4px;
+  width: 202px;
+  height: 171px;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 0;
+}
+
+// 插画右缘上下两个浅灰箭头（UI 稿细节）
+.illu-chevron {
+  position: absolute;
+  width: 18px;
+  height: 32px;
+  pointer-events: none;
+  z-index: 0;
+
+  &.illu-chevron-top {
+    top: 66px;
+    right: 40px;
+  }
+
+  &.illu-chevron-bottom {
+    top: 166px;
+    right: 36px;
+  }
+}
+
+// 卡片主体（头像 + 信息）：点击切换当前宝贝
 .baby-main {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: center;
-  margin-bottom: 24px;
+  align-items: flex-start;
+  // 右侧让位给小熊插画，避免长名字压到插画
+  padding-right: 170px;
+  margin-bottom: 62px;
 }
 
 .baby-avatar {
-  width: 100px;
-  height: 100px;
-  border-radius: 32px;
+  position: relative;
+  width: 124px;
+  height: 124px;
+  margin-right: 32px;
+  flex-shrink: 0;
+}
+
+.avatar-clip {
+  width: 100%;
+  height: 100%;
+  border-radius: 38px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
-  margin-right: 24px;
-  overflow: hidden;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+}
 
-  &.male {
+.baby-avatar {
+  &.male .avatar-clip {
     background: #EEF4FA;
   }
 
-  &.female {
+  &.female .avatar-clip {
     background: #FFF0ED;
   }
 }
 
 .avatar-img {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.avatar-baby-icon {
+  width: 64px;
+  height: 64px;
+}
+
+// 头像右上角皇冠徽章：淡黄圆底金皇冠，压在头像右上角
+.avatar-crown {
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  width: 42px;
+  height: 42px;
 }
 
 .baby-detail {
   flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.baby-name-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .baby-name {
   font-size: 36px;
   font-weight: 700;
-  color: #2D2A2E;
-  display: block;
+  color: #2E2D2F;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.baby-tag {
+  flex-shrink: 0;
+  background: #FDEBEE;
+  color: #FB7B7E;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 6px 14px;
+  border-radius: 999px;
 }
 
 .baby-age {
-  font-size: 28px;
-  color: #FFA5B4;
-  font-weight: 600;
-  margin-top: 6px;
   display: block;
+  margin-top: 22px;
+  font-size: 30px;
+  font-weight: 600;
+  color: #F98187;
+  line-height: 1.2;
 }
 
 .baby-birthday {
-  font-size: 24px;
-  color: #A8A59E;
-  margin-top: 4px;
   display: block;
+  margin-top: 12px;
+  font-size: 26px;
+  color: #A6A3A1;
+  line-height: 1.2;
 }
 
-// 操作按钮
+// 双栏操作区：奶油底圆角容器 + 中缝细分割线
 .baby-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
-  gap: 20px;
-  padding-top: 24px;
-  border-top: 1px dashed #F0EDE6;
+  align-items: center;
+  height: 124px;
+  background: #FDFBF8;
+  border-radius: 32px;
 }
 
-.action-btn {
+.action-cell {
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 76px;
-  background: #F9F9F9;
-  border-radius: 16px;
-  transition: background 0.2s;
+  height: 100%;
+  padding-left: 36px;
+  min-width: 0;
+  transition: opacity 0.2s;
 
   &:active {
-    background: #F0F0F0;
-  }
-
-  &.delete {
-    background: #FFF5F5;
-    
-    &:active {
-      background: #FFE5E5;
-    }
+    opacity: 0.65;
   }
 }
 
-.action-icon {
-  font-size: 30px;
-  margin-right: 10px;
+.action-icon-bg {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.pink {
+    background: #FEEAEA;
+  }
+
+  &.periwinkle {
+    background: #E6E7FD;
+  }
 }
 
-.action-text {
+.action-icon-img {
+  width: 32px;
+  height: 32px;
+}
+
+.action-copy {
+  margin-left: 22px;
+  min-width: 0;
+}
+
+.action-title {
+  display: block;
   font-size: 26px;
-  color: #6D6A6E;
-  font-weight: 500;
+  font-weight: 700;
+  color: #2E2D2F;
+  line-height: 1.3;
+}
 
-  .delete & {
-    color: #FF8A8A;
-  }
+.action-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+  color: #ADA9A7;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.action-divider {
+  width: 2px;
+  height: 60px;
+  background: #EDEAE8;
+  flex-shrink: 0;
 }
 
 // 空状态
 .empty-state {
   background: #fff;
-  border-radius: 36px;
+  border-radius: 40px;
   padding: 100px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
+  box-shadow: 0 16px 40px rgba(206, 141, 109, 0.06);
   animation: fadeUp 0.6s ease;
 }
 
-.empty-icon {
-  font-size: 100px;
+.empty-icon-img {
+  width: 110px;
+  height: 110px;
   margin-bottom: 32px;
   animation: float 4s ease-in-out infinite;
 }
@@ -188,23 +381,11 @@
 .empty-text {
   font-size: 36px;
   font-weight: 700;
-  color: #2D2A2E;
+  color: #2E2D2F;
   margin-bottom: 12px;
 }
 
 .empty-desc {
-  font-size: 28px;
-  color: #A8A59E;
-}
-
-// SVG 图标尺寸
-.empty-icon-img {
-  width: 110px;
-  height: 110px;
-  margin-bottom: 32px;
-}
-
-.avatar-baby-icon {
-  width: 52px;
-  height: 52px;
+  font-size: 26px;
+  color: #A6A3A1;
 }

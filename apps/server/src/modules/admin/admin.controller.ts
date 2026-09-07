@@ -106,6 +106,26 @@ export class AdminController {
   }
 
   @UseGuards(AdminJwtGuard)
+  @Get('babies/:id/photos')
+  async getBabyPhotos(
+    @Request() req,
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    // 经 nginx 反代时 req.ip 是回环地址，优先取转发链里的真实来源 IP
+    const forwarded = (req.headers?.['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
+    const data = await this.adminBabyService.getBabyPhotos(
+      id,
+      Number(page) || 1,
+      Number(pageSize) || 24,
+      req.user?.username || 'admin',
+      forwarded || req.ip || null,
+    );
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
   @Get('users')
   async getUsers(
     @Query('page') page?: string,

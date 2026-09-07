@@ -6,6 +6,67 @@ import { DataSource } from 'typeorm';
 export class AdminBabyService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
+  // 按宝宝查看照片（隐私分级：仅限按 ID 精确查询，且每次查看落审计日志）
+  async getBabyPhotos(
+    babyId: string,
+    page: number,
+    pageSize: number,
+    adminUsername: string,
+    clientIp: string | null,
+  ) {
+    const [baby] = await this.dataSource.query(`SELECT id, name FROM babies WHERE id = ?`, [
+      babyId,
+    ]);
+    if (!baby) {
+      throw new NotFoundException('宝宝不存在');
+    }
+
+    const safePage = Math.max(Math.floor(page) || 1, 1);
+    const safePageSize = Math.min(Math.max(Math.floor(pageSize) || 24, 1), 100);
+    const offset = (safePage - 1) * safePageSize;
+
+    const [countRow] = await this.dataSource.query(
+      `SELECT COUNT(*) AS total FROM photos WHERE baby_id = ?`,
+      [babyId],
+    );
+    const rows = await this.dataSource.query(
+      `SELECT id, url, thumbnail, photo_date AS photoDate, created_at AS createdAt
+       FROM photos WHERE baby_id = ?
+       ORDER BY photo_date DESC, created_at DESC
+       LIMIT ? OFFSET ?`,
+      [babyId, safePageSize, offset],
+    );
+    const total = Number(countRow.total);
+
+    // 只记「看了哪个宝宝、翻到第几页」，照片内容本身不落库
+    await this.dataSource.query(
+      `INSERT INTO admin_audit_logs
+        (id, admin_username, action, target_type, target_id, detail, client_ip, created_at)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        adminUsername,
+        'view_baby_photos',
+        'baby',
+        babyId,
+        JSON.stringify({ babyName: baby.name, page: safePage, pageSize: safePageSize, total }),
+        clientIp,
+      ],
+    );
+
+    return {
+      list: rows.map((row) => ({
+        id: row.id,
+        url: row.url,
+        thumbnail: row.thumbnail,
+        photoDate: row.photoDate,
+        createdAt: row.createdAt,
+      })),
+      total,
+      page: safePage,
+      pageSize: safePageSize,
+    };
+  }
+
   async getBabies(page: number, pageSize: number, keyword?: string, sort = 'active') {
     const safePage = Math.max(Math.floor(page) || 1, 1);
     const safePageSize = Math.min(Math.max(Math.floor(pageSize) || 20, 1), 100);

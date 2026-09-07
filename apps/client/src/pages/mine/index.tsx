@@ -5,17 +5,21 @@ import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { userApi, notificationApi, trackEvent } from '../../utils/request'
 import { chooseAndUploadImage } from '../../utils/upload'
-import babyIcon from '../../assets/icons/baby.svg'
-import familyIcon from '../../assets/icons/family.svg'
-import agreementIcon from '../../assets/icons/agreement.svg'
-import privacyIcon from '../../assets/icons/privacy.svg'
-import feedbackIcon from '../../assets/icons/feedback.svg'
-import serviceIcon from '../../assets/icons/service.svg'
+import babySmileIcon from '../../assets/icons/baby-smile.svg'
+import familyFilledIcon from '../../assets/icons/family-filled.svg'
+import agreementFilledIcon from '../../assets/icons/agreement-filled.svg'
+import privacyFilledIcon from '../../assets/icons/privacy-filled.svg'
+import feedbackFilledIcon from '../../assets/icons/feedback-filled.svg'
+import headsetPurpleIcon from '../../assets/icons/headset-purple.svg'
+import logoutCoralIcon from '../../assets/icons/logout-coral.svg'
+import heartPinkIcon from '../../assets/icons/heart-pink.svg'
+import gridBlueIcon from '../../assets/icons/grid-blue.svg'
 import cloudIcon from '../../assets/icons/cloud.svg'
 import trendingUpIcon from '../../assets/icons/trending-up.svg'
+import familyIcon from '../../assets/icons/family.svg'
 import bellIcon from '../../assets/icons/bell.svg'
-import logoutIcon from '../../assets/icons/logout.svg'
 import parentIcon from '../../assets/icons/parent.svg'
+import minePig from '../../assets/mine-pig.jpg'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -156,17 +160,19 @@ export default function MinePage() {
 	if (!isLoggedIn) {
 		return (
 			<View className="mine-page">
-				{/* 未登录：Hero 引导卡 */}
-				<View className="mine-hero">
-					<View className="mine-deco mine-deco-a" />
-					<View className="mine-deco mine-deco-b" />
-					<View className="mine-user" onClick={goLogin}>
-						<View className="mine-avatar">
-							<Image className="mine-avatar-icon" src={parentIcon} />
+				{/* 未登录：引导卡（同款资料卡皮肤 + 卖点 + 登录按钮） */}
+				<View className="profile-card guest">
+					<Image className="profile-pig" src={minePig} mode="aspectFit" />
+					<View className="profile-user" onClick={goLogin}>
+						<View className="profile-avatar">
+							<Image className="profile-avatar-icon" src={parentIcon} />
 						</View>
-						<View className="mine-info">
-							<Text className="mine-name">未登录</Text>
-							<Text className="mine-edit-tip">登录后开启记录之旅 ›</Text>
+						<View className="profile-info">
+							<Text className="profile-name">未登录</Text>
+							<View className="profile-sub-row">
+								<Text className="profile-sub">登录后开启记录之旅</Text>
+								<Text className="profile-sub-arrow">›</Text>
+							</View>
 						</View>
 					</View>
 
@@ -203,39 +209,42 @@ export default function MinePage() {
 
 	return (
 		<View className="mine-page">
-			{/* 个人信息头部 - 点击打开编辑 */}
-			<View className="mine-hero">
-				<View className="mine-deco mine-deco-a" />
-				<View className="mine-deco mine-deco-b" />
-				<View className="mine-user" onClick={handleOpenEdit}>
-					<View className="mine-avatar">
+			{/* 资料卡：点击打开编辑，右侧小猪插画纯装饰 */}
+			<View className="profile-card" onClick={handleOpenEdit}>
+				<Image className="profile-pig" src={minePig} mode="aspectFit" />
+				<View className="profile-user">
+					<View className="profile-avatar">
 						{userInfo?.avatar ? (
 							<Image
-								className="mine-avatar-img"
+								className="profile-avatar-img"
 								src={userInfo.avatar}
 								mode="aspectFill"
 							/>
 						) : (
-							<Image className="mine-avatar-icon" src={parentIcon} />
+							<Image className="profile-avatar-icon" src={parentIcon} />
 						)}
 					</View>
-					<View className="mine-info">
-						<Text className="mine-name">
-							{userInfo?.nickname || '点击设置昵称'}
-						</Text>
-						<View className="mine-meta">
+					<View className="profile-info">
+						<View className="profile-name-row">
+							<Text className="profile-name">
+								{userInfo?.nickname || '点击设置昵称'}
+							</Text>
 							{userInfo?.role && (
-								<Text className="mine-role">{getRoleText(userInfo.role)}</Text>
+								<Text className="profile-role">{getRoleText(userInfo.role)}</Text>
 							)}
-							<Text className="mine-edit-tip">编辑资料 ›</Text>
+						</View>
+						<View className="profile-sub-row">
+							<Text className="profile-sub">记录宝宝成长的每一个珍贵瞬间</Text>
+							<Text className="profile-sub-arrow">›</Text>
 						</View>
 					</View>
 				</View>
 			</View>
 
 			{/* 宝贝与家庭 */}
-			<View className="mine-section-label">
-				<Text>宝贝与家庭</Text>
+			<View className="section-label">
+				<Image className="section-label-icon" src={heartPinkIcon} />
+				<Text className="section-label-text">宝贝与家庭</Text>
 			</View>
 			<View className="mine-card">
 				<View
@@ -243,9 +252,12 @@ export default function MinePage() {
 					onClick={() => Taro.navigateTo({ url: '/pages/baby/index' })}
 				>
 					<View className="mi-icon mi-icon-1">
-						<Image className="mi-icon-img" src={babyIcon} />
+						<Image className="mi-icon-img" src={babySmileIcon} />
 					</View>
-					<Text className="mi-text">宝贝信息</Text>
+					<View className="mi-copy">
+						<Text className="mi-title">宝贝信息</Text>
+						<Text className="mi-sub">记录宝宝的成长信息</Text>
+					</View>
 					<View className="mi-right">
 						{currentBaby && (
 							<Text className="mi-badge">{currentBaby.name}</Text>
@@ -258,9 +270,12 @@ export default function MinePage() {
 					onClick={() => Taro.navigateTo({ url: '/pages/family/index' })}
 				>
 					<View className="mi-icon mi-icon-2">
-						<Image className="mi-icon-img" src={familyIcon} />
+						<Image className="mi-icon-img" src={familyFilledIcon} />
 					</View>
-					<Text className="mi-text">家庭成员</Text>
+					<View className="mi-copy">
+						<Text className="mi-title">家庭成员</Text>
+						<Text className="mi-sub">管理家庭成员信息</Text>
+					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>
 					</View>
@@ -270,15 +285,18 @@ export default function MinePage() {
 			{/* 提醒 */}
 			{reviewTemplateId ? (
 				<>
-					<View className="mine-section-label">
-						<Text>提醒</Text>
+					<View className="section-label">
+						<Image className="section-label-icon" src={bellIcon} />
+						<Text className="section-label-text">提醒</Text>
 					</View>
 					<View className="mine-card">
 						<View className="mine-item" onClick={handleReviewSubscribe}>
 							<View className="mi-icon mi-icon-7">
 								<Image className="mi-icon-img" src={bellIcon} />
 							</View>
-							<Text className="mi-text">晚间回顾提醒</Text>
+							<View className="mi-copy">
+								<Text className="mi-title">晚间回顾提醒</Text>
+							</View>
 							<View className="mi-right">
 								<Text className="mi-badge">
 									{reviewSubscribed ? '已开启' : '开启提醒'}
@@ -290,8 +308,9 @@ export default function MinePage() {
 			) : null}
 
 			{/* 通用 */}
-			<View className="mine-section-label">
-				<Text>通用</Text>
+			<View className="section-label">
+				<Image className="section-label-icon" src={gridBlueIcon} />
+				<Text className="section-label-text">通用</Text>
 			</View>
 			<View className="mine-card">
 				<View
@@ -299,9 +318,12 @@ export default function MinePage() {
 					onClick={() => Taro.navigateTo({ url: '/pages/agreement/index' })}
 				>
 					<View className="mi-icon mi-icon-3">
-						<Image className="mi-icon-img" src={agreementIcon} />
+						<Image className="mi-icon-img" src={agreementFilledIcon} />
 					</View>
-					<Text className="mi-text">用户协议</Text>
+					<View className="mi-copy">
+						<Text className="mi-title">用户协议</Text>
+						<Text className="mi-sub">查看用户协议内容</Text>
+					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>
 					</View>
@@ -311,9 +333,12 @@ export default function MinePage() {
 					onClick={() => Taro.navigateTo({ url: '/pages/privacy/index' })}
 				>
 					<View className="mi-icon mi-icon-4">
-						<Image className="mi-icon-img" src={privacyIcon} />
+						<Image className="mi-icon-img" src={privacyFilledIcon} />
 					</View>
-					<Text className="mi-text">隐私政策</Text>
+					<View className="mi-copy">
+						<Text className="mi-title">隐私政策</Text>
+						<Text className="mi-sub">了解隐私政策说明</Text>
+					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>
 					</View>
@@ -321,8 +346,9 @@ export default function MinePage() {
 			</View>
 
 			{/* 帮助与反馈 */}
-			<View className="mine-section-label">
-				<Text>帮助与反馈</Text>
+			<View className="section-label">
+				<Image className="section-label-icon" src={headsetPurpleIcon} />
+				<Text className="section-label-text">帮助与反馈</Text>
 			</View>
 			<View className="mine-card">
 				<Button
@@ -331,9 +357,12 @@ export default function MinePage() {
 					openType="feedback"
 				>
 					<View className="mi-icon mi-icon-5">
-						<Image className="mi-icon-img" src={feedbackIcon} />
+						<Image className="mi-icon-img" src={feedbackFilledIcon} />
 					</View>
-					<Text className="mi-text">意见反馈</Text>
+					<View className="mi-copy">
+						<Text className="mi-title">意见反馈</Text>
+						<Text className="mi-sub">提出建议与意见</Text>
+					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>
 					</View>
@@ -344,9 +373,12 @@ export default function MinePage() {
 					openType="contact"
 				>
 					<View className="mi-icon mi-icon-6">
-						<Image className="mi-icon-img" src={serviceIcon} />
+						<Image className="mi-icon-img" src={headsetPurpleIcon} />
 					</View>
-					<Text className="mi-text">联系客服</Text>
+					<View className="mi-copy">
+						<Text className="mi-title">联系客服</Text>
+						<Text className="mi-sub">获取帮助与支持</Text>
+					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>
 					</View>
@@ -354,12 +386,14 @@ export default function MinePage() {
 			</View>
 
 			{/* 退出登录 */}
-			<View className="mine-card">
-				<View className="mine-item" onClick={handleLogout}>
+			<View className="mine-card logout-card">
+				<View className="mine-item logout-item" onClick={handleLogout}>
 					<View className="mi-icon mi-icon-danger">
-						<Image className="mi-icon-img" src={logoutIcon} />
+						<Image className="mi-icon-img" src={logoutCoralIcon} />
 					</View>
-					<Text className="mi-text mi-text-danger">退出登录</Text>
+					<View className="mi-copy">
+						<Text className="mi-title mi-title-danger">退出登录</Text>
+					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>
 					</View>

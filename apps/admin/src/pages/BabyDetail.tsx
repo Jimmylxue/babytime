@@ -5,6 +5,8 @@ import {
 	Col,
 	Descriptions,
 	Empty,
+	Image,
+	Pagination,
 	Row,
 	Spin,
 	Tag,
@@ -17,7 +19,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { apiGet } from '../api/client';
 import { GENDER_LABELS, RECORD_TYPE_LABELS, formatAge } from '../constants';
-import type { BabyDetail as BabyDetailData } from '../types';
+import type { AdminBabyPhoto, BabyDetail as BabyDetailData, BabyPhotoListResult } from '../types';
+
+const PHOTO_PAGE_SIZE = 24;
 
 const ROLE_LABELS: Record<string, string> = {
 	father: '爸爸',
@@ -53,6 +57,10 @@ export default function BabyDetailPage() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 	const [data, setData] = useState<BabyDetailData>();
+	const [photos, setPhotos] = useState<AdminBabyPhoto[]>([]);
+	const [photoTotal, setPhotoTotal] = useState(0);
+	const [photoPage, setPhotoPage] = useState(1);
+	const [photosLoading, setPhotosLoading] = useState(false);
 
 	const load = useCallback(async () => {
 		if (!id) return;
@@ -60,9 +68,29 @@ export default function BabyDetailPage() {
 		setData(result);
 	}, [id]);
 
+	const loadPhotos = useCallback(
+		async (page: number) => {
+			if (!id) return;
+			setPhotosLoading(true);
+			try {
+				const result = await apiGet<BabyPhotoListResult>(`/babies/${id}/photos`, {
+					page,
+					pageSize: PHOTO_PAGE_SIZE,
+				});
+				setPhotos(result.list);
+				setPhotoTotal(result.total);
+				setPhotoPage(result.page);
+			} finally {
+				setPhotosLoading(false);
+			}
+		},
+		[id],
+	);
+
 	useEffect(() => {
 		load();
-	}, [load]);
+		loadPhotos(1);
+	}, [load, loadPhotos]);
 
 	if (!data) {
 		return (
@@ -215,6 +243,62 @@ export default function BabyDetailPage() {
 					</Card>
 				</Col>
 			</Row>
+
+			<Card
+				title={`照片（${data.stats.photoCount}）`}
+				className="chart-card"
+				style={{ marginTop: 16 }}
+				extra={
+					<Typography.Text type="secondary" style={{ fontSize: 12 }}>
+						仅限按宝宝 ID 排障查看 · 每次查看已记录审计日志
+					</Typography.Text>
+				}
+				loading={photosLoading && photos.length === 0}
+			>
+				{photos.length === 0 ? (
+					<Empty description="暂无照片" />
+				) : (
+					<>
+						<Image.PreviewGroup>
+							<div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+								{photos.map((photo) => (
+									<div key={photo.id} style={{ width: 108 }}>
+										<Image
+											src={photo.thumbnail || photo.url}
+											preview={{ src: photo.url }}
+											width={108}
+											height={108}
+											style={{ objectFit: 'cover', borderRadius: 6 }}
+										/>
+										<div
+											style={{
+												marginTop: 4,
+												fontSize: 11,
+												color: '#999',
+												textAlign: 'center',
+												whiteSpace: 'nowrap',
+											}}
+										>
+											{photo.photoDate ? dayjs(photo.photoDate).format('YYYY-MM-DD') : '-'}
+										</div>
+									</div>
+								))}
+							</div>
+						</Image.PreviewGroup>
+						{photoTotal > PHOTO_PAGE_SIZE && (
+							<div style={{ marginTop: 16, textAlign: 'right' }}>
+								<Pagination
+									size="small"
+									current={photoPage}
+									pageSize={PHOTO_PAGE_SIZE}
+									total={photoTotal}
+									onChange={(page) => loadPhotos(page)}
+								/>
+							</div>
+						)}
+					</>
+				)}
+			</Card>
 		</div>
 	);
 }

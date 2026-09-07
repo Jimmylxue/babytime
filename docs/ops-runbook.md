@@ -108,6 +108,9 @@ bash server.sh
 
 排查口诀：线上报 `table doesn't exist` = 加了实体忘了建表；本地正常线上报错先想表结构差异。
 
+已执行记录：
+- 2026-09-07 新增 `admin_audit_logs`（后台按宝宝查看照片的审计日志），SQL 见 [admin-audit-logs.sql](admin-audit-logs.sql)，部署前先建表再发版。
+
 ## 六、维护节奏
 
 | 频率 | 动作 |

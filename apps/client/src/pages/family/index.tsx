@@ -4,10 +4,14 @@ import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { familyApi } from '../../utils/request'
+import familyIllustration from '../../assets/family-illustration.jpg'
+import personPinkIcon from '../../assets/icons/person-pink.svg'
+import logoutWhiteIcon from '../../assets/icons/logout-white.svg'
 import './index.scss'
 
 definePageConfig({
-  navigationBarTitleText: '家庭成员',
+  navigationStyle: 'custom',
+  backgroundColor: '#FEF8F7',
 })
 
 interface Member {
@@ -48,6 +52,34 @@ export default function FamilyPage() {
   // Invite & Join state
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null)
   const [inputInviteCode, setInputInviteCode] = useState('')
+
+  // 自定义导航：返回按钮与微信胶囊同带对称
+  const [menuBand] = useState(() => {
+    let top = (Taro.getSystemInfoSync().statusBarHeight || 20) + 4
+    let height = 32
+    let leftInset = 10
+    try {
+      const menu = Taro.getMenuButtonBoundingClientRect()
+      if (menu && menu.height) {
+        const si = Taro.getSystemInfoSync()
+        top = menu.top
+        height = menu.height
+        leftInset = Math.max(6, si.windowWidth - menu.right)
+      }
+    } catch (error) {
+      // 取不到胶囊信息时用默认值
+    }
+    return { top, height, leftInset }
+  })
+
+  const handleBack = () => {
+    const pages = Taro.getCurrentPages()
+    if (pages.length > 1) {
+      Taro.navigateBack();
+    } else {
+      Taro.switchTab({ url: '/pages/mine/index' });
+    }
+  }
 
   useDidShow(() => {
     init()
@@ -121,6 +153,13 @@ export default function FamilyPage() {
     }
   }
 
+  const handleMemberTap = (member: Member) => {
+    // 创建者点其他成员卡片：移除确认（对应 UI 的 ›）
+    if (isOwner && member.userId !== userInfo?.id) {
+      handleDeleteMember(member)
+    }
+  }
+
   const handleCopyInviteCode = () => {
     if (!inviteInfo) return
     Taro.setClipboardData({
@@ -185,45 +224,87 @@ export default function FamilyPage() {
 
   return (
     <View className="family-page">
-      {/* Family members */}
-      <View className="section-card">
-        <Text className="section-title">家庭成员</Text>
-        {members.length === 0 ? (
-          <View className="members-empty">
-            <Text className="members-empty-text">暂无其他成员</Text>
-            <Text className="members-empty-desc">分享邀请卡给家人，共同记录宝宝成长</Text>
-          </View>
-        ) : (
-          <View className="members-list">
-            {members.map(member => (
-              <View key={member.id} className="member-item">
-                <View className="member-avatar">
-                  {member.user?.avatar ? (
-                    <Image src={member.user.avatar} mode="aspectFill" />
-                  ) : (
-                    <Text>👤</Text>
-                  )}
-                </View>
-                <View className="member-info">
-                  <Text className="member-name">{member.user?.nickname || '未知用户'}</Text>
-                  <Text className="member-role-tag">{getRoleText(member.user?.role || member.role)}</Text>
-                </View>
-                {isOwner && member.userId !== userInfo?.id && (
-                  <View className="member-delete" onClick={() => handleDeleteMember(member)}>
-                    <Text className="member-delete-text">移除</Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
+      {/* 返回按钮：与微信胶囊同带对称、fixed 不随滚动 */}
+      <View
+        className="family-back"
+        style={{
+          top: `${menuBand.top}px`,
+          left: `${menuBand.leftInset}px`,
+          width: `${menuBand.height}px`,
+          height: `${menuBand.height}px`,
+        }}
+        onClick={handleBack}
+      >
+        <Text className="family-back-icon">‹</Text>
       </View>
 
-      {/* Invite family - only for owner */}
+      {/* 导航行：居中标题（高度=胶囊高度，与胶囊垂直居中） */}
+      <View
+        className="family-navbar"
+        style={{
+          paddingTop: `${menuBand.top}px`,
+          height: `${menuBand.height}px`,
+          marginBottom: '14px',
+        }}
+      >
+        <Text className="family-navbar-title">家庭成员</Text>
+      </View>
+
+      {/* 头部：大标题 + 副标题 + 插画 */}
+      <View className="family-hero">
+        <View className="family-hero-copy">
+          <Text className="family-hero-title">家庭成员</Text>
+          <Text className="family-hero-desc">管理家庭成员，守护家人健康</Text>
+        </View>
+        <Image
+          className="family-hero-illustration"
+          src={familyIllustration}
+          mode="aspectFit"
+        />
+      </View>
+
+      {/* 成员列表 */}
+      {members.length === 0 ? (
+        <View className="family-card members-empty">
+          <Text className="members-empty-text">暂无其他成员</Text>
+          <Text className="members-empty-desc">分享邀请卡给家人，共同记录宝宝成长</Text>
+        </View>
+      ) : (
+        <View className="family-members">
+          {members.map(member => (
+            <View
+              key={member.id}
+              className="family-card member-card"
+              onClick={() => handleMemberTap(member)}
+            >
+              <View className="member-avatar">
+                {member.user?.avatar ? (
+                  <Image className="member-avatar-img" src={member.user.avatar} mode="aspectFill" />
+                ) : (
+                  <Image className="member-avatar-icon" src={personPinkIcon} />
+                )}
+              </View>
+              <View className="member-info">
+                <Text className="member-name">{member.user?.nickname || '未知用户'}</Text>
+                <View className="member-role-pill">
+                  <Text className="member-role-pill-text">
+                    {getRoleText(member.user?.role || member.role)}
+                  </Text>
+                </View>
+              </View>
+              <Text className="member-arrow">›</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* 邀请家人 - only for owner */}
       {isOwner && (
-        <View className="section-card">
-          <Text className="section-title">邀请家人</Text>
-          <Text className="section-desc">家人点开邀请卡即可加入，无需输入邀请码</Text>
+        <View className="family-card invite-card">
+          <View className="edit-label-row">
+            <View className="edit-label-dot" />
+            <Text className="edit-label">邀请家人</Text>
+          </View>
           {inviteInfo ? (
             <View className="invite-panel">
               <View className="invite-code-box">
@@ -232,7 +313,9 @@ export default function FamilyPage() {
                   <Text>复制</Text>
                 </View>
               </View>
-              <Text className="invite-expiry">有效期至 {formatExpiry(inviteInfo.expiresAt)}，卡片可分享给多位家人</Text>
+              <Text className="invite-expiry">
+                有效期至 {formatExpiry(inviteInfo.expiresAt)}，卡片可分享给多位家人
+              </Text>
               <Button className="invite-share-btn" openType="share">
                 <Text className="invite-share-btn-text">微信分享邀请卡</Text>
               </Button>
@@ -250,9 +333,11 @@ export default function FamilyPage() {
 
       {/* Join family - hidden if already bound */}
       {!isBound && (
-        <View className="section-card">
-          <Text className="section-title">输入邀请码加入</Text>
-          <Text className="section-desc">如果家人发给你的是邀请码，在这里输入加入</Text>
+        <View className="family-card invite-card">
+          <View className="edit-label-row">
+            <View className="edit-label-dot" />
+            <Text className="edit-label">输入邀请码加入</Text>
+          </View>
           <View className="invite-input-row">
             <Input
               className="invite-input"
@@ -268,12 +353,11 @@ export default function FamilyPage() {
         </View>
       )}
 
-      {/* Leave family - only for members */}
+      {/* 退出家庭 - only for members */}
       {!isOwner && isBound && (
-        <View className="section-card">
-          <View className="leave-btn" onClick={handleLeaveFamily}>
-            <Text className="leave-btn-text">退出家庭</Text>
-          </View>
+        <View className="leave-family-btn" onClick={handleLeaveFamily}>
+          <Image className="leave-family-icon" src={logoutWhiteIcon} />
+          <Text className="leave-family-text">退出家庭</Text>
         </View>
       )}
     </View>

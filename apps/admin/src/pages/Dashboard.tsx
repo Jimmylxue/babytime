@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Card, Col, Row, Segmented, Statistic, Spin, Typography } from 'antd';
 import {
+	BellOutlined,
 	CameraOutlined,
 	FileTextOutlined,
 	RobotOutlined,
@@ -184,6 +185,19 @@ export default function Dashboard() {
 				</Col>
 				<Col xs={24} sm={12} lg={6}>
 					<KpiCard title="今日新增宝宝" value={overview?.todayBabies ?? 0} sub="今日新建的宝宝档案" icon={<RiseOutlined />} tone="indigo" />
+				</Col>
+				<Col xs={24} sm={12} lg={6}>
+					<KpiCard
+						title="疫苗提醒订阅"
+						value={overview?.vaccineSubscribedUsers ?? 0}
+						sub={
+							overview && !overview.vaccineConfigured
+								? '未配置订阅消息模板'
+								: `累计授权用户 · 当前可发送 ${overview?.vaccineAvailableUsers ?? 0} 人`
+						}
+						icon={<BellOutlined />}
+						tone="purple"
+					/>
 				</Col>
 			</Row>
 

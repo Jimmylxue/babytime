@@ -13,6 +13,8 @@ export class AdminStatsService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
   async getOverview() {
+    // 疫苗订阅模板未配置时，模板 ID 用空串匹配不到任何行，统计自然为 0。
+    const vaccineTemplateId = process.env.WECHAT_SUBSCRIBE_VACCINE_TEMPLATE_ID || '';
     const [row] = await this.dataSource.query(
       `SELECT
         (SELECT COUNT(*) FROM users) AS totalUsers,
@@ -27,8 +29,11 @@ export class AdminStatsService {
         (SELECT COUNT(*) FROM records WHERE diaper_analysis IS NOT NULL AND DATE(created_at) = CURDATE()) AS aiAnalysisToday,
         (SELECT COUNT(*) FROM photos) AS totalPhotos,
         (SELECT COUNT(*) FROM family_members WHERE status = 'accepted') AS familyMembers,
-        (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS weekNewUsers
+        (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS weekNewUsers,
+        (SELECT COUNT(DISTINCT user_id) FROM subscription_grants WHERE template_id = ? AND accepted_count > 0) AS vaccineSubscribedUsers,
+        (SELECT COUNT(DISTINCT user_id) FROM subscription_grants WHERE template_id = ? AND available_count > 0) AS vaccineAvailableUsers
       `,
+      [vaccineTemplateId, vaccineTemplateId],
     );
 
     return {
@@ -45,6 +50,10 @@ export class AdminStatsService {
       aiAnalysisToday: Number(row.aiAnalysisToday),
       totalPhotos: Number(row.totalPhotos),
       familyMembers: Number(row.familyMembers),
+      // 订阅过疫苗提醒的人数（累计授权 ≥1 次的去重用户）与当前仍有可发送额度的用户数
+      vaccineSubscribedUsers: Number(row.vaccineSubscribedUsers),
+      vaccineAvailableUsers: Number(row.vaccineAvailableUsers),
+      vaccineConfigured: Boolean(vaccineTemplateId),
     };
   }
 

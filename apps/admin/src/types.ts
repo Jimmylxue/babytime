@@ -13,6 +13,9 @@ export interface Overview {
 	aiAnalysisToday: number;
 	totalPhotos: number;
 	familyMembers: number;
+	vaccineSubscribedUsers: number;
+	vaccineAvailableUsers: number;
+	vaccineConfigured: boolean;
 }
 
 export interface TrendPoint {
@@ -174,6 +177,22 @@ export interface BabyDetail {
 	familyMembers: FamilyMemberInfo[];
 	recentRecords: RecentRecord[];
 	aiAnalyses: AiAnalysisRecord[];
+}
+
+// 宝宝详情 · 照片（按 ID 排障查看，服务端落审计日志）
+export interface AdminBabyPhoto {
+	id: string;
+	url: string;
+	thumbnail: string | null;
+	photoDate: string;
+	createdAt: string;
+}
+
+export interface BabyPhotoListResult {
+	list: AdminBabyPhoto[];
+	total: number;
+	page: number;
+	pageSize: number;
 }
 
 // 漏斗与留存
