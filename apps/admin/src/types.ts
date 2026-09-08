@@ -79,6 +79,30 @@ export interface AlbumMetrics {
 	uploadSuccessRate: number;
 }
 
+// 小应用（应用 tab）使用情况
+export interface ToolsAppMetrics {
+	key: string;
+	label: string;
+	clicks7: number;
+	clickUsers7: number;
+	opens7: number;
+	openUsers7: number;
+	users30: number;
+	openRate: number;
+}
+
+export interface ToolsMetrics {
+	hubViews7: number;
+	hubUsers7: number;
+	toolUsers7: number;
+	activeUsers7: number;
+	usageRate: number;
+	stoolAnalyzes7: number;
+	stoolUsers7: number;
+	apps: ToolsAppMetrics[];
+	daily14: { date: string; hubViews: number; opens: number }[];
+}
+
 // 用户列表
 export interface AdminUser {
 	id: string;

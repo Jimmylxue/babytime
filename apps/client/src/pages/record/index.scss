@@ -1,44 +1,341 @@
 .record-page {
   min-height: 100vh;
-  background: #FFFAF9;
-  padding: 32px;
+  background: #FEFAFA;
+  // 底部留出固定保存按钮的空间（按钮高 100px + 底距 24px + 间隙）
+  padding: 24px 32px calc(150px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
-.record-header {
+.record-hero {
   display: flex;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   animation: fadeUp 0.6s ease;
 }
 
-.record-icon {
-  font-size: 56px;
+.record-hero-illu {
+  width: 110px;
+  height: 121px;
+  flex-shrink: 0;
   margin-right: 20px;
-  animation: float 4s ease-in-out infinite;
 }
 
-.record-title {
-  font-size: 40px;
-  font-weight: 700;
-  color: #2D2A2E;
+.record-hero-emoji {
+  width: 110px;
+  height: 110px;
+  flex-shrink: 0;
+  margin-right: 20px;
+  border-radius: 32px;
+  background: #FDEBEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
 }
 
-.timeline-link {
-  margin-left: auto;
-  padding: 12px 16px;
-  color: #d85b75;
+.record-hero-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.record-hero-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.record-hero-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #2E2D2E;
+  line-height: 1.15;
+}
+
+.record-hero-sparkle {
+  width: 34px;
+  height: 34px;
+  margin-top: -6px;
+}
+
+.record-hero-sub {
+  display: block;
+  margin-top: 12px;
+  font-size: 24px;
+  color: #85828A;
+}
+
+.record-history-pill {
+  flex-shrink: 0;
+  margin-left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 64px;
+  padding: 0 24px;
+  background: #FFFFFF;
+  border: 2px solid #F9C3CE;
+  border-radius: 999px;
+}
+
+.record-pill-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.record-pill-text {
   font-size: 22px;
+  font-weight: 600;
+  color: #F56A6A;
   white-space: nowrap;
 }
 
-.record-form {
-  background: #fff;
-  border-radius: 36px;
-  padding: 40px 32px;
-  margin-bottom: 48px;
-  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
-  border: 1px solid #F0EDE6;
-  animation: fadeUp 0.6s ease 0.1s both;
+.record-card {
+  background: #FEFDFE;
+  border-radius: 40px;
+  padding: 14px 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 24px rgba(214, 168, 158, 0.05);
+  animation: fadeUp 0.6s ease 0.08s both;
+}
+
+.record-card-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 0 8px;
+}
+
+.record-card-label {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2E2D2E;
+}
+
+.record-card-info {
+  width: 34px;
+  height: 34px;
+}
+
+.record-card-label-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.record-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 108px;
+
+  & + .record-row::before,
+  .record-row + Picker .record-row::before {
+    content: '';
+  }
+}
+
+Picker + Picker .record-row::before,
+.record-row-notuse {
+  display: none;
+}
+
+Picker {
+  display: block;
+}
+
+Picker + Picker::before {
+  content: '';
+  position: absolute;
+  left: 32px;
+  right: 0;
+  height: 1px;
+  background: #F5F2F0;
+}
+
+.record-row-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #FDEBEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.record-row-icon-img {
+  width: 32px;
+  height: 32px;
+}
+
+.record-row-label {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2E2D2E;
+  margin-left: 24px;
+}
+
+.record-row-value {
+  margin-left: auto;
+  font-size: 28px;
+  color: #2E2D2E;
+}
+
+.record-row-arrow {
+  margin-left: 16px;
+  font-size: 30px;
+  color: #C6C3C9;
+  line-height: 1;
+}
+
+// 尿布状态三选卡
+.diaper-grid {
+  display: flex;
+  gap: 18px;
+  padding: 16px 0 26px;
+}
+
+.diaper-option {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFFFFF;
+  // 边框宽度所有状态一致（选中只换色），避免切换时卡片尺寸微变挤压兄弟卡片
+  border: 3px solid #F2EFEC;
+  border-radius: 24px;
+  padding: 33px 7px 33px;
+  transition: background-color 0.2s, border-color 0.2s;
+
+  &.active {
+    background: #FEF3F4;
+    border-color: #F9B6C6;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.diaper-option-icon {
+  width: 64px;
+  height: 58px;
+}
+
+.diaper-option-label {
+  margin-top: 22px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #2E2D2E;
+  line-height: 1.2;
+}
+
+.diaper-option-sub {
+  margin-top: 10px;
+  font-size: 22px;
+  color: #9C999E;
+  line-height: 1.2;
+}
+
+.diaper-check {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #FC7FA0;
+  border: 3px solid #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(252, 127, 160, 0.35);
+}
+
+.diaper-check-mark {
+  font-size: 24px;
+  color: #fff;
+  line-height: 1;
+  margin-top: -2px;
+}
+
+.diaper-photo-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 0 6px;
+}
+
+.diaper-upload {
+  width: 132px;
+  height: 142px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px dashed #D9D6D3;
+  border-radius: 16px;
+  background: #FFFFFF;
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.96);
+    background: #FBF7F6;
+  }
+}
+
+.diaper-upload-camera {
+  width: 62px;
+  height: 52px;
+}
+
+.diaper-upload-text {
+  font-size: 22px;
+  color: #9C999E;
+}
+
+.diaper-photo-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 30px;
+}
+
+.diaper-photo-hint-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.diaper-photo-hint-text {
+  font-size: 24px;
+  color: #F56A8B;
+}
+
+// 备注卡
+.note-area {
+  position: relative;
+  background: #FEF5F5;
+  border-radius: 20px;
+  padding: 24px 24px 40px;
+  margin: 12px 0 30px;
+}
+
+.note-area-input {
+  width: 100%;
+  min-height: 90px;
+  font-size: 26px;
+  color: #2E2D2E;
+  line-height: 1.5;
+}
+
+.note-area-counter {
+  position: absolute;
+  right: 24px;
+  bottom: 14px;
+  font-size: 22px;
+  color: #B8B5B8;
 }
 
 .form-group {
@@ -51,8 +348,8 @@
 
 .form-label {
   font-size: 28px;
-  font-weight: 600;
-  color: #8E8B82;
+  font-weight: 700;
+  color: #2E2D2E;
   margin-bottom: 16px;
   display: block;
 }
@@ -60,7 +357,7 @@
 .form-input {
   width: 100%;
   height: 96px;
-  background: #F9F9F9;
+  background: #FEF5F5;
   border-radius: 20px;
   padding: 0 24px;
   font-size: 28px;
@@ -187,6 +484,8 @@
   }
 }
 
+/* 便便 AI 识别的样式（拍摄建议/识别按钮/结果卡）已随功能迁到 pages/tool/stool-ai/index.scss；
+   这里保留尿布记录自身的照片上传样式 */
 .image-picker {
   width: 200px;
   height: 200px;
@@ -202,28 +501,6 @@
   &:active {
     transform: scale(0.96);
   }
-}
-
-.stool-photo-tips {
-  margin: -4px 0 22px;
-}
-
-.stool-photo-tips-title,
-.stool-photo-tips-content {
-  display: block;
-}
-
-.stool-photo-tips-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #5F5A55;
-}
-
-.stool-photo-tips-content {
-  margin-top: 8px;
-  font-size: 22px;
-  line-height: 1.6;
-  color: #8E8B82;
 }
 
 .image-picker-icon {
@@ -265,86 +542,21 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.stool-analyze-btn {
-  width: 100%;
-  height: 84px;
-  margin-top: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #FFF0ED;
-  border: 1px solid #FFA5B4;
-  border-radius: 20px;
-  color: #D85B75;
-  font-size: 28px;
-  font-weight: 600;
-
-  &.disabled {
-    opacity: 0.6;
-  }
-}
-
-.stool-result {
-  margin-top: 20px;
-  padding: 24px;
-  background: #FFF9E8;
-  border: 1px solid #F3D787;
-  border-radius: 20px;
-
-  &.normal {
-    background: #F1FBF4;
-    border-color: #A8DDB5;
-  }
-
-  &.medical_attention,
-  &.urgent {
-    background: #FFF1EF;
-    border-color: #F0AAA2;
-  }
-}
-
-.stool-result-title,
-.stool-result-summary,
-.stool-result-feature,
-.stool-result-guidance,
-.stool-result-disclaimer {
-  display: block;
-}
-
-.stool-result-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #2D2A2E;
-}
-
-.stool-result-summary,
-.stool-result-feature,
-.stool-result-guidance {
-  margin-top: 12px;
-  font-size: 24px;
-  line-height: 1.6;
-  color: #5F5A55;
-}
-
-.stool-result-guidance::before {
-  content: '• ';
-}
-
-.stool-result-disclaimer {
-  margin-top: 16px;
-  font-size: 20px;
-  line-height: 1.5;
-  color: #8E8B82;
-}
-
+// 保存按钮：固定底部常驻（与宝贝编辑页一致），长表单无需滚动到底
 .submit-btn {
-  height: 96px;
-  background: linear-gradient(135deg, #FFA5B4 0%, #FFC4D0 100%);
-  border-radius: 48px;
+  position: fixed;
+  left: 32px;
+  right: 32px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(255, 165, 180, 0.3);
+  gap: 14px;
+  height: 100px;
+  background: linear-gradient(90deg, #FBA9BB 0%, #FA8FA8 100%);
+  border-radius: 999px;
+  box-shadow: 0 12px 26px rgba(250, 143, 168, 0.35);
   transition: transform 0.2s;
   animation: fadeUp 0.6s ease 0.2s both;
 
@@ -358,6 +570,11 @@
   }
 }
 
+.submit-btn-icon {
+  width: 32px;
+  height: 32px;
+}
+
 .submit-text {
   font-size: 32px;
   font-weight: 700;
@@ -369,8 +586,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #FFF7E8;
-  border: 2px solid rgba(255, 196, 163, 0.45);
+  background: #FFF3F5;
+  border: 2px solid #FBDCE3;
   border-radius: 20px;
   padding: 16px 20px;
   margin-bottom: 24px;
@@ -380,7 +597,7 @@
   flex-shrink: 0;
   font-size: 20px;
   color: #FFFFFF;
-  background: #FFB88A;
+  background: #FC8B9E;
   border-radius: 10px;
   padding: 4px 12px;
   font-weight: 700;
@@ -389,7 +606,7 @@
 .last-record-hint-text {
   flex: 1;
   font-size: 24px;
-  color: #8A6D3B;
+  color: #9C7A80;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -398,5 +615,5 @@
 .last-record-hint-tip {
   flex-shrink: 0;
   font-size: 20px;
-  color: #C9A063;
+  color: #D9A7B0;
 }

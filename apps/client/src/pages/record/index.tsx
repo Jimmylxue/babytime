@@ -1,24 +1,39 @@
-import { View, Text, Input, Picker, Image } from '@tarojs/components'
+import { View, Text, Picker, Image, Textarea } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
-import { recordApi, stoolAnalysisApi, trackEvent } from '../../utils/request'
-import {
-	calculateAge,
-	formatDate,
-	formatHM,
-	formatDurationLong,
-} from '../../utils/date'
-import { chooseAndUploadImage } from '../../utils/upload'
-import {
-	COMMON_VACCINE_SCHEDULE_IDS,
-	findVaccineScheduleItem,
-	getCurrentVaccineStage,
-	VACCINE_SCHEDULE,
-	VACCINE_SCHEDULE_VERSION,
-	VaccineScheduleItem,
-} from '../../utils/vaccineSchedule'
-import { useBabyStore } from '../../stores/babyStore'
+import { recordApi, trackEvent } from '../../utils/request'
+import { formatDate, formatHM } from '../../utils/date'
+import calendarCoralIcon from '../../assets/icons/calendar-coral.svg'
+import clockCoralIcon from '../../assets/icons/clock-coral.svg'
+import noteEditDarkIcon from '../../assets/icons/note-edit-dark.svg'
+import saveWhiteIcon from '../../assets/icons/save-white.svg'
+import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
+import diaperBabyIllu from '../../assets/diaper-baby.jpg'
+import { buildRecordDate, buildTimeOnDate } from './components/timeUtils'
+import type { RecordFormComponent, RecordFormHandle } from './components/types'
+import FeedingForm, {
+	buildLastHint as buildFeedingHint,
+} from './components/FeedingForm'
+import DiaperForm, {
+	buildLastHint as buildDiaperHint,
+} from './components/DiaperForm'
+import SleepForm from './components/SleepForm'
+import FoodForm, {
+	buildLastHint as buildFoodHint,
+} from './components/FoodForm'
+import WaterForm, {
+	buildLastHint as buildWaterHint,
+} from './components/WaterForm'
+import TemperatureForm, {
+	buildLastHint as buildTemperatureHint,
+} from './components/TemperatureForm'
+import HeightWeightForm from './components/HeightWeightForm'
+import MedicineForm, {
+	buildLastHint as buildMedicineHint,
+} from './components/MedicineForm'
+import VaccineForm from './components/VaccineForm'
+import OutdoorForm from './components/OutdoorForm'
 import './index.scss'
 
 const recordTypes = {
@@ -35,92 +50,67 @@ const recordTypes = {
 	outdoor: { title: '户外活动', icon: '🌳' },
 }
 
-const feedingMethods = [
-	{ value: 'breast', label: '母乳' },
-	{ value: 'formula', label: '奶粉' },
-	{ value: 'mixed', label: '混合' },
-]
-
-const diaperStatuses = [
-	{ value: 'wet', label: '尿了' },
-	{ value: 'dirty', label: '拉了' },
-	{ value: 'both', label: '都有' },
-]
-
-type StoolAnalysis = {
-	riskLevel: 'normal' | 'observe' | 'medical_attention' | 'urgent' | 'unknown'
-	summary: string
-	observedFeatures: {
-		color: string
-		consistency: string
-		visibleFindings: string[]
-	}
-	concerns: string[]
-	guidance: string[]
-	redFlags: string[]
-	disclaimer: string
+// 类型专属表单注册表：页面按 type 渲染对应组件。
+// sleep 的起床时间/时长嵌在下方日期/时间卡里（SleepForm），不在此列。
+const TYPE_FORMS: Record<string, RecordFormComponent> = {
+	feeding: FeedingForm,
+	diaper: DiaperForm,
+	food: FoodForm,
+	water: WaterForm,
+	temperature: TemperatureForm,
+	height_weight: HeightWeightForm,
+	medicine: MedicineForm,
+	vaccine: VaccineForm,
+	outdoor: OutdoorForm,
 }
 
-const riskLabels: Record<StoolAnalysis['riskLevel'], string> = {
-	normal: '未见明显风险',
-	observe: '建议留意观察',
-	medical_attention: '建议咨询儿科',
-	urgent: '建议尽快就医',
-	unknown: '暂时无法判断',
+// 「按上次来」提示条摘要（无预填内容的类型不在此列）
+const LAST_HINTS: Record<string, (last: any) => string> = {
+	feeding: buildFeedingHint,
+	diaper: buildDiaperHint,
+	food: buildFoodHint,
+	water: buildWaterHint,
+	temperature: buildTemperatureHint,
+	medicine: buildMedicineHint,
+}
+
+// 记录页 hero 副标题（按类型）
+const typeSubtitles: Record<string, string> = {
+	feeding: '记录宝宝每一餐的成长能量',
+	diaper: '记录宝宝每一次舒适的小时刻',
+	sleep: '记录宝宝每一场安稳的睡眠',
+	food: '记录宝宝每一口美味辅食',
+	water: '记录宝宝每一口健康饮水',
+	temperature: '记录宝宝每一次体温变化',
+	height_weight: '记录宝宝每一步成长足迹',
+	medicine: '记录宝宝每一次用药情况',
+	vaccine: '记录宝宝每一针健康保护',
+	bath: '记录宝宝每一次洗浴时光',
+	outdoor: '记录宝宝每一次户外时光',
 }
 
 export default function RecordPage() {
 	const router = useRouter()
-	const { type = 'feeding', babyId, id, metric } = router.params
+	const { type = 'feeding', babyId, id, metric, scheduleItemId } = router.params
 	const isEdit = !!id
 	const { addRecord, updateRecord } = useRecordStore()
 
 	const [loading, setLoading] = useState(false)
-	const submittingRef = useRef(false) // 同步锁，避免 state 异步更新导致连点漏拦截
-	// 用户是否手动改过表单：预填结果不覆盖已手动编辑的内容
-	const formTouchedRef = useRef(false)
+	// 同步锁，避免 state 异步更新导致连点漏拦截
+	const submittingRef = useRef(false)
+	// 「按上次来」预填只做一次
 	const prefillRef = useRef(false)
-	const [feedingMethod, setFeedingMethod] = useState('formula')
-	const [amount, setAmount] = useState('')
-	const [breastAmount, setBreastAmount] = useState('')
-	const [formulaAmount, setFormulaAmount] = useState('')
-	const [duration, setDuration] = useState('')
-	const [sleepEndTime, setSleepEndTime] = useState(formatHM(new Date()))
-	const [diaperStatus, setDiaperStatus] = useState('wet')
-	const [diaperImage, setDiaperImage] = useState('')
-	const [diaperAnalysis, setDiaperAnalysis] = useState<StoolAnalysis | null>(
-		null,
-	)
-	const [analyzingStool, setAnalyzingStool] = useState(false)
-	const [foodName, setFoodName] = useState('')
-	const [temperature, setTemperature] = useState('')
-	/* 身高体重支持单独记录，两项均为选填，至少填一项 */
-	const [height, setHeight] = useState('')
-	const [weight, setWeight] = useState('')
-	const [lastMeasurement, setLastMeasurement] = useState<{
-		height: number | null
-		weight: number | null
-		date: string
-	} | null>(null)
-	const [medicineName, setMedicineName] = useState('')
-	const [medicineDose, setMedicineDose] = useState('')
-	const [vaccineName, setVaccineName] = useState(
-		() =>
-			findVaccineScheduleItem(router.params.scheduleItemId)?.displayName || '',
-	)
-	const [vaccineHospital, setVaccineHospital] = useState('')
-	const [selectedVaccineId, setSelectedVaccineId] = useState(
-		router.params.scheduleItemId || '',
-	)
-	const [vaccineSearch, setVaccineSearch] = useState('')
-	const [isCustomVaccine, setIsCustomVaccine] = useState(false)
-	const [outdoorLocation, setOutdoorLocation] = useState('')
 	const [note, setNote] = useState('')
 	const [startTime, setStartTime] = useState(formatHM(new Date()))
 	const [recordDate, setRecordDate] = useState(formatDate(new Date()))
 	const today = formatDate(new Date())
+	// 编辑态原始记录（类型表单组件据此回填专属字段）
+	const [initialRecord, setInitialRecord] = useState<any>(null)
+	// 新增态本类型最近一条记录（类型表单组件据此「按上次来」预填）
+	const [lastRecord, setLastRecord] = useState<any>(null)
 	// 「按上次来」提示条：本类型最近一条记录的摘要文案
 	const [lastRecordHint, setLastRecordHint] = useState('')
+	const formRef = useRef<RecordFormHandle>(null)
 
 	const typeInfo = { ...(recordTypes[type] || recordTypes.feeding) }
 	// 身高体重拆分为独立入口：metric 为 height/weight 时只记录对应一项
@@ -135,37 +125,14 @@ export default function RecordPage() {
 		typeInfo.title = '体重记录'
 		typeInfo.icon = '⚖️'
 	}
-	const selectedVaccine = findVaccineScheduleItem(selectedVaccineId)
-	const currentBaby = useBabyStore(state => state.currentBaby)
-	const currentVaccineItems = currentBaby
-		? getCurrentVaccineStage(calculateAge(currentBaby.birthday).months)
-		: []
-	const suggestedVaccineItems =
-		currentVaccineItems.length > 0
-			? currentVaccineItems
-			: COMMON_VACCINE_SCHEDULE_IDS.map(findVaccineScheduleItem).filter(
-					(item): item is VaccineScheduleItem => !!item,
-				)
-	const normalizedVaccineSearch = vaccineSearch.trim().toLowerCase()
-	const searchableVaccineItems = VACCINE_SCHEDULE.filter(
-		item =>
-			!normalizedVaccineSearch ||
-			item.displayName.toLowerCase().includes(normalizedVaccineSearch) ||
-			item.vaccineName.toLowerCase().includes(normalizedVaccineSearch),
-	)
 
-	// 编辑态：进入页面时拉取原始记录，回填各字段
+	const ActiveForm = TYPE_FORMS[type]
+
+	// 编辑态：进入页面时拉取原始记录（公共字段在此回填，类型字段由表单组件回填）
 	useDidShow(() => {
 		if (isEdit && id) {
 			fetchRecord()
 			return
-		}
-		if (type === 'height_weight' && babyId) {
-			// 新增测量时展示上次测量值，方便对比录入
-			recordApi
-				.getStats(babyId)
-				.then(res => setLastMeasurement(res.data?.latestHeightWeight || null))
-				.catch(() => {})
 		}
 		// 「按上次来」：新增时用本类型最近一条记录预填高频字段（时间/照片/备注不预填）
 		if (!prefillRef.current && babyId) {
@@ -175,245 +142,34 @@ export default function RecordPage() {
 				.then(res => {
 					const last = res.data?.items?.[res.data.items.length - 1]
 					if (!last) return
-					setLastRecordHint(buildLastRecordHint(last))
-					switch (type) {
-						case 'feeding':
-							if (last.feedingMethod) setFeedingMethod(last.feedingMethod)
-							if (last.amount != null) setAmount(String(last.amount))
-							if (last.breastAmount != null)
-								setBreastAmount(String(last.breastAmount))
-							if (last.formulaAmount != null)
-								setFormulaAmount(String(last.formulaAmount))
-							if (last.duration != null) setDuration(String(last.duration))
-							break
-						case 'diaper':
-							if (last.diaperStatus) setDiaperStatus(last.diaperStatus)
-							break
-						case 'food':
-							if (last.foodName) setFoodName(last.foodName)
-							break
-						case 'water':
-							if (last.amount != null) setAmount(String(last.amount))
-							break
-						case 'temperature':
-							if (last.temperature != null)
-								setTemperature(String(last.temperature))
-							break
-						case 'medicine':
-							if (last.medicineName) setMedicineName(last.medicineName)
-							if (last.medicineDose) setMedicineDose(last.medicineDose)
-							break
-					}
+					setLastRecord(last)
+					const buildHint = LAST_HINTS[type]
+					if (buildHint) setLastRecordHint(buildHint(last))
 				})
 				.catch(() => {})
 		}
 	})
 
-	// 生成「上次记录」摘要文案（喂奶/尿布/辅食/饮水/体温/用药）
-	const buildLastRecordHint = (last: any): string => {
-		switch (type) {
-			case 'feeding': {
-				const methodLabel: Record<string, string> = {
-					breast: '母乳',
-					formula: '奶粉',
-					mixed: '混合',
-				}
-				const parts: string[] = []
-				if (last.feedingMethod)
-					parts.push(methodLabel[last.feedingMethod] || last.feedingMethod)
-				if (last.feedingMethod === 'mixed') {
-					const b = last.breastAmount ? `母${last.breastAmount}ml` : ''
-					const f = last.formulaAmount ? `奶${last.formulaAmount}ml` : ''
-					const bf = [b, f].filter(Boolean).join('+')
-					if (bf) parts.push(bf)
-				} else if (last.amount) {
-					parts.push(`${last.amount}ml`)
-				}
-				if (last.duration) parts.push(`${last.duration}分钟`)
-				return parts.join(' · ')
-			}
-			case 'diaper': {
-				const statusLabel: Record<string, string> = {
-					wet: '尿了',
-					dirty: '拉了',
-					both: '都有',
-				}
-				return statusLabel[last.diaperStatus] || ''
-			}
-			case 'food':
-				return last.foodName ? `吃了${last.foodName}` : ''
-			case 'water':
-				return last.amount ? `${last.amount}ml` : ''
-			case 'temperature':
-				return last.temperature ? `${last.temperature}°C` : ''
-			case 'medicine':
-				return [last.medicineName, last.medicineDose]
-					.filter(Boolean)
-					.join(' · ')
-			default:
-				return ''
-		}
-	}
-
 	const fetchRecord = async () => {
+		if (!id) return
 		try {
 			const res = await recordApi.getOne(id)
 			const record = res.data
 			if (!record) return
-
+			setInitialRecord(record)
 			setRecordDate(formatDate(record.startTime))
 			if (type !== 'height_weight') setStartTime(formatHM(record.startTime))
-
-			switch (type) {
-				case 'feeding':
-					if (record.feedingMethod) setFeedingMethod(record.feedingMethod)
-					if (record.amount != null) setAmount(String(record.amount))
-					if (record.breastAmount != null)
-						setBreastAmount(String(record.breastAmount))
-					if (record.formulaAmount != null)
-						setFormulaAmount(String(record.formulaAmount))
-					if (record.duration != null) setDuration(String(record.duration))
-					break
-				case 'diaper':
-					if (record.diaperStatus) setDiaperStatus(record.diaperStatus)
-					if (record.diaperImage) setDiaperImage(record.diaperImage)
-					if (record.diaperAnalysis) setDiaperAnalysis(record.diaperAnalysis)
-					break
-				case 'sleep':
-					if (record.endTime) setSleepEndTime(formatHM(record.endTime))
-					break
-				case 'food':
-					if (record.foodName) setFoodName(record.foodName)
-					break
-				case 'water':
-					if (record.amount != null) setAmount(String(record.amount))
-					break
-				case 'temperature':
-					if (record.temperature != null)
-						setTemperature(String(record.temperature))
-					break
-				case 'height_weight':
-					if (record.height != null) setHeight(String(record.height))
-					if (record.weight != null) setWeight(String(record.weight))
-					break
-				case 'medicine':
-					if (record.medicineName) setMedicineName(record.medicineName)
-					if (record.medicineDose) setMedicineDose(record.medicineDose)
-					break
-				case 'vaccine':
-					if (record.vaccineName) setVaccineName(record.vaccineName)
-					if (record.vaccineHospital) setVaccineHospital(record.vaccineHospital)
-					setSelectedVaccineId(record.vaccineScheduleItemId || '')
-					setIsCustomVaccine(!record.vaccineScheduleItemId)
-					break
-				case 'outdoor':
-					if (record.outdoorLocation) setOutdoorLocation(record.outdoorLocation)
-					if (record.duration != null) setDuration(String(record.duration))
-					break
-			}
-
 			if (record.note) setNote(record.note)
 		} catch (error) {
 			Taro.showToast({ title: '获取记录失败', icon: 'none' })
 		}
 	}
 
-	const selectVaccine = (item: VaccineScheduleItem) => {
-		setSelectedVaccineId(item.id)
-		setVaccineName(item.displayName)
-		setIsCustomVaccine(false)
-		setVaccineSearch('')
-	}
-
-	const selectCustomVaccine = () => {
-		setSelectedVaccineId('')
-		setVaccineName('')
-		setIsCustomVaccine(true)
-	}
-
-	const handleTimeChange = e => {
-		setStartTime(e.detail.value)
-	}
-
-	const handleRecordDateChange = e => {
-		setRecordDate(e.detail.value)
-	}
-
-	const handleSleepEndTimeChange = e => {
-		setSleepEndTime(e.detail.value)
-	}
-
-	const handleAnalyzeStool = async () => {
-		if (!diaperImage) {
-			Taro.showToast({ title: '请先上传便便照片', icon: 'none' })
-			return
-		}
-		const consent = await Taro.showModal({
-			title: '发送图片进行观察',
-			content:
-				'图片会发送至智谱视觉模型进行分析，仅供健康记录和就医参考，不能替代医生诊断。',
-			confirmText: '确认',
-		})
-		if (!consent.confirm) return
-
-		setAnalyzingStool(true)
-		try {
-			const res = await stoolAnalysisApi.analyze({
-				babyId,
-				imageUrl: diaperImage,
-			})
-			setDiaperAnalysis(res.data || null)
-		} catch (error) {
-			Taro.showToast({ title: '暂时无法分析，请稍后重试', icon: 'none' })
-		} finally {
-			setAnalyzingStool(false)
-		}
-	}
-
-	// 根据入睡/起床时间自动推算睡眠时长（分钟），跨天入睡则按次日起床计算
-	const buildTimeOnDate = (baseDate: Date, time: string) => {
-		const [hours, minutes] = time.split(':')
-		const d = new Date(baseDate)
-		d.setHours(parseInt(hours), parseInt(minutes), 0, 0)
-		return d
-	}
-
-	const buildRecordDate = (date: string) => {
-		const [year, month, day] = date.split('-').map(Number)
-		return new Date(year, month - 1, day, 12, 0, 0, 0)
-	}
-
-	const getSleepRange = () => {
-		const start = buildTimeOnDate(buildRecordDate(recordDate), startTime)
-		let end = buildTimeOnDate(buildRecordDate(recordDate), sleepEndTime)
-		if (end <= start) {
-			end = new Date(end.getTime() + 24 * 60 * 60 * 1000)
-		}
-		const durationMinutes = Math.round(
-			(end.getTime() - start.getTime()) / 60000,
-		)
-		return { start, end, durationMinutes }
-	}
-
-	const sleepDurationMinutes =
-		type === 'sleep' ? getSleepRange().durationMinutes : 0
-
 	const handleSubmit = async () => {
 		if (submittingRef.current) return
-		if (type === 'vaccine' && !vaccineName.trim()) {
-			Taro.showToast({ title: '请选择或填写疫苗名称', icon: 'none' })
-			return
-		}
-		if (growthMetric === 'height' && !height) {
-			Taro.showToast({ title: '请输入身高', icon: 'none' })
-			return
-		}
-		if (growthMetric === 'weight' && !weight) {
-			Taro.showToast({ title: '请输入体重', icon: 'none' })
-			return
-		}
-		if (type === 'height_weight' && !growthMetric && !height && !weight) {
-			Taro.showToast({ title: '身高和体重至少填写一项', icon: 'none' })
+		const formError = formRef.current?.validate()
+		if (formError) {
+			Taro.showToast({ title: formError, icon: 'none' })
 			return
 		}
 		submittingRef.current = true
@@ -430,72 +186,8 @@ export default function RecordPage() {
 			if (type === 'height_weight') {
 				data.startTime = buildRecordDate(recordDate).toISOString()
 			}
-
-			switch (type) {
-				case 'feeding':
-					data.feedingMethod = feedingMethod
-					if (feedingMethod === 'mixed') {
-						if (breastAmount) data.breastAmount = parseInt(breastAmount)
-						if (formulaAmount) data.formulaAmount = parseInt(formulaAmount)
-					} else if (amount) {
-						data.amount = parseInt(amount)
-					}
-					if (duration) data.duration = parseInt(duration)
-					break
-				case 'diaper':
-					data.diaperStatus = diaperStatus
-					if (diaperImage) data.diaperImage = diaperImage
-					if (diaperAnalysis) data.diaperAnalysis = diaperAnalysis
-					break
-				case 'sleep': {
-					const { start, end, durationMinutes } = getSleepRange()
-					data.startTime = start.toISOString()
-					data.endTime = end.toISOString()
-					data.duration = durationMinutes
-					break
-				}
-				case 'food':
-					data.foodName = foodName
-					break
-				case 'water':
-					if (amount) data.amount = parseInt(amount)
-					break
-				case 'temperature':
-					if (temperature) data.temperature = parseFloat(temperature)
-					break
-				case 'height_weight':
-					// 拆分入口下只提交当前项，另一项保持 null 不覆盖历史
-					if ((!growthMetric || growthMetric === 'height') && height)
-						data.height = parseFloat(height)
-					if ((!growthMetric || growthMetric === 'weight') && weight)
-						data.weight = parseFloat(weight)
-					break
-				case 'medicine':
-					data.medicineName = medicineName
-					data.medicineDose = medicineDose
-					break
-				case 'vaccine':
-					data.vaccineName = vaccineName
-					data.vaccineHospital = vaccineHospital
-					data.isCustomVaccine = isCustomVaccine
-					if (selectedVaccine) {
-						data.vaccineCode = selectedVaccine.vaccineCode
-						data.vaccineDose = selectedVaccine.dose
-						data.vaccineScheduleItemId = selectedVaccine.id
-						data.vaccineScheduleVersion = VACCINE_SCHEDULE_VERSION
-					} else {
-						// 编辑时切换为自定义疫苗，必须清除旧的时间轴关联。
-						data.vaccineCode = ''
-						data.vaccineDose = null
-						data.vaccineScheduleItemId = ''
-						data.vaccineScheduleVersion = ''
-					}
-					break
-				case 'outdoor':
-					data.outdoorLocation = outdoorLocation
-					if (duration) data.duration = parseInt(duration)
-					break
-			}
+			// 睡眠的 startTime/endTime 会覆盖上面的公共 startTime
+			Object.assign(data, formRef.current?.buildPayload({ recordDate, startTime }))
 
 			if (note) data.note = note
 
@@ -526,21 +218,57 @@ export default function RecordPage() {
 
 	return (
 		<View className="record-page">
-			<View className="record-header">
-				<Text className="record-icon">{typeInfo.icon}</Text>
-				<Text className="record-title">{typeInfo.title}</Text>
-				{type === 'vaccine' && babyId && (
+			{/* Hero 头部：插画/emoji + 标题 + 星光 + 副标题 + 历史入口 */}
+			<View className="record-hero">
+				{type === 'diaper' ? (
+					<Image
+						className="record-hero-illu"
+						src={diaperBabyIllu}
+						mode="aspectFit"
+					/>
+				) : (
+					<View className="record-hero-emoji">
+						<Text>{typeInfo.icon}</Text>
+					</View>
+				)}
+				<View className="record-hero-copy">
+					<View className="record-hero-title-row">
+						<Text className="record-hero-title">{typeInfo.title}</Text>
+						<Image className="record-hero-sparkle" src={sparkleGoldIcon} />
+					</View>
+					<Text className="record-hero-sub">
+						{typeSubtitles[type] || '记录宝宝成长的每一天'}
+					</Text>
+				</View>
+				{type === 'vaccine' && babyId ? (
 					<View
-						className="timeline-link"
+						className="record-history-pill"
 						onClick={() =>
 							Taro.navigateTo({
 								url: `/pages/vaccine-timeline/index?babyId=${babyId}`,
 							})
 						}
 					>
-						<Text>查看时间轴</Text>
+						<Image className="record-pill-icon" src={clockCoralIcon} />
+						<Text className="record-pill-text">查看时间轴</Text>
 					</View>
-				)}
+				) : babyId ? (
+					<View
+						className="record-history-pill"
+						onClick={() => {
+							const metricParam =
+								type === 'height_weight' && metric
+									? `&metric=${metric}`
+									: ''
+							Taro.navigateTo({
+								url: `/pages/record-detail/index?babyId=${babyId}&type=${type}${metricParam}`,
+							})
+						}}
+					>
+						<Image className="record-pill-icon" src={clockCoralIcon} />
+						<Text className="record-pill-text">历史记录</Text>
+					</View>
+				) : null}
 			</View>
 
 			{!isEdit && lastRecordHint && (
@@ -551,478 +279,92 @@ export default function RecordPage() {
 				</View>
 			)}
 
-			<View className="record-form">
-				{/* 所有记录按实际发生日期归档；身高体重只需选择日期。 */}
-				<View className="form-group">
-					<Text className="form-label">
-						{type === 'height_weight' ? '测量日期' : '发生日期'}
-					</Text>
-					<Picker
-						mode="date"
-						value={recordDate}
-						end={today}
-						onChange={handleRecordDateChange}
-					>
-						<View className="form-input time-input">
-							<Text>{recordDate}</Text>
+			{/* 日期 / 时间卡（睡眠的起床时间/时长也在此卡） */}
+			<View className="record-card">
+				<Picker
+					mode="date"
+					value={recordDate}
+					end={today}
+					onChange={e => setRecordDate(e.detail.value)}
+				>
+					<View className="record-row">
+						<View className="record-row-icon">
+							<Image className="record-row-icon-img" src={calendarCoralIcon} />
 						</View>
-					</Picker>
-				</View>
+						<Text className="record-row-label">
+							{type === 'height_weight' ? '测量日期' : '发生日期'}
+						</Text>
+						<Text className="record-row-value">{recordDate}</Text>
+						<Text className="record-row-arrow">›</Text>
+					</View>
+				</Picker>
 
 				{type !== 'height_weight' && (
-					<View className="form-group">
-						<Text className="form-label">
-							{type === 'sleep' ? '入睡时间' : '发生时间'}
-						</Text>
-						<Picker mode="time" value={startTime} onChange={handleTimeChange}>
-							<View className="form-input time-input">
-								<Text>{startTime}</Text>
+					<Picker
+						mode="time"
+						value={startTime}
+						onChange={e => setStartTime(e.detail.value)}
+					>
+						<View className="record-row">
+							<View className="record-row-icon">
+								<Image className="record-row-icon-img" src={clockCoralIcon} />
 							</View>
-						</Picker>
-					</View>
+							<Text className="record-row-label">
+								{type === 'sleep' ? '入睡时间' : '发生时间'}
+							</Text>
+							<Text className="record-row-value">{startTime}</Text>
+							<Text className="record-row-arrow">›</Text>
+						</View>
+					</Picker>
 				)}
 
-				{/* 喂奶相关 */}
-				{type === 'feeding' && (
-					<>
-						<View className="form-group">
-							<Text className="form-label">喂养方式</Text>
-							<View className="method-grid">
-								{feedingMethods.map(m => (
-									<View
-										key={m.value}
-										className={`method-item ${feedingMethod === m.value ? 'active' : ''}`}
-										onClick={() => { formTouchedRef.current = true; setFeedingMethod(m.value) }}
-									>
-										<Text>{m.label}</Text>
-									</View>
-								))}
-							</View>
-						</View>
-						{(feedingMethod === 'formula' || feedingMethod === 'breast') && (
-							<View className="form-group">
-								<Text className="form-label">
-									{feedingMethod === 'breast'
-										? '母乳量 (ml，可选)'
-										: '奶量 (ml)'}
-								</Text>
-								<Input
-									className="form-input"
-									type="number"
-									placeholder="请输入奶量"
-									value={amount}
-									onInput={e => { formTouchedRef.current = true; setAmount(e.detail.value) }}
-								/>
-							</View>
-						)}
-						{feedingMethod === 'mixed' && (
-							<>
-								<View className="form-group">
-									<Text className="form-label">母乳量 (ml)</Text>
-									<Input
-										className="form-input"
-										type="number"
-										placeholder="请输入母乳量"
-										value={breastAmount}
-										onInput={e => { formTouchedRef.current = true; setBreastAmount(e.detail.value) }}
-									/>
-								</View>
-								<View className="form-group">
-									<Text className="form-label">奶粉量 (ml)</Text>
-									<Input
-										className="form-input"
-										type="number"
-										placeholder="请输入奶粉量"
-										value={formulaAmount}
-										onInput={e => { formTouchedRef.current = true; setFormulaAmount(e.detail.value) }}
-									/>
-								</View>
-							</>
-						)}
-						<View className="form-group">
-							<Text className="form-label">时长 (分钟)</Text>
-							<Input
-								className="form-input"
-								type="number"
-								placeholder="请输入时长"
-								value={duration}
-								onInput={e => setDuration(e.detail.value)}
-							/>
-						</View>
-					</>
-				)}
-
-				{/* 尿布相关 */}
-				{type === 'diaper' && (
-					<>
-						<View className="form-group">
-							<Text className="form-label">状态</Text>
-							<View className="method-grid">
-								{diaperStatuses.map(s => (
-									<View
-										key={s.value}
-										className={`method-item ${diaperStatus === s.value ? 'active' : ''}`}
-										onClick={() => { formTouchedRef.current = true; setDiaperStatus(s.value) }}
-									>
-										<Text>{s.label}</Text>
-									</View>
-								))}
-							</View>
-						</View>
-						<View className="form-group">
-							<Text className="form-label">照片 (可选)</Text>
-							<View className="stool-photo-tips">
-								<Text className="stool-photo-tips-title">
-									用于识别的拍摄建议
-								</Text>
-								<Text className="stool-photo-tips-content">
-									自然光下拍摄，对焦便便区域并尽量完整入镜；避免强滤镜、反光和阴影，不拍入宝宝面部或私密部位。
-								</Text>
-							</View>
-							{diaperImage ? (
-								<View className="image-preview">
-									<Image
-										className="image-preview-img"
-										src={diaperImage}
-										mode="aspectFill"
-										onClick={() =>
-											Taro.previewImage({
-												current: diaperImage,
-												urls: [diaperImage],
-											})
-										}
-									/>
-									<View
-										className="image-remove-badge"
-										onClick={() => {
-											setDiaperImage('')
-											setDiaperAnalysis(null)
-										}}
-									>
-										<Text>×</Text>
-									</View>
-								</View>
-							) : (
-								<View
-									className="image-picker"
-									onClick={async () => {
-										const url = await chooseAndUploadImage()
-										if (url) {
-											setDiaperImage(url)
-											setDiaperAnalysis(null)
-										}
-									}}
-								>
-									<Text className="image-picker-icon">📷</Text>
-									<Text className="image-picker-text">上传照片</Text>
-								</View>
-							)}
-							{diaperImage && (
-								<View
-									className={`stool-analyze-btn${analyzingStool ? ' disabled' : ''}`}
-									onClick={analyzingStool ? undefined : handleAnalyzeStool}
-								>
-									<Text>
-										{analyzingStool
-											? '图片分析中...'
-											: diaperAnalysis
-												? '重新分析'
-												: '识别便便情况'}
-									</Text>
-								</View>
-							)}
-							{diaperAnalysis && (
-								<View className={`stool-result ${diaperAnalysis.riskLevel}`}>
-									<Text className="stool-result-title">
-										{riskLabels[diaperAnalysis.riskLevel]}
-									</Text>
-									<Text className="stool-result-summary">
-										{diaperAnalysis.summary}
-									</Text>
-									<Text className="stool-result-feature">
-										观察：{diaperAnalysis.observedFeatures.color}；
-										{diaperAnalysis.observedFeatures.consistency}
-									</Text>
-									{diaperAnalysis.guidance?.map((item, index) => (
-										<Text key={index} className="stool-result-guidance">
-											{item}
-										</Text>
-									))}
-									<Text className="stool-result-disclaimer">
-										{diaperAnalysis.disclaimer}
-									</Text>
-								</View>
-							)}
-						</View>
-					</>
-				)}
-
-				{/* 睡眠相关：入睡/起床时间，自动推算时长 */}
 				{type === 'sleep' && (
-					<>
-						<View className="form-group">
-							<Text className="form-label">起床时间</Text>
-							<Picker
-								mode="time"
-								value={sleepEndTime}
-								onChange={handleSleepEndTimeChange}
-							>
-								<View className="form-input time-input">
-									<Text>{sleepEndTime}</Text>
-								</View>
-							</Picker>
-						</View>
-						<View className="form-group">
-							<Text className="form-label">睡眠时长</Text>
-							<View className="form-input sleep-duration-display">
-								<Text>{formatDurationLong(sleepDurationMinutes)}</Text>
-							</View>
-						</View>
-					</>
+					<SleepForm
+						ref={formRef}
+						recordDate={recordDate}
+						startTime={startTime}
+						initialRecord={initialRecord}
+					/>
 				)}
+			</View>
 
-				{/* 辅食相关 */}
-				{type === 'food' && (
-					<View className="form-group">
-						<Text className="form-label">辅食名称</Text>
-						<Input
-							className="form-input"
-							placeholder="如：米粉、果泥"
-							value={foodName}
-							onInput={e => { formTouchedRef.current = true; setFoodName(e.detail.value) }}
-						/>
-					</View>
-				)}
-
-				{/* 饮水相关 */}
-				{type === 'water' && (
-					<View className="form-group">
-						<Text className="form-label">饮水量 (ml)</Text>
-						<Input
-							className="form-input"
-							type="number"
-							placeholder="请输入饮水量"
-							value={amount}
-							onInput={e => setAmount(e.detail.value)}
-						/>
-					</View>
-				)}
-
-				{/* 体温相关 */}
-				{type === 'temperature' && (
-					<View className="form-group">
-						<Text className="form-label">体温 (°C)</Text>
-						<Input
-							className="form-input"
-							type="digit"
-							placeholder="请输入体温"
-							value={temperature}
-							onInput={e => { formTouchedRef.current = true; setTemperature(e.detail.value) }}
-						/>
-					</View>
-				)}
-
-			{/* 身高体重 */}
-			{type === 'height_weight' && (
-				<>
-					{lastMeasurement && (
-						<View className="last-measurement-tip">
-							<Text>
-								上次测量（{formatDate(lastMeasurement.date)}）：
-								{[
-									growthMetric !== 'weight' &&
-									lastMeasurement.height != null
-										? `身高${lastMeasurement.height}cm`
-										: '',
-									growthMetric !== 'height' &&
-									lastMeasurement.weight != null
-										? `体重${lastMeasurement.weight}kg`
-										: '',
-								]
-									.filter(Boolean)
-									.join('，')}
-							</Text>
-						</View>
-					)}
-					{(growthMetric === 'height' || !growthMetric) && (
-						<View className="form-group">
-							<Text className="form-label">
-								身高 (cm{growthMetric ? '' : '，选填'})
-							</Text>
-							<Input
-								className="form-input"
-								type="digit"
-								placeholder="请输入身高"
-								value={height}
-								onInput={e => setHeight(e.detail.value)}
-							/>
-						</View>
-					)}
-					{(growthMetric === 'weight' || !growthMetric) && (
-						<View className="form-group">
-							<Text className="form-label">
-								体重 (kg{growthMetric ? '' : '，选填'})
-							</Text>
-							<Input
-								className="form-input"
-								type="digit"
-								placeholder="请输入体重"
-								value={weight}
-								onInput={e => setWeight(e.detail.value)}
-							/>
-						</View>
-					)}
-				</>
+			{/* 类型专属表单 */}
+			{ActiveForm && (
+				<ActiveForm
+					ref={formRef}
+					initialRecord={initialRecord}
+					lastRecord={lastRecord}
+					metric={growthMetric || undefined}
+					babyId={babyId}
+					scheduleItemId={scheduleItemId}
+					isEdit={isEdit}
+				/>
 			)}
 
-				{/* 用药相关 */}
-				{type === 'medicine' && (
-					<>
-						<View className="form-group">
-							<Text className="form-label">药品名称</Text>
-							<Input
-								className="form-input"
-								placeholder="请输入药品名称"
-								value={medicineName}
-								onInput={e => { formTouchedRef.current = true; setMedicineName(e.detail.value) }}
-							/>
-						</View>
-						<View className="form-group">
-							<Text className="form-label">用药剂量</Text>
-							<Input
-								className="form-input"
-								placeholder="如：1次1包，1天3次"
-								value={medicineDose}
-								onInput={e => { formTouchedRef.current = true; setMedicineDose(e.detail.value) }}
-							/>
-						</View>
-					</>
-				)}
-
-				{/* 疫苗相关 */}
-				{type === 'vaccine' && (
-					<>
-						<View className="form-group">
-							<Text className="form-label">选择疫苗</Text>
-							{currentVaccineItems.length > 0 && (
-								<View className="vaccine-stage-tip">
-									<Text>当前月龄可关注</Text>
-								</View>
-							)}
-							<View className="vaccine-chip-grid">
-								{suggestedVaccineItems.map(item => (
-									<View
-										key={item.id}
-										className={`vaccine-chip${selectedVaccineId === item.id ? ' active' : ''}`}
-										onClick={() => selectVaccine(item)}
-									>
-										<Text>{item.displayName}</Text>
-									</View>
-								))}
-							</View>
-							{selectedVaccine && (
-								<View className="selected-vaccine-summary">
-									<Text className="selected-vaccine-label">已选择</Text>
-									<Text className="selected-vaccine-name">
-										{selectedVaccine.displayName}
-									</Text>
-								</View>
-							)}
-							<View className="vaccine-search-wrap">
-								<Input
-									className="form-input vaccine-search-input"
-									placeholder="搜索乙肝、百白破、脊灰等"
-									value={vaccineSearch}
-									onInput={e => setVaccineSearch(e.detail.value)}
-								/>
-								{normalizedVaccineSearch && (
-									<View className="vaccine-search-results">
-										{searchableVaccineItems.map(item => (
-											<View
-												key={item.id}
-												className="vaccine-search-item"
-												onTap={() => selectVaccine(item)}
-											>
-												<Text>{item.displayName}</Text>
-												<Text>{item.ageLabel}</Text>
-											</View>
-										))}
-										{searchableVaccineItems.length === 0 && (
-											<Text className="vaccine-no-result">
-												未找到，下面可自定义填写
-											</Text>
-										)}
-									</View>
-								)}
-							</View>
-							<View
-								className={`vaccine-custom-trigger${isCustomVaccine ? ' active' : ''}`}
-								onClick={selectCustomVaccine}
-							>
-								<Text>＋ 自定义疫苗</Text>
-							</View>
-							{isCustomVaccine && (
-								<Input
-									className="form-input vaccine-custom-input"
-									placeholder="如：流感疫苗、肺炎球菌疫苗"
-									value={vaccineName}
-									onInput={e => setVaccineName(e.detail.value)}
-								/>
-							)}
-						</View>
-						<View className="form-group">
-							<Text className="form-label">接种医院</Text>
-							<Input
-								className="form-input"
-								placeholder="请输入接种医院"
-								value={vaccineHospital}
-								onInput={e => setVaccineHospital(e.detail.value)}
-							/>
-						</View>
-					</>
-				)}
-
-				{/* 户外活动 */}
-				{type === 'outdoor' && (
-					<>
-						<View className="form-group">
-							<Text className="form-label">活动地点</Text>
-							<Input
-								className="form-input"
-								placeholder="如：小区公园"
-								value={outdoorLocation}
-								onInput={e => setOutdoorLocation(e.detail.value)}
-							/>
-						</View>
-						<View className="form-group">
-							<Text className="form-label">活动时长 (分钟)</Text>
-							<Input
-								className="form-input"
-								type="number"
-								placeholder="请输入活动时长"
-								value={duration}
-								onInput={e => setDuration(e.detail.value)}
-							/>
-						</View>
-					</>
-				)}
-
-				{/* 备注 */}
-				<View className="form-group">
-					<Text className="form-label">备注 (可选)</Text>
-					<Input
-						className="form-input"
+			{/* 备注卡（所有类型共用，UI 稿样式） */}
+			<View className="record-card">
+				<View className="record-card-label-row">
+					<Image className="record-card-label-icon" src={noteEditDarkIcon} />
+					<Text className="record-card-label">备注 (可选)</Text>
+				</View>
+				<View className="note-area">
+					<Textarea
+						className="note-area-input"
 						placeholder="添加备注..."
 						value={note}
+						maxlength={200}
 						onInput={e => setNote(e.detail.value)}
 					/>
+					<Text className="note-area-counter">{note.length}/200</Text>
 				</View>
 			</View>
 
+			{/* 保存按钮：固定底部常驻 */}
 			<View
 				className={`submit-btn${loading ? ' disabled' : ''}`}
 				onClick={loading ? undefined : handleSubmit}
 			>
+				<Image className="submit-btn-icon" src={saveWhiteIcon} />
 				<Text className="submit-text">
 					{loading
 						? isEdit

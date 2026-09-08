@@ -1,0 +1,162 @@
+// 疫苗接种时间表：月龄分组卡 + 疫苗胶囊，宝宝当前阶段高亮
+.vtable-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FBF5F8 0%, #FDF8FA 42%, #FDFDFD 100%);
+  padding: 24px 32px 60px;
+  box-sizing: border-box;
+}
+
+.vtable-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 8px 24px;
+}
+
+.vtable-intro-title {
+  font-size: 40px;
+  font-weight: 800;
+  color: #2F2E2F;
+}
+
+.vtable-intro-sub {
+  font-size: 23px;
+  color: #A8A59E;
+}
+
+.vtable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.vtable-group {
+  background: #FFFFFF;
+  border-radius: 32px;
+  padding: 26px 28px;
+  box-shadow: 0 10px 24px rgba(230, 170, 160, 0.08);
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  &.current {
+    background: linear-gradient(160deg, #FDF4F6 0%, #FCE6EC 100%);
+    box-shadow: 0 12px 30px rgba(251, 127, 150, 0.18);
+    border: 2px solid rgba(251, 127, 150, 0.25);
+  }
+}
+
+.vtable-group-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.vtable-group-age {
+  font-size: 30px;
+  font-weight: 800;
+  color: #2F2E2F;
+}
+
+.vtable-group.current .vtable-group-age {
+  color: #FB7F96;
+}
+
+.vtable-group-badge {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: #FB7F96;
+}
+
+.vtable-group-badge Text {
+  font-size: 19px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.vtable-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.vtable-chip {
+  background: #F6F2F4;
+  border-radius: 18px;
+  padding: 10px 20px;
+}
+
+.vtable-group.current .vtable-chip {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.vtable-chip-name {
+  font-size: 23px;
+  color: #5A5751;
+}
+
+.vtable-group-note {
+  display: block;
+  margin-top: 14px;
+  font-size: 20px;
+  color: #C6C2BA;
+}
+
+.vtable-cta {
+  margin-top: 32px;
+  background: #FFFFFF;
+  border-radius: 32px;
+  padding: 28px 30px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 12px 30px rgba(230, 170, 160, 0.12);
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.vtable-cta-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vtable-cta-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2F2E2F;
+}
+
+.vtable-cta-sub {
+  font-size: 22px;
+  color: #A8A59E;
+}
+
+.vtable-cta-arrow {
+  font-size: 36px;
+  color: #C6C2BA;
+  line-height: 1;
+}
+
+.vtable-footer {
+  display: block;
+  margin-top: 28px;
+  text-align: center;
+  font-size: 20px;
+  color: #C6C2BA;
+  line-height: 1.6;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

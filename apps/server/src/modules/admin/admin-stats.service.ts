@@ -397,4 +397,130 @@ export class AdminStatsService {
     const day = String(date.getDate()).padStart(2, '0');
     return `${date.getFullYear()}-${month}-${day}`;
   }
+
+  // 小应用（应用 tab）使用情况。埋点：tools_hub_view（应用页访问）、
+  // tool_click（宫格点击，properties.name）、tool_view（工具页到达，properties.name）、
+  // stool_analyze_click（发起便便识别）。按 properties.name 分组聚合，
+  // 后续新增小应用不需要改这里就会自动出现在列表中。
+  async getToolsMetrics() {
+    const [summary] = await this.dataSource.query(
+      `SELECT
+        (SELECT COUNT(*) FROM user_events WHERE name = 'tools_hub_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS hubViews7,
+        (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'tools_hub_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS hubUsers7,
+        (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'tool_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS toolUsers7,
+        (SELECT COUNT(*) FROM user_events WHERE name = 'stool_analyze_click' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS stoolAnalyzes7,
+        (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'stool_analyze_click' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS stoolUsers7,
+        (SELECT COUNT(DISTINCT ${ACTIVE_USER_ID}) ${ACTIVE_USER_FROM} WHERE r.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS activeUsers7
+      `,
+    );
+
+    const extractApp = `JSON_UNQUOTE(JSON_EXTRACT(properties, '$.name'))`;
+    const [clickRows, openRows7, userRows30, hubDailyRows, openDailyRows] = await Promise.all([
+      this.dataSource.query(
+        `SELECT ${extractApp} AS app, COUNT(*) AS count, COUNT(DISTINCT user_id) AS users
+         FROM user_events
+         WHERE name = 'tool_click' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND ${extractApp} IS NOT NULL
+         GROUP BY app`,
+      ),
+      this.dataSource.query(
+        `SELECT ${extractApp} AS app, COUNT(*) AS count, COUNT(DISTINCT user_id) AS users
+         FROM user_events
+         WHERE name = 'tool_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND ${extractApp} IS NOT NULL
+         GROUP BY app`,
+      ),
+      this.dataSource.query(
+        `SELECT ${extractApp} AS app, COUNT(DISTINCT user_id) AS users
+         FROM user_events
+         WHERE name = 'tool_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND ${extractApp} IS NOT NULL
+         GROUP BY app`,
+      ),
+      this.dataSource.query(
+        `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS count
+         FROM user_events WHERE name = 'tools_hub_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+         GROUP BY date`,
+      ),
+      this.dataSource.query(
+        `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS count
+         FROM user_events WHERE name = 'tool_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+         GROUP BY date`,
+      ),
+    ]);
+
+    const TOOL_LABELS: Record<string, string> = {
+      stool_ai: 'AI 识别便便',
+      age_calc: '月龄计算器',
+      vaccine_table: '疫苗接种时间表',
+      milk_calc: '奶量估算器',
+    };
+
+    const clickMap = new Map<string, { count: number; users: number }>(
+      clickRows.map((row): [string, { count: number; users: number }] => [
+        row.app,
+        { count: Number(row.count), users: Number(row.users) },
+      ]),
+    );
+    const openMap7 = new Map<string, { count: number; users: number }>(
+      openRows7.map((row): [string, { count: number; users: number }] => [
+        row.app,
+        { count: Number(row.count), users: Number(row.users) },
+      ]),
+    );
+    const userMap30 = new Map<string, number>(
+      userRows30.map((row): [string, number] => [row.app, Number(row.users)]),
+    );
+
+    // 点击与到达取并集，排序按近 7 天打开次数降序
+    const appKeys = Array.from(new Set([...clickMap.keys(), ...openMap7.keys()]));
+    const apps = appKeys
+      .map((key) => {
+        const click = clickMap.get(key) ?? { count: 0, users: 0 };
+        const open = openMap7.get(key) ?? { count: 0, users: 0 };
+        return {
+          key,
+          label: TOOL_LABELS[key] ?? key,
+          clicks7: click.count,
+          clickUsers7: click.users,
+          opens7: open.count,
+          openUsers7: open.users,
+          users30: userMap30.get(key) ?? 0,
+          openRate: click.count > 0 ? Math.round((open.count / click.count) * 1000) / 10 : 0,
+        };
+      })
+      .sort((a, b) => b.opens7 - a.opens7 || b.clicks7 - a.clicks7);
+
+    const hubDailyMap = new Map<string, number>(
+      hubDailyRows.map((row): [string, number] => [row.date, Number(row.count)]),
+    );
+    const openDailyMap = new Map<string, number>(
+      openDailyRows.map((row): [string, number] => [row.date, Number(row.count)]),
+    );
+    const today = new Date();
+    const daily14: { date: string; hubViews: number; opens: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      const key = this.formatDate(d);
+      daily14.push({
+        date: key,
+        hubViews: hubDailyMap.get(key) ?? 0,
+        opens: openDailyMap.get(key) ?? 0,
+      });
+    }
+
+    const hubUsers7 = Number(summary.hubUsers7);
+    const toolUsers7 = Number(summary.toolUsers7);
+    const activeUsers7 = Number(summary.activeUsers7);
+
+    return {
+      hubViews7: Number(summary.hubViews7),
+      hubUsers7,
+      toolUsers7,
+      activeUsers7,
+      // 使用率＝近 7 天打开过任一小应用的用户 / 近 7 天活跃用户（活跃口径同数据看板：产生过记录的用户）
+      usageRate: activeUsers7 > 0 ? Math.round((toolUsers7 / activeUsers7) * 1000) / 10 : 0,
+      stoolAnalyzes7: Number(summary.stoolAnalyzes7),
+      stoolUsers7: Number(summary.stoolUsers7),
+      apps,
+      daily14,
+    };
+  }
 }

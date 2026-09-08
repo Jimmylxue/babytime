@@ -18,9 +18,14 @@ const DETAIL_SUPPORTED_TYPES = [
   RecordType.FEEDING,
   RecordType.DIAPER,
   RecordType.SLEEP,
-  RecordType.HEIGHT_WEIGHT,
+  RecordType.FOOD,
+  RecordType.WATER,
   RecordType.TEMPERATURE,
+  RecordType.HEIGHT_WEIGHT,
+  RecordType.MEDICINE,
   RecordType.VACCINE,
+  RecordType.BATH,
+  RecordType.OUTDOOR,
 ];
 
 type GrowthMetric = 'height' | 'weight';
@@ -527,7 +532,7 @@ export class RecordService {
     const aggregateResult = await aggregate.getRawOne();
 
     const summary: any = { count: Number(aggregateResult.count) };
-    if (type === RecordType.FEEDING) {
+    if (type === RecordType.FEEDING || type === RecordType.WATER) {
       summary.totalAmount = Number(aggregateResult.totalAmount);
     } else if (type === RecordType.SLEEP) {
       summary.totalDuration = Number(aggregateResult.totalDuration);

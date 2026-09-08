@@ -1,0 +1,102 @@
+// 应用 tab：一行四个的宫格入口，新应用追加进数组即可自动换行
+.tools-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FBF5F8 0%, #FDF8FA 42%, #FDFDFD 100%);
+  padding: 36px 28px 180px;
+  box-sizing: border-box;
+}
+
+.tools-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 36px 0;
+}
+
+.tool-cell {
+  width: 25%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.tool-icon-wrap {
+  position: relative;
+}
+
+.tool-icon {
+  width: 100px;
+  height: 100px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.tint-sand {
+    background: linear-gradient(160deg, #FDF8F0 0%, #FBEEDC 100%);
+  }
+
+  &.tint-pink {
+    background: linear-gradient(160deg, #FDF4F6 0%, #FCE3EB 100%);
+  }
+
+  &.tint-blue {
+    background: linear-gradient(160deg, #F3F7FD 0%, #E4EEFB 100%);
+  }
+
+  &.tint-cream {
+    background: linear-gradient(160deg, #FDF8F4 0%, #FBEDE2 100%);
+  }
+}
+
+.tool-icon-emoji {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.tool-badge {
+  position: absolute;
+  top: -10px;
+  right: -16px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #FB7F96;
+  box-shadow: 0 4px 8px rgba(251, 127, 150, 0.3);
+}
+
+.tool-badge Text {
+  font-size: 17px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 1px;
+}
+
+.tool-title {
+  max-width: 100%;
+  font-size: 22px;
+  color: #5A5751;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tools-footer {
+  display: block;
+  margin-top: 48px;
+  text-align: center;
+  font-size: 20px;
+  color: #C6C2BA;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

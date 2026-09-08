@@ -7,6 +7,7 @@ import Users from './pages/Users';
 import Babies from './pages/Babies';
 import BabyDetailPage from './pages/BabyDetail';
 import Analytics from './pages/Analytics';
+import MiniApps from './pages/MiniApps';
 import Announcements from './pages/Announcements';
 import Subscriptions from './pages/Subscriptions';
 
@@ -34,6 +35,7 @@ export default function App() {
 				<Route path="babies/:id" element={<BabyDetailPage />} />
 				<Route path="users" element={<Users />} />
 				<Route path="analytics" element={<Analytics />} />
+				<Route path="mini-apps" element={<MiniApps />} />
 				<Route path="announcements" element={<Announcements />} />
 				<Route path="notifications" element={<Subscriptions />} />
 			</Route>

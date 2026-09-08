@@ -464,6 +464,11 @@ export default function Index() {
 			Taro.navigateTo({
 				url: `/pages/feeding/index?babyId=${currentBaby.id}`,
 			})
+		} else if (type === 'sleep') {
+			// 睡眠记录使用独立设计页
+			Taro.navigateTo({
+				url: `/pages/sleep/index?babyId=${currentBaby.id}`,
+			})
 		} else {
 			Taro.navigateTo({
 				url: `/pages/record/index?type=${type}&babyId=${currentBaby.id}${

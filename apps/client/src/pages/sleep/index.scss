@@ -1,0 +1,262 @@
+// 睡眠记录独立页：按 UI 稿布局，字重整体调轻一档（用户嫌粗）
+.sleep-page {
+  min-height: 100vh;
+  background: #FEF9F8;
+  // 底部留出固定保存按钮的空间（按钮高 100px + 底距 24px + 间隙）
+  padding: 0 32px calc(180px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+Picker {
+  display: block;
+}
+
+// ── Hero：😴 + 标题 + 副标题，右侧云朵宝宝插画 ──
+.sleep-hero {
+  position: relative;
+  padding-top: 85px;
+  margin-bottom: 14px;
+  animation: fadeUp 0.6s ease;
+}
+
+.sleep-hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sleep-hero-emoji {
+  font-size: 50px;
+  line-height: 1;
+}
+
+.sleep-hero-title {
+  font-size: 42px;
+  font-weight: 600;
+  color: #2E2C33;
+  line-height: 1.2;
+}
+
+.sleep-hero-sub {
+  display: block;
+  margin-top: 16px;
+  font-size: 26px;
+  color: #8A8790;
+}
+
+// 插画自带月亮星星，透明底直接贴页面底色；右缘距屏约 24px（抵消页面内边距）
+.sleep-hero-illu {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  width: 300px;
+  height: 244px;
+}
+
+// ── 单一白卡：三个时间行 + 时长高亮块 + 备注 ──
+.sleep-card {
+  background: #FFFFFF;
+  border-radius: 36px;
+  padding: 8px 30px 36px;
+  box-shadow: 0 8px 24px rgba(214, 168, 158, 0.05);
+  animation: fadeUp 0.6s ease 0.08s both;
+  margin-top: 65px;
+}
+
+.sleep-row {
+  display: flex;
+  align-items: center;
+  height: 104px;
+}
+
+.sleep-row-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  background: #FDF2F3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sleep-row-icon-img {
+  width: 34px;
+  height: 34px;
+}
+
+.sleep-row-label {
+  margin-left: 32px;
+  font-size: 29px;
+  font-weight: 500;
+  color: #3A383E;
+}
+
+.sleep-row-label-sub {
+  font-size: 29px;
+  font-weight: 400;
+  color: #8A8790;
+}
+
+.sleep-row-value {
+  margin-left: auto;
+  font-size: 29px;
+  font-weight: 400;
+  color: #6F6C74;
+}
+
+.sleep-chevron {
+  margin-left: 12px;
+  width: 15px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+// 分隔线从标签左缘起（图标右侧），与稿一致
+.sleep-divider {
+  height: 1px;
+  background: #F5F3F4;
+  margin-left: 100px;
+}
+
+// ── 睡眠时长高亮块 ──
+.sleep-duration {
+  position: relative;
+  margin: 10px 2px 6px;
+  background: #FDF2F3;
+  border-radius: 24px;
+  padding: 28px 32px 34px;
+}
+
+.sleep-duration-label-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.sleep-duration-label-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.sleep-duration-label {
+  font-size: 28px;
+  font-weight: 600;
+  color: #3A383E;
+}
+
+// 数值与标签左对齐（避开图标位）
+.sleep-duration-value-row {
+  display: flex;
+  align-items: baseline;
+  margin-top: 12px;
+  padding-left: 56px;
+}
+
+.sleep-duration-value {
+  font-size: 48px;
+  font-weight: 600;
+  color: #FE4563;
+  line-height: 1.2;
+}
+
+.sleep-duration-suffix {
+  margin-left: 10px;
+  font-size: 26px;
+  font-weight: 400;
+  color: #FE4563;
+}
+
+// 三枚淡粉星星装饰（位置取自稿面量测）
+.sleep-duration-star {
+  position: absolute;
+}
+
+.star-a {
+  width: 34px;
+  height: 34px;
+  right: 126px;
+  top: 70px;
+}
+
+.star-b {
+  width: 22px;
+  height: 22px;
+  right: 86px;
+  top: 28px;
+}
+
+.star-c {
+  width: 17px;
+  height: 17px;
+  right: 36px;
+  top: 66px;
+}
+
+// ── 备注 ──
+.sleep-note-row {
+  margin-top: 12px;
+}
+
+.sleep-note-area {
+  position: relative;
+  margin-top: 6px;
+  background: #FAF9F9;
+  border-radius: 24px;
+  padding: 24px 28px 46px;
+}
+
+.sleep-note-input {
+  width: 100%;
+  height: 76px;
+  font-size: 28px;
+  color: #3A383E;
+  line-height: 1.5;
+}
+
+.sleep-note-counter {
+  position: absolute;
+  right: 28px;
+  bottom: 14px;
+  font-size: 22px;
+  color: #9B989F;
+}
+
+// ── 保存按钮：固定底部常驻 ──
+.sleep-save {
+  position: fixed;
+  left: 32px;
+  right: 32px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100px;
+  background: linear-gradient(90deg, #FEA4B4 0%, #FDB7C5 100%);
+  border-radius: 999px;
+  box-shadow: 0 10px 22px rgba(253, 166, 188, 0.32);
+  transition: transform 0.2s;
+  animation: fadeUp 0.6s ease 0.2s both;
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+.sleep-save-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.sleep-save-text {
+  font-size: 32px;
+  font-weight: 600;
+  color: #fff;
+}

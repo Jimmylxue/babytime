@@ -3,7 +3,7 @@ import Taro, { useDidShow, useRouter } from '@tarojs/taro';
 import { useState } from 'react';
 import { useRecordStore, DetailRecord } from '../../stores/recordStore';
 import { formatDate, formatDurationLong, formatHM } from '../../utils/date';
-import { detailTypeTabs, getRecordMainText, getIntervalShortText } from '../../utils/recordDisplay';
+import { detailTypeTabs, detailTypeInfo, getRecordMainText, getIntervalShortText } from '../../utils/recordDisplay';
 import { MOCK_DETAIL } from '../../utils/mock';
 import { recordApi } from '../../utils/request';
 import './index.scss';
@@ -17,9 +17,9 @@ export default function RecordDetailPage() {
   const [days, setDays] = useState(7);
 
   const typeInfo =
-    detailTypeTabs.find(
+    detailTypeInfo.find(
       (t) => t.type === type && (t.metric ?? null) === growthMetric,
-    ) || detailTypeTabs.find((t) => t.type === type) || detailTypeTabs[0];
+    ) || detailTypeInfo.find((t) => t.type === type) || detailTypeTabs[0];
 
   const loadFirstPage = (selectedDays = days) => {
     if (babyId) {
@@ -74,6 +74,11 @@ export default function RecordDetailPage() {
       Taro.navigateTo({ url: `/pages/feeding/index?babyId=${babyId}&id=${item.id}` });
       return;
     }
+    if (type === 'sleep') {
+      // 睡眠记录使用独立设计页编辑
+      Taro.navigateTo({ url: `/pages/sleep/index?babyId=${babyId}&id=${item.id}` });
+      return;
+    }
     Taro.navigateTo({ url: `/pages/record/index?type=${type}&babyId=${babyId}&id=${item.id}${metricParam}` });
   };
 
@@ -92,6 +97,12 @@ export default function RecordDetailPage() {
         if (item.breastAmount != null) data.breastAmount = item.breastAmount;
         if (item.formulaAmount != null) data.formulaAmount = item.formulaAmount;
         if (item.duration != null) data.duration = item.duration;
+      } else if (type === 'sleep') {
+        // 睡眠「再来一条」：保持原时长，起止时间整体平移到现在
+        if (item.duration != null) {
+          data.duration = item.duration;
+          data.endTime = new Date(Date.now() + item.duration * 60000).toISOString();
+        }
       } else if (type === 'diaper') {
         data.diaperStatus = item.diaperStatus || 'wet';
       } else if (type === 'food') {
@@ -157,6 +168,12 @@ export default function RecordDetailPage() {
           <View className="summary-bar-item">
             <Text className="summary-bar-value">{summary?.totalAmount ?? 0}ml</Text>
             <Text className="summary-bar-label">总奶量</Text>
+          </View>
+        )}
+        {type === 'water' && (
+          <View className="summary-bar-item">
+            <Text className="summary-bar-value">{summary?.totalAmount ?? 0}ml</Text>
+            <Text className="summary-bar-label">总水量</Text>
           </View>
         )}
         {type === 'sleep' && (

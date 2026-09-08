@@ -1,0 +1,274 @@
+// AI 识别便便独立页：门禁卡 + 识别卡（拍摄建议/上传/结果），样式沿用原尿布记录里的识别块
+.stoolai-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FBF5F8 0%, #FDF8FA 42%, #FDFDFD 100%);
+  padding: 24px 32px 60px;
+  box-sizing: border-box;
+}
+
+.stoolai-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 8px 24px;
+}
+
+.stoolai-title {
+  font-size: 40px;
+  font-weight: 800;
+  color: #2F2E2F;
+}
+
+.stoolai-sub {
+  font-size: 23px;
+  color: #A8A59E;
+}
+
+.stoolai-card {
+  background: #FFFFFF;
+  border-radius: 36px;
+  padding: 30px 32px;
+  box-shadow: 0 12px 30px rgba(230, 170, 160, 0.1);
+  animation: fadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stoolai-gate {
+  margin-top: 160px;
+  background: #FFFFFF;
+  border-radius: 36px;
+  padding: 70px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 12px 30px rgba(230, 170, 160, 0.1);
+}
+
+.stoolai-gate-emoji {
+  font-size: 72px;
+  line-height: 1;
+}
+
+.stoolai-gate-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2F2E2F;
+}
+
+.stoolai-gate-sub {
+  font-size: 23px;
+  color: #A8A59E;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.stoolai-gate-btn {
+  margin-top: 20px;
+  padding: 20px 64px;
+  border-radius: 999px;
+  background: #FB7F96;
+  box-shadow: 0 10px 24px rgba(251, 127, 150, 0.3);
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.stoolai-gate-btn Text {
+  font-size: 27px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+/* ↓ 以下识别相关样式自 pages/record/index.scss 原样迁移，类名不变便于对照 */
+
+.stool-photo-tips {
+  margin: -4px 0 22px;
+}
+
+.stool-photo-tips-title,
+.stool-photo-tips-content {
+  display: block;
+}
+
+.stool-photo-tips-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #5F5A55;
+}
+
+.stool-photo-tips-content {
+  margin-top: 8px;
+  font-size: 22px;
+  line-height: 1.6;
+  color: #8E8B82;
+}
+
+.image-picker {
+  width: 200px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #F9F9F9;
+  border-radius: 20px;
+  border: 2px dashed #E5E2DA;
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.image-picker-icon {
+  font-size: 44px;
+  margin-bottom: 8px;
+}
+
+.image-picker-text {
+  font-size: 22px;
+  color: #A8A59E;
+}
+
+.image-preview {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.image-preview-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+}
+
+.image-remove-badge {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2D2A2E;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 28px;
+  line-height: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stool-analyze-btn {
+  width: 100%;
+  height: 84px;
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFF0ED;
+  border: 1px solid #FFA5B4;
+  border-radius: 20px;
+  color: #D85B75;
+  font-size: 28px;
+  font-weight: 600;
+
+  &.disabled {
+    opacity: 0.6;
+  }
+}
+
+.stool-result {
+  margin-top: 20px;
+  padding: 24px;
+  background: #FFF9E8;
+  border: 1px solid #F3D787;
+  border-radius: 20px;
+
+  &.normal {
+    background: #F1FBF4;
+    border-color: #A8DDB5;
+  }
+
+  &.medical_attention,
+  &.urgent {
+    background: #FFF1EF;
+    border-color: #F0AAA2;
+  }
+}
+
+.stool-result-title,
+.stool-result-summary,
+.stool-result-feature,
+.stool-result-guidance,
+.stool-result-disclaimer {
+  display: block;
+}
+
+.stool-result-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2D2A2E;
+}
+
+.stool-result-summary,
+.stool-result-feature,
+.stool-result-guidance {
+  margin-top: 12px;
+  font-size: 24px;
+  line-height: 1.6;
+  color: #5F5A55;
+}
+
+.stool-result-guidance::before {
+  content: '• ';
+}
+
+.stool-result-disclaimer {
+  margin-top: 16px;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #8E8B82;
+}
+
+/* ↑ 识别相关样式迁移结束 */
+
+.stoolai-record-cta {
+  margin-top: 28px;
+  align-self: center;
+  background: #FFFFFF;
+  border-radius: 999px;
+  padding: 20px 44px;
+  box-shadow: 0 10px 24px rgba(230, 170, 160, 0.16);
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.stoolai-record-cta-text {
+  font-size: 27px;
+  font-weight: 700;
+  color: #FB7F96;
+}
+
+.stoolai-footer {
+  display: block;
+  margin-top: 28px;
+  text-align: center;
+  font-size: 20px;
+  color: #C6C2BA;
+  line-height: 1.6;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

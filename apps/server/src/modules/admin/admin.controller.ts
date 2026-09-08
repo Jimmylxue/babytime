@@ -82,6 +82,13 @@ export class AdminController {
   }
 
   @UseGuards(AdminJwtGuard)
+  @Get('stats/tools')
+  async getToolsMetrics() {
+    const data = await this.adminStatsService.getToolsMetrics();
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
   @Get('babies')
   async getBabies(
     @Query('page') page?: string,

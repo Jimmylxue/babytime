@@ -8,6 +8,7 @@ export interface DetailTypeTab {
 	icon: string
 }
 
+// 统计页 tab 用的类型列表（保持原有 6 类，新类型不上统计页 tab）
 export const detailTypeTabs: DetailTypeTab[] = [
 	{ type: 'feeding', label: '喂奶', icon: '🍼' },
 	{ type: 'diaper', label: '尿布', icon: '💩' },
@@ -16,6 +17,16 @@ export const detailTypeTabs: DetailTypeTab[] = [
 	{ type: 'height_weight', metric: 'weight', label: '体重', icon: '⚖️' },
 	{ type: 'temperature', label: '体温', icon: '🌡️' },
 	{ type: 'vaccine', label: '疫苗', icon: '💉' },
+]
+
+// 记录明细页标题用的全量类型信息（含所有可记录类型；height/weight 共用 height_weight 类型、按 metric 区分）
+export const detailTypeInfo: DetailTypeTab[] = [
+	...detailTypeTabs,
+	{ type: 'food', label: '辅食', icon: '🍚' },
+	{ type: 'water', label: '喝水', icon: '💧' },
+	{ type: 'medicine', label: '用药', icon: '💊' },
+	{ type: 'bath', label: '洗澡', icon: '🛁' },
+	{ type: 'outdoor', label: '户外活动', icon: '🌳' },
 ]
 
 export const feedingMethodLabel: Record<string, string> = {
@@ -60,6 +71,24 @@ export function getRecordMainText(
 	if (type === 'vaccine') {
 		const dose = item.vaccineDose ? ` 第${item.vaccineDose}剂` : ''
 		return `${item.vaccineName || '疫苗'}${dose}`
+	}
+	if (type === 'food') {
+		return item.foodName || '-'
+	}
+	if (type === 'water') {
+		return item.amount != null ? `${item.amount}ml` : '-'
+	}
+	if (type === 'medicine') {
+		return [item.medicineName, item.medicineDose].filter(Boolean).join(' · ') || '-'
+	}
+	if (type === 'bath') {
+		return '洗澡'
+	}
+	if (type === 'outdoor') {
+		const parts: string[] = []
+		if (item.outdoorLocation) parts.push(item.outdoorLocation)
+		if (item.duration != null) parts.push(formatDurationLong(item.duration))
+		return parts.join(' · ') || '-'
 	}
 	return ''
 }

@@ -1,0 +1,179 @@
+// 月龄计算器：表单卡 + 结果英雄卡 + 整月纪念日卡
+.agecalc-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FBF5F8 0%, #FDF8FA 42%, #FDFDFD 100%);
+  padding: 24px 32px 60px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.agecalc-card {
+  background: #FFFFFF;
+  border-radius: 36px;
+  padding: 30px 32px;
+  box-shadow: 0 12px 30px rgba(230, 170, 160, 0.1);
+  animation: fadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.form-label {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  color: #A8A59E;
+  margin-bottom: 16px;
+}
+
+.form-picker {
+  flex: 1;
+}
+
+.form-picker-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FBF5F6;
+  border-radius: 24px;
+  padding: 22px 28px;
+}
+
+.form-picker-value {
+  font-size: 30px;
+  font-weight: 700;
+  color: #2F2E2F;
+}
+
+.form-picker-placeholder {
+  font-size: 28px;
+  color: #C6C2BA;
+}
+
+.form-picker-arrow {
+  font-size: 24px;
+  color: #C6C2BA;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 14px;
+  font-size: 21px;
+  color: #FB7F96;
+}
+
+.empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 32px;
+}
+
+.empty-emoji {
+  font-size: 64px;
+  line-height: 1;
+}
+
+.empty-text {
+  font-size: 24px;
+  color: #A8A59E;
+}
+
+.result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(160deg, #FDF4F6 0%, #FCE6EC 100%);
+}
+
+.result-caption {
+  font-size: 24px;
+  color: #B08A93;
+}
+
+.result-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.result-hero-num {
+  font-size: 108px;
+  font-weight: 800;
+  color: #FB7F96;
+  line-height: 1;
+}
+
+.result-hero-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-hero-unit-main {
+  font-size: 34px;
+  font-weight: 700;
+  color: #2F2E2F;
+}
+
+.result-hero-unit-sub {
+  font-size: 24px;
+  color: #B08A93;
+}
+
+.result-line {
+  font-size: 26px;
+  color: #2F2E2F;
+}
+
+.result-line.dim {
+  color: #A8A59E;
+}
+
+.milestone-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.milestone-emoji {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.milestone-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.milestone-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: #2F2E2F;
+}
+
+.milestone-sub {
+  font-size: 22px;
+  color: #A8A59E;
+}
+
+.agecalc-footer {
+  text-align: center;
+  font-size: 20px;
+  color: #C6C2BA;
+  margin-top: 8px;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
