@@ -119,7 +119,7 @@ export default function BabyEditPage() {
       setAvatar(baby.avatar || 'preset:boy');
       if (baby.avatar) setCustomPhoto(baby.avatar);
     } catch (error) {
-      Taro.showToast({ title: '获取信息失败', icon: 'none' });
+      // 错误提示由全局拦截器统一 toast
     }
   };
 
@@ -229,7 +229,7 @@ export default function BabyEditPage() {
         }
       }
     } catch (error) {
-      Taro.showToast({ title: isEdit ? '更新失败' : '添加失败', icon: 'none' });
+      // 失败原因（如宝宝名字未过内容安全检测）由全局拦截器统一 toast
     } finally {
       submittingRef.current = false;
       setLoading(false);

@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { Photo } from './entities/photo.entity';
 import { CreatePhotoDto } from './dto/create-photo.dto';
 import { BabyService } from '../baby/baby.service';
+import { ContentSecurityService } from '../content-security/content-security.service';
 
 @Injectable()
 export class PhotoService {
@@ -11,10 +12,12 @@ export class PhotoService {
     @InjectRepository(Photo)
     private photoRepository: Repository<Photo>,
     private babyService: BabyService,
+    private contentSecurity: ContentSecurityService,
   ) {}
 
   async create(userId: string, createPhotoDto: CreatePhotoDto) {
     await this.babyService.findOne(createPhotoDto.babyId, userId);
+    await this.contentSecurity.checkUserTexts(userId, [createPhotoDto.note]);
     const photo = this.photoRepository.create(createPhotoDto);
     return this.photoRepository.save(photo);
   }

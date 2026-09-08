@@ -28,7 +28,7 @@ export default function FamilyJoinPage() {
 
   // 转发不断链：卡片可继续转给其他家人
   useShareAppMessage(() => ({
-    title: `${info?.inviterNickname || '家人'}邀请你加入${info?.babyName || '宝宝'}的成长记录`,
+    title: `${info?.babyName || '宝宝'}的成长点滴都在这里，家人点开就能看`,
     path: `/pages/family-join/index?invite=${inviteCode}`,
   }))
 
@@ -77,13 +77,13 @@ export default function FamilyJoinPage() {
   }
 
   const renderBody = () => {
-    // 未登录
+    // 未登录（文案对准长辈：先说能看到什么，再说登录）
     if (!isLoggedIn) {
       return (
         <View className="fj-state">
-          <Text className="fj-state-icon">👨‍👩‍👧</Text>
-          <Text className="fj-state-title">登录后加入家庭</Text>
-          <Text className="fj-state-desc">登录即可实时查看宝宝的成长记录</Text>
+          <Text className="fj-state-icon">👶</Text>
+          <Text className="fj-state-title">登录后就能看到宝宝的日常</Text>
+          <Text className="fj-state-desc">每天的照片、喂奶睡觉的动态，家人随时都能看</Text>
           <View className="fj-primary-btn" onClick={goLogin}>
             <Text className="fj-primary-btn-text">微信一键登录</Text>
           </View>
@@ -115,7 +115,7 @@ export default function FamilyJoinPage() {
       return (
         <View className="fj-invite-card">
           <Text className="fj-invite-hello">
-            {info.inviterNickname} 邀请你加入家庭
+            {info.inviterNickname} 想请你一起看 {info.babyName} 长大
           </Text>
           <View className="fj-baby">
             <View className="fj-baby-avatar">
@@ -126,7 +126,9 @@ export default function FamilyJoinPage() {
             </View>
             <Text className="fj-baby-name">{info.babyName}</Text>
           </View>
-          <Text className="fj-invite-desc">加入后可实时查看宝宝的成长记录</Text>
+          <Text className="fj-invite-desc">
+            加入后，{info.babyName}的照片和每天的动态，你随时都能看到
+          </Text>
           <View className="fj-primary-btn" onClick={handleJoin}>
             <Text className="fj-primary-btn-text">
               {joining ? '加入中...' : '加入家庭'}
@@ -161,7 +163,7 @@ export default function FamilyJoinPage() {
       own: {
         icon: '📎',
         title: '这是你自己分享的邀请卡',
-        desc: '把卡片发给家人，他们点开即可加入',
+        desc: '把卡片发给家人，他们点开就能看宝宝日常',
       },
       invalid: {
         icon: '🚫',

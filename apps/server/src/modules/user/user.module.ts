@@ -10,11 +10,13 @@ import { SubscriptionGrant } from './entities/subscription-grant.entity';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { JwtStrategy } from '../../common/strategies/jwt.strategy';
+import { ContentSecurityModule } from '../content-security/content-security.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserEvent, SubscriptionGrant]),
     HttpModule,
+    ContentSecurityModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

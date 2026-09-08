@@ -176,7 +176,7 @@ export default function PhotoPage() {
       setSelectedIds([]);
       fetchFirstPage();
     } catch (error) {
-      Taro.showToast({ title: '删除失败', icon: 'none' });
+      // 错误提示由全局拦截器统一 toast
     }
   };
 

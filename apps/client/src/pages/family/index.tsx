@@ -130,11 +130,16 @@ export default function FamilyPage() {
     }
   }
 
-  // 分享卡片（转发不断链：落地页可继续转发）
-  useShareAppMessage(() => ({
-    title: `${userInfo?.nickname || '家人'}邀请你一起记录宝宝成长`,
-    path: `/pages/family-join/index?invite=${inviteInfo?.inviteCode || ''}`,
-  }))
+  // 分享卡片（转发不断链：落地页可继续转发）。
+  // 标题用通用「家人」视角说清点开能得到什么，不特指某类家人
+  useShareAppMessage(() => {
+    const { currentBaby: baby, babies: list } = useBabyStore.getState()
+    const babyName = baby?.name || list[0]?.name || '宝宝'
+    return {
+      title: `${babyName}的日常都在这里，家人点开就能看`,
+      path: `/pages/family-join/index?invite=${inviteInfo?.inviteCode || ''}`,
+    }
+  })
 
   const handleDeleteMember = async (member: Member) => {
     const name = member.user?.nickname || '该成员'
@@ -148,7 +153,7 @@ export default function FamilyPage() {
         Taro.showToast({ title: '已移除', icon: 'success' })
         loadData()
       } catch (error) {
-        Taro.showToast({ title: '操作失败', icon: 'none' })
+        // 错误提示由全局拦截器统一 toast
       }
     }
   }
@@ -209,7 +214,7 @@ export default function FamilyPage() {
         Taro.showToast({ title: '已退出家庭', icon: 'success' })
         loadData()
       } catch (error) {
-        Taro.showToast({ title: '操作失败', icon: 'none' })
+        // 错误提示由全局拦截器统一 toast
       }
     }
   }
@@ -267,7 +272,7 @@ export default function FamilyPage() {
       {members.length === 0 ? (
         <View className="family-card members-empty">
           <Text className="members-empty-text">暂无其他成员</Text>
-          <Text className="members-empty-desc">分享邀请卡给家人，共同记录宝宝成长</Text>
+          <Text className="members-empty-desc">分享邀请卡给家人，一起看宝宝长大</Text>
         </View>
       ) : (
         <View className="family-members">

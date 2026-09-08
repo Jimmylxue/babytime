@@ -119,7 +119,7 @@ export default function RecordDetailPage() {
       Taro.showToast({ title: '已按该记录新增一条', icon: 'success' });
       loadFirstPage();
     } catch (error) {
-      Taro.showToast({ title: '操作失败', icon: 'none' });
+      // 错误提示由全局拦截器统一 toast
     }
   };
 
@@ -134,7 +134,7 @@ export default function RecordDetailPage() {
       Taro.showToast({ title: '已删除', icon: 'success' });
       loadFirstPage();
     } catch (error) {
-      Taro.showToast({ title: '删除失败', icon: 'none' });
+      // 错误提示由全局拦截器统一 toast
     }
   };
 

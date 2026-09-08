@@ -129,7 +129,7 @@ export default function MinePage() {
 				Taro.showToast({ title: '保存成功', icon: 'success' })
 			}
 		} catch (error) {
-			Taro.showToast({ title: '保存失败', icon: 'none' })
+			// 失败原因（如昵称未过内容安全检测）由全局拦截器统一 toast
 		}
 	}
 

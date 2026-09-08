@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { User } from './entities/user.entity';
 import { UserEvent } from './entities/user-event.entity';
 import { LoginDto, UpdateUserDto } from './dto/login.dto';
+import { ContentSecurityService } from '../content-security/content-security.service';
 
 @Injectable()
 export class UserService {
@@ -19,6 +20,7 @@ export class UserService {
     private httpService: HttpService,
     @InjectRepository(UserEvent)
     private eventRepository: Repository<UserEvent>,
+    private contentSecurity: ContentSecurityService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -96,6 +98,7 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
+    await this.contentSecurity.checkUserTexts(id, [updateUserDto.nickname, updateUserDto.role], 1);
     await this.userRepository.update(id, updateUserDto);
     return this.findById(id);
   }

@@ -8,6 +8,7 @@ import { Record } from '../record/entities/record.entity';
 import { Photo } from '../photo/entities/photo.entity';
 import { VaccinePlan } from '../notification/entities/vaccine-plan.entity';
 import { CreateBabyDto, UpdateBabyDto } from './dto/create-baby.dto';
+import { ContentSecurityService } from '../content-security/content-security.service';
 
 @Injectable()
 export class BabyService {
@@ -17,9 +18,11 @@ export class BabyService {
     @InjectRepository(FamilyMember)
     private familyRepository: Repository<FamilyMember>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private contentSecurity: ContentSecurityService,
   ) {}
 
   async create(userId: string, createBabyDto: CreateBabyDto) {
+    await this.contentSecurity.checkUserTexts(userId, [createBabyDto.name], 1);
     const baby = this.babyRepository.create({
       ...createBabyDto,
       userId,
@@ -122,6 +125,7 @@ export class BabyService {
 
   async update(id: string, userId: string, updateBabyDto: UpdateBabyDto) {
     const baby = await this.findOne(id, userId);
+    await this.contentSecurity.checkUserTexts(userId, [updateBabyDto.name], 1);
     Object.assign(baby, updateBabyDto);
     return this.babyRepository.save(baby);
   }

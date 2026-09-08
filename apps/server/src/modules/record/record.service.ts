@@ -12,6 +12,7 @@ import { Record, RecordType } from './entities/record.entity';
 import { CreateRecordDto } from './dto/create-record.dto';
 import { UpdateRecordDto } from './dto/update-record.dto';
 import { BabyService } from '../baby/baby.service';
+import { ContentSecurityService } from '../content-security/content-security.service';
 
 // 支持"明细+间隔"展示的记录类型
 const DETAIL_SUPPORTED_TYPES = [
@@ -36,7 +37,21 @@ export class RecordService {
     @InjectRepository(Record)
     private recordRepository: Repository<Record>,
     private babyService: BabyService,
+    private contentSecurity: ContentSecurityService,
   ) {}
+
+  // 记录里允许用户自由填写的文本字段，创建/更新时统一过内容安全检测
+  private recordTextFields(dto: CreateRecordDto | UpdateRecordDto) {
+    return [
+      dto.note,
+      dto.foodName,
+      dto.medicineName,
+      dto.medicineDose,
+      dto.vaccineName,
+      dto.vaccineHospital,
+      dto.outdoorLocation,
+    ];
+  }
 
   async create(userId: string, createRecordDto: CreateRecordDto) {
     await this.babyService.findOne(createRecordDto.babyId, userId);
@@ -59,6 +74,8 @@ export class RecordService {
         createRecordDto.amount = breast + formula;
       }
     }
+
+    await this.contentSecurity.checkUserTexts(userId, this.recordTextFields(createRecordDto));
 
     const record = this.recordRepository.create({ ...createRecordDto, actorUserId: userId });
     return this.recordRepository.save(record);
@@ -136,6 +153,7 @@ export class RecordService {
     }
 
     Object.assign(record, updateRecordDto);
+    await this.contentSecurity.checkUserTexts(userId, this.recordTextFields(updateRecordDto));
     return this.recordRepository.save(record);
   }
 

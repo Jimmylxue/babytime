@@ -5,11 +5,13 @@ import { FamilyMember } from '../family/entities/family-member.entity';
 import { BabyService } from './baby.service';
 import { BabyController } from './baby.controller';
 import { UserModule } from '../user/user.module';
+import { ContentSecurityModule } from '../content-security/content-security.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Baby, FamilyMember]),
     UserModule,
+    ContentSecurityModule,
   ],
   controllers: [BabyController],
   providers: [BabyService],

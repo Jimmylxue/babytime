@@ -48,7 +48,7 @@ export default function SleepPage() {
       if (record.endTime) setSleepEnd(formatHM(record.endTime))
       if (record.note) setNote(record.note)
     } catch (error) {
-      Taro.showToast({ title: '获取记录失败', icon: 'none' })
+      // 错误提示由全局拦截器统一 toast
     }
   }
 
@@ -98,7 +98,7 @@ export default function SleepPage() {
     } catch (error) {
       submittingRef.current = false
       setLoading(false)
-      Taro.showToast({ title: isEdit ? '更新失败' : '记录失败', icon: 'none' })
+      // 失败原因（如内容安全拦截）由 request 全局拦截器统一 toast，这里只复位状态
     }
   }
 

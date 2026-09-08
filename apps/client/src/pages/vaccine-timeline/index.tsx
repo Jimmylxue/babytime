@@ -60,7 +60,7 @@ export default function VaccineTimelinePage() {
       setRecords(recordRes.data || [])
       setVaccinePlans(Object.fromEntries((planRes?.data || []).map((plan) => [plan.scheduleItemId, plan])))
     } catch (error) {
-      Taro.showToast({ title: '加载疫苗记录失败', icon: 'none' })
+      // 错误提示由全局拦截器统一 toast
     } finally {
       setLoading(false)
     }
@@ -219,10 +219,8 @@ export default function VaccineTimelinePage() {
         await loadData()
       }
     } catch (error) {
-      // 用户取消 action sheet 时，微信会以 reject 结束，不提示错误。
-      if (error?.errMsg && !error.errMsg.includes('cancel')) {
-        Taro.showToast({ title: '操作失败', icon: 'none' })
-      }
+      // 用户取消 action sheet 时微信会以 reject 结束，不提示错误；
+      // 真正的请求失败由全局拦截器统一 toast
     }
   }
 
