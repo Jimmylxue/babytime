@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -149,6 +149,30 @@ export class AdminStatsService {
       total: Number(countRow.total),
       page: safePage,
       pageSize: safePageSize,
+    };
+  }
+
+  // 用户名下宝宝列表（用户列表点「宝宝数」弹窗用）
+  async getUserBabies(userId: string) {
+    const [user] = await this.dataSource.query(`SELECT id FROM users WHERE id = ?`, [userId]);
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+    const rows = await this.dataSource.query(
+      `SELECT id, name, gender, birthday, avatar, created_at AS createdAt
+       FROM babies WHERE user_id = ?
+       ORDER BY created_at`,
+      [userId],
+    );
+    return {
+      list: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        gender: row.gender,
+        birthday: row.birthday,
+        avatar: row.avatar,
+        createdAt: row.createdAt,
+      })),
     };
   }
 

@@ -121,6 +121,20 @@ export interface UserListResult {
 	pageSize: number;
 }
 
+// 用户名下的宝宝（用户列表「宝宝数」弹窗）
+export interface UserBabyItem {
+	id: string;
+	name: string;
+	gender: string;
+	birthday: string | null;
+	avatar: string | null;
+	createdAt: string;
+}
+
+export interface UserBabiesResult {
+	list: UserBabyItem[];
+}
+
 // 宝宝列表
 export interface BabyParent {
 	id: string;

@@ -148,6 +148,13 @@ export class AdminController {
   }
 
   @UseGuards(AdminJwtGuard)
+  @Get('users/:userId/babies')
+  async getUserBabies(@Param('userId') userId: string) {
+    const data = await this.adminStatsService.getUserBabies(userId);
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
   @Get('announcements')
   async listAnnouncements() {
     const data = await this.adminAnnouncementService.list();

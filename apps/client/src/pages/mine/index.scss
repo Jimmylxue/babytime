@@ -299,6 +299,14 @@
   line-height: 2;
 }
 
+// 未登录卡：块级堆叠，禁用宿主的 flex-wrap——
+// profile-user(flex:1 basis 0%) 与 width:100% 的兄弟会被分到同一行，
+// 后者占满整行、前者被压成 0 宽，头像/昵称作为溢出内容叠在卖点卡上（Chrome 实测复现）
+.profile-card.guest {
+  display: block;
+  padding: 40px 20px 32px;
+}
+
 // 未登录：卖点 + 登录按钮（位于资料卡内）
 .mine-perks {
   position: relative;

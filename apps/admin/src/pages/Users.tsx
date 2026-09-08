@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Avatar, Card, Input, Table } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Avatar, Card, Input, List, Modal, Spin, Table } from 'antd';
+import { RightOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { apiGet } from '../api/client';
-import type { AdminUser } from '../types';
+import { GENDER_LABELS, formatAge } from '../constants';
+import type { AdminUser, UserBabyItem, UserListResult } from '../types';
 
 export default function Users() {
+	const navigate = useNavigate();
 	const [list, setList] = useState<AdminUser[]>([]);
 	const [total, setTotal] = useState(0);
 	const [page, setPage] = useState(1);
@@ -12,13 +16,19 @@ export default function Users() {
 	const [keyword, setKeyword] = useState('');
 	const [loading, setLoading] = useState(false);
 
+	// 「宝宝数」点击弹窗：记录当前查看的用户，懒加载其宝宝列表
+	const [babiesOf, setBabiesOf] = useState<AdminUser | null>(null);
+	const [userBabies, setUserBabies] = useState<UserBabyItem[]>([]);
+	const [babiesLoading, setBabiesLoading] = useState(false);
+
 	const load = useCallback(async () => {
 		setLoading(true);
 		try {
-			const data = await apiGet<{ list: AdminUser[]; total: number; page: number; pageSize: number }>(
-				'/users',
-				{ page, pageSize, keyword: keyword || undefined },
-			);
+			const data = await apiGet<UserListResult>('/users', {
+				page,
+				pageSize,
+				keyword: keyword || undefined,
+			});
 			setList(data.list);
 			setTotal(data.total);
 		} finally {
@@ -29,6 +39,23 @@ export default function Users() {
 	useEffect(() => {
 		load();
 	}, [load]);
+
+	const showBabies = async (user: AdminUser) => {
+		setBabiesOf(user);
+		setUserBabies([]);
+		setBabiesLoading(true);
+		try {
+			const data = await apiGet<{ list: UserBabyItem[] }>(`/users/${user.id}/babies`);
+			setUserBabies(data.list);
+		} finally {
+			setBabiesLoading(false);
+		}
+	};
+
+	const goBabyDetail = (babyId: string) => {
+		setBabiesOf(null);
+		navigate(`/babies/${babyId}`);
+	};
 
 	const columns: ColumnsType<AdminUser> = [
 		{
@@ -43,7 +70,18 @@ export default function Users() {
 			),
 		},
 		{ title: 'OpenID', dataIndex: 'openId', width: 160 },
-		{ title: '宝宝数', dataIndex: 'babyCount', width: 90, align: 'center' },
+		{
+			title: '宝宝数',
+			dataIndex: 'babyCount',
+			width: 90,
+			align: 'center',
+			render: (value: number, record) =>
+				value > 0 ? (
+					<a onClick={() => showBabies(record)}>{value}</a>
+				) : (
+					<span>0</span>
+				),
+		},
 		{ title: '记录数', dataIndex: 'recordCount', width: 90, align: 'center', sorter: (a, b) => a.recordCount - b.recordCount },
 		{
 			title: '注册时间',
@@ -85,6 +123,43 @@ export default function Users() {
 					},
 				}}
 			/>
+
+			<Modal
+				open={babiesOf !== null}
+				title={babiesOf ? `${babiesOf.nickname || '微信用户'} 的宝宝（${userBabies.length}）` : ''}
+				footer={null}
+				onCancel={() => setBabiesOf(null)}
+				width={420}
+			>
+				{babiesLoading ? (
+					<div style={{ textAlign: 'center', padding: 32 }}>
+						<Spin />
+					</div>
+				) : userBabies.length === 0 ? (
+					<div style={{ textAlign: 'center', padding: 24, color: '#999' }}>该用户还没有创建宝宝档案</div>
+				) : (
+					<List
+						dataSource={userBabies}
+						renderItem={(baby) => (
+							<List.Item
+								style={{ cursor: 'pointer', padding: '10px 4px' }}
+								onClick={() => goBabyDetail(baby.id)}
+							>
+								<div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+									<Avatar src={baby.avatar ?? undefined}>{(baby.name || '宝')[0]}</Avatar>
+								<div style={{ flex: 1 }}>
+									<div>{baby.name || '宝宝'}</div>
+									<span style={{ fontSize: 12, color: '#999' }}>
+										{GENDER_LABELS[baby.gender] ?? baby.gender} · {formatAge(baby.birthday) || '-'}
+									</span>
+								</div>
+								<RightOutlined style={{ color: '#bbb', fontSize: 12 }} />
+								</div>
+							</List.Item>
+						)}
+					/>
+				)}
+			</Modal>
 		</Card>
 	);
 }
