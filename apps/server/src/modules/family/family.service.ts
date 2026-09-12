@@ -1,17 +1,22 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { FamilyMember, InviteStatus, MemberRole } from './entities/family-member.entity';
 import {
   FamilyInvite,
   FamilyInviteStatus,
 } from './entities/family-invite.entity';
+import { FamilyMemberAlias } from './entities/family-member-alias.entity';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { BabyService } from '../baby/baby.service';
+import { ContentSecurityService } from '../content-security/content-security.service';
 import { v4 as uuidv4 } from 'uuid';
 
 // 家庭成员人数上限
 const FAMILY_MEMBER_LIMIT = 8;
+
+// 成员备注名（家庭内昵称）长度上限，与 DTO 校验保持一致
+const MEMBER_NICKNAME_MAX = 20;
 
 @Injectable()
 export class FamilyService {
@@ -26,7 +31,10 @@ export class FamilyService {
     private familyRepository: Repository<FamilyMember>,
     @InjectRepository(FamilyInvite)
     private inviteRepository: Repository<FamilyInvite>,
+    @InjectRepository(FamilyMemberAlias)
+    private aliasRepository: Repository<FamilyMemberAlias>,
     private babyService: BabyService,
+    private contentSecurity: ContentSecurityService,
   ) {}
 
   // 生成邀请码
@@ -272,7 +280,7 @@ export class FamilyService {
         role: 'owner',
         user: ownerUser,
       };
-      return [ownerEntry, ...asOwner];
+      return this.attachAliases(userId, [ownerEntry, ...asOwner]);
     }
 
     // 是成员，找到自己加入的那条记录，获取同一家庭的所有成员
@@ -299,7 +307,137 @@ export class FamilyService {
       user: ownerUser,
     };
 
-    return [ownerEntry, ...members];
+    return this.attachAliases(myRecord.inviterId, [ownerEntry, ...members]);
+  }
+
+  // 给成员列表挂上本家庭的备注名：nickname 为 null 表示没设过，前端回落到微信昵称
+  private async attachAliases<
+    T extends { userId: string },
+  >(familyOwnerId: string, entries: T[]) {
+    const targetUserIds = entries.map(entry => entry.userId).filter(Boolean);
+    if (targetUserIds.length === 0) {
+      return entries.map(entry => ({ ...entry, nickname: null as string | null }));
+    }
+
+    const aliases = await this.aliasRepository.find({
+      where: { familyOwnerId, targetUserId: In(targetUserIds) },
+    });
+    const aliasMap = new Map(aliases.map(alias => [alias.targetUserId, alias.nickname]));
+
+    return entries.map(entry => ({
+      ...entry,
+      nickname: aliasMap.get(entry.userId) || null,
+    }));
+  }
+
+  /**
+   * 修改家庭成员在本家庭内的昵称（备注名）。
+   * - 家庭创建者：可修改任意成员（含自己）
+   * - 普通成员：只能修改自己的备注名
+   * - nickname 传空串等价于「恢复默认」，删除备注回落到微信昵称
+   */
+  async updateMemberNickname(
+    userId: string,
+    targetUserId: string,
+    nickname?: string,
+  ) {
+    const context = await this.resolveFamilyContext(userId);
+    if (!context) {
+      throw new BadRequestException('你还没有家庭，无法修改成员昵称');
+    }
+
+    const { familyOwnerId, isOwner } = context;
+    if (!isOwner && targetUserId !== userId) {
+      throw new BadRequestException('仅家庭创建者可修改其他成员的昵称');
+    }
+
+    await this.assertMemberInFamily(familyOwnerId, targetUserId);
+
+    const trimmed = (nickname || '').trim();
+    const existing = await this.aliasRepository.findOne({
+      where: { familyOwnerId, targetUserId },
+    });
+
+    // 恢复默认：删掉备注，回落到微信昵称
+    if (!trimmed) {
+      if (existing) {
+        await this.aliasRepository.remove(existing);
+      }
+      return { success: true, nickname: null, restored: !!existing };
+    }
+
+    if (trimmed.length > MEMBER_NICKNAME_MAX) {
+      throw new BadRequestException(`备注名最多 ${MEMBER_NICKNAME_MAX} 个字`);
+    }
+
+    // 微信内容安全检测，违规直接 400（与宝宝昵称、用户昵称同一套口径）
+    await this.contentSecurity.checkUserTexts(userId, [trimmed], 1);
+
+    if (existing) {
+      existing.nickname = trimmed;
+      existing.updatedBy = userId;
+      await this.aliasRepository.save(existing);
+    } else {
+      await this.aliasRepository.save(
+        this.aliasRepository.create({
+          familyOwnerId,
+          targetUserId,
+          nickname: trimmed,
+          updatedBy: userId,
+        }),
+      );
+    }
+
+    return { success: true, nickname: trimmed };
+  }
+
+  /**
+   * 定位当前用户所属的家庭：
+   * 1. 有家人加入过我的家庭 → 我是创建者
+   * 2. 我加入过别人的家庭 → 我是成员
+   * 3. 只有自己建的宝宝、还没有家人加入 → 按一人家庭处理
+   */
+  private async resolveFamilyContext(
+    userId: string,
+  ): Promise<{ familyOwnerId: string; isOwner: boolean } | null> {
+    const asOwnerCount = await this.familyRepository.count({
+      where: { inviterId: userId, status: InviteStatus.ACCEPTED },
+    });
+    if (asOwnerCount > 0) {
+      return { familyOwnerId: userId, isOwner: true };
+    }
+
+    const myRecord = await this.familyRepository.findOne({
+      where: { userId, status: InviteStatus.ACCEPTED },
+    });
+    if (myRecord) {
+      return { familyOwnerId: myRecord.inviterId, isOwner: false };
+    }
+
+    const myBabies = await this.babyService.findAllByUser(userId);
+    if (myBabies.some(baby => baby.isOwner)) {
+      return { familyOwnerId: userId, isOwner: true };
+    }
+
+    return null;
+  }
+
+  // 目标用户必须确实属于这个家庭（创建者本人，或已接受的成员）
+  private async assertMemberInFamily(familyOwnerId: string, targetUserId: string) {
+    if (targetUserId === familyOwnerId) {
+      return;
+    }
+
+    const member = await this.familyRepository.findOne({
+      where: {
+        inviterId: familyOwnerId,
+        userId: targetUserId,
+        status: InviteStatus.ACCEPTED,
+      },
+    });
+    if (!member) {
+      throw new BadRequestException('该成员不属于当前家庭');
+    }
   }
 
   // 获取用户的家庭（所有关联的宝宝）
@@ -349,6 +487,14 @@ export class FamilyService {
 
     await this.familyRepository.remove(member);
 
+    // 顺手清掉该成员在本家庭的备注名，避免留下孤儿数据
+    if (member.userId) {
+      await this.aliasRepository.delete({
+        familyOwnerId: member.inviterId,
+        targetUserId: member.userId,
+      });
+    }
+
     return { success: true };
   }
 
@@ -363,6 +509,12 @@ export class FamilyService {
     }
 
     await this.familyRepository.remove(record);
+
+    // 退出家庭时一并清掉自己的备注名（含别人给我起的和自留的）
+    await this.aliasRepository.delete({
+      familyOwnerId: record.inviterId,
+      targetUserId: userId,
+    });
 
     return { success: true };
   }

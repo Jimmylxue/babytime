@@ -10,7 +10,9 @@
 		"build:client": "npm --prefix apps/client run build",
 		"build:server": "npm --prefix apps/server run build",
 		"build:admin": "npm --prefix apps/admin run build",
-		"build": "npm run build:admin && npm run build:server && npm run build:client"
+		"build": "npm run build:admin && npm run build:server && npm run build:client",
+		"check:family": "node apps/server/scripts/family-nickname-check.js",
+		"check:family:clean": "node apps/server/scripts/family-nickname-check.js clean"
 	},
 	"devDependencies": {
 		"typescript": "^5.4.5"

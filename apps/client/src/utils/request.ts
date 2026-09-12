@@ -4,7 +4,7 @@ import { API_PREFIX } from '../config/env'
 
 interface RequestOptions {
 	url: string
-	method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 	data?: any
 	header?: Record<string, string>
 	/** 是否需要 token，默认 true */
@@ -300,6 +300,13 @@ export const familyApi = {
 		request<any[]>({ url: '/family/my-families' }),
 	getBindingStatus: () =>
 		request<{ isBound: boolean; reason: 'owner' | 'member' | null }>({ url: '/family/binding-status' }),
+	// 修改成员在本家庭内的昵称（备注名）；nickname 传空串表示恢复默认
+	updateMemberNickname: (targetUserId: string, nickname: string) =>
+		request<{ success: boolean; nickname: string | null; restored?: boolean }>({
+			url: '/family/member/nickname',
+			method: 'PATCH',
+			data: { targetUserId, nickname },
+		}),
 	removeMember: (memberId: string) =>
 		request<any>({ url: `/family/member/${memberId}`, method: 'DELETE' }),
 	leaveFamily: () =>

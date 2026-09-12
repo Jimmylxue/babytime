@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { FamilyService } from './family.service';
 import { CreateInviteDto, AcceptInviteDto } from './dto/create-invite.dto';
+import { UpdateMemberNicknameDto } from './dto/update-member-nickname.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @Controller('family')
@@ -91,6 +93,23 @@ export class FamilyController {
       code: 0,
       message: 'success',
       data: status,
+    };
+  }
+
+  @Patch('member/nickname')
+  async updateMemberNickname(
+    @Request() req,
+    @Body() updateMemberNicknameDto: UpdateMemberNicknameDto,
+  ) {
+    const result = await this.familyService.updateMemberNickname(
+      req.user.id,
+      updateMemberNicknameDto.targetUserId,
+      updateMemberNicknameDto.nickname,
+    );
+    return {
+      code: 0,
+      message: result.nickname ? '昵称已更新' : '已恢复默认昵称',
+      data: result,
     };
   }
 

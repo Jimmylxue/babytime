@@ -110,6 +110,8 @@ bash server.sh
 
 已执行记录：
 - 2026-09-07 新增 `admin_audit_logs`（后台按宝宝查看照片的审计日志），SQL 见 [admin-audit-logs.sql](admin-audit-logs.sql)，部署前先建表再发版。
+- 2026-09-12 新增 `family_member_aliases`（家庭成员备注名/昵称），SQL 见 [family-member-nickname.sql](family-member-nickname.sql)，
+  纯新增表、旧代码不会读它，所以**可以先建表再发版**，中间无空窗期；回滚只需撤销代码，新表可保留。
 
 ## 六、维护节奏
 

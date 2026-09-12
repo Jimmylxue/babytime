@@ -20,6 +20,8 @@ interface Member {
   babyId: string
   role: string
   status: string
+  /** 本家庭内的备注名（家庭昵称），未设置时为 null，前端回落到微信昵称 */
+  nickname?: string | null
   user?: {
     id: string
     nickname?: string
@@ -53,6 +55,12 @@ export default function FamilyPage() {
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null)
   const [inputInviteCode, setInputInviteCode] = useState('')
 
+  // 成员操作弹层 / 修改昵称弹层
+  const [actionMember, setActionMember] = useState<Member | null>(null)
+  const [renameMember, setRenameMember] = useState<Member | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [savingRename, setSavingRename] = useState(false)
+
   // 自定义导航：返回按钮与微信胶囊同带对称
   const [menuBand] = useState(() => {
     let top = (Taro.getSystemInfoSync().statusBarHeight || 20) + 4
@@ -84,6 +92,18 @@ export default function FamilyPage() {
   useDidShow(() => {
     init()
   })
+
+  // 列表展示名：优先本家庭备注名，其次微信昵称
+  const getDisplayName = (member: Member) =>
+    member.nickname || member.user?.nickname || '未知用户'
+
+  const isSelf = (member: Member) => member.userId === userInfo?.id
+
+  // 创建者可改任意成员的昵称；普通成员只能改自己的
+  const canRename = (member: Member) => isOwner || isSelf(member)
+
+  // 创建者可移除除自己以外的成员
+  const canRemove = (member: Member) => isOwner && !isSelf(member)
 
   const init = async () => {
     await fetchBabies()
@@ -141,11 +161,16 @@ export default function FamilyPage() {
     }
   })
 
+  const closeSheets = () => {
+    setActionMember(null)
+    setRenameMember(null)
+  }
+
   const handleDeleteMember = async (member: Member) => {
-    const name = member.user?.nickname || '该成员'
+    const name = getDisplayName(member)
     const res = await Taro.showModal({
       title: '移除成员',
-      content: `确定要移除 ${name} 吗？`,
+      content: `确定要移除 ${name} 吗？移除后 TA 将无法查看宝宝的记录。`,
     })
     if (res.confirm) {
       try {
@@ -158,10 +183,41 @@ export default function FamilyPage() {
     }
   }
 
+  // 点成员卡片：弹出操作层（无可用操作时不响应）
   const handleMemberTap = (member: Member) => {
-    // 创建者点其他成员卡片：移除确认（对应 UI 的 ›）
-    if (isOwner && member.userId !== userInfo?.id) {
-      handleDeleteMember(member)
+    if (canRename(member) || canRemove(member)) {
+      setActionMember(member)
+    }
+  }
+
+  const handleOpenRename = () => {
+    if (!actionMember) return
+    setRenameMember(actionMember)
+    setRenameValue(actionMember.nickname || '')
+    setActionMember(null)
+  }
+
+  // 保存备注名：空串 = 恢复默认（回落到微信昵称）
+  const handleSaveRename = async () => {
+    if (!renameMember || savingRename) return
+    const next = renameValue.trim()
+    if (next.length > 20) {
+      Taro.showToast({ title: '昵称最多 20 个字', icon: 'none' })
+      return
+    }
+    setSavingRename(true)
+    try {
+      await familyApi.updateMemberNickname(renameMember.userId, next)
+      Taro.showToast({
+        title: next ? '昵称已更新' : '已恢复默认昵称',
+        icon: 'success',
+      })
+      setRenameMember(null)
+      loadData()
+    } catch (error) {
+      // 失败原因（含内容安全拦截）由全局拦截器统一 toast
+    } finally {
+      setSavingRename(false)
     }
   }
 
@@ -290,16 +346,24 @@ export default function FamilyPage() {
                 )}
               </View>
               <View className="member-info">
-                <Text className="member-name">{member.user?.nickname || '未知用户'}</Text>
+                <View className="member-name-row">
+                  <Text className="member-name">{getDisplayName(member)}</Text>
+                  {member.nickname ? (
+                    <Text className="member-name-badge">备注</Text>
+                  ) : null}
+                </View>
                 <View className="member-role-pill">
                   <Text className="member-role-pill-text">
                     {getRoleText(member.user?.role || member.role)}
                   </Text>
                 </View>
               </View>
-              <Text className="member-arrow">›</Text>
+              {(canRename(member) || canRemove(member)) && (
+                <Text className="member-arrow">›</Text>
+              )}
             </View>
           ))}
+          <Text className="members-tip">点击成员可修改昵称，备注仅本家庭可见</Text>
         </View>
       )}
 
@@ -363,6 +427,99 @@ export default function FamilyPage() {
         <View className="leave-family-btn" onClick={handleLeaveFamily}>
           <Image className="leave-family-icon" src={logoutWhiteIcon} />
           <Text className="leave-family-text">退出家庭</Text>
+        </View>
+      )}
+
+      {/* 成员操作弹层 */}
+      {actionMember && (
+        <View className="sheet-overlay" onClick={closeSheets}>
+          <View className="sheet-panel" onClick={e => e.stopPropagation()}>
+            <View className="sheet-handle" />
+            <View className="sheet-header">
+              <Text className="sheet-title">{getDisplayName(actionMember)}</Text>
+              {actionMember.nickname ? (
+                <Text className="sheet-subtitle">
+                  微信昵称：{actionMember.user?.nickname || '未设置'}
+                </Text>
+              ) : null}
+            </View>
+            <View className="sheet-body">
+              {canRename(actionMember) && (
+                <View className="member-action" onClick={handleOpenRename}>
+                  <Text className="member-action-text">修改昵称</Text>
+                </View>
+              )}
+              {canRemove(actionMember) && (
+                <View
+                  className="member-action"
+                  onClick={() => {
+                    const target = actionMember
+                    setActionMember(null)
+                    handleDeleteMember(target)
+                  }}
+                >
+                  <Text className="member-action-text member-action-danger">
+                    移除成员
+                  </Text>
+                </View>
+              )}
+              <View className="sheet-actions">
+                <View className="sheet-btn sheet-btn-cancel" onClick={closeSheets}>
+                  <Text>取消</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 修改昵称弹层 */}
+      {renameMember && (
+        <View className="sheet-overlay" onClick={() => setRenameMember(null)}>
+          <View className="sheet-panel" onClick={e => e.stopPropagation()}>
+            <View className="sheet-handle" />
+            <View className="sheet-header">
+              <Text className="sheet-title">修改昵称</Text>
+              <Text className="sheet-subtitle">备注仅本家庭可见，方便辨认</Text>
+            </View>
+            <View className="sheet-body">
+              <View className="rename-field">
+                <Input
+                  className="rename-input"
+                  value={renameValue}
+                  onInput={e => setRenameValue(e.detail.value)}
+                  placeholder={renameMember.user?.nickname || '请输入昵称'}
+                  maxlength={20}
+                  focus
+                />
+                <Text className="rename-count">{renameValue.length}/20</Text>
+              </View>
+              {renameMember.nickname ? (
+                <View
+                  className="rename-restore"
+                  onClick={() => setRenameValue('')}
+                >
+                  <Text className="rename-restore-text">
+                    恢复默认（使用微信昵称）
+                  </Text>
+                </View>
+              ) : null}
+              <View className="sheet-actions">
+                <View
+                  className="sheet-btn sheet-btn-cancel"
+                  onClick={() => setRenameMember(null)}
+                >
+                  <Text>取消</Text>
+                </View>
+                <View
+                  className={`sheet-btn sheet-btn-confirm${savingRename ? ' is-disabled' : ''}`}
+                  onClick={handleSaveRename}
+                >
+                  <Text>{savingRename ? '保存中…' : '保存'}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
         </View>
       )}
     </View>
