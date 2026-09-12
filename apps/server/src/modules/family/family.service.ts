@@ -332,8 +332,9 @@ export class FamilyService {
 
   /**
    * 修改家庭成员在本家庭内的昵称（备注名）。
-   * - 家庭创建者：可修改任意成员（含自己）
-   * - 普通成员：只能修改自己的备注名
+   * 备注是给「别人」看的，所以：
+   * - 只有家庭创建者（且名下有成员）能改；
+   * - 谁都不能改自己——自己的名字在「我的」页改（那是全局昵称，不限于本家庭）
    * - nickname 传空串等价于「恢复默认」，删除备注回落到微信昵称
    */
   async updateMemberNickname(
@@ -341,21 +342,34 @@ export class FamilyService {
     targetUserId: string,
     nickname?: string,
   ) {
-    const context = await this.resolveFamilyContext(userId);
-    if (!context) {
-      throw new BadRequestException('你还没有家庭，无法修改成员昵称');
+    // 给自己设备注没有意义：列表里自己那一行显示的就是「我的」页的昵称
+    if (targetUserId === userId) {
+      throw new BadRequestException(
+        '不能修改自己的昵称，请到「我的」页面修改',
+      );
     }
 
-    const { familyOwnerId, isOwner } = context;
-    if (!isOwner && targetUserId !== userId) {
-      throw new BadRequestException('仅家庭创建者可修改其他成员的昵称');
+    // 只有「有家人加入过」的创建者才有成员可管理
+    const memberCount = await this.familyRepository.count({
+      where: { inviterId: userId, status: InviteStatus.ACCEPTED },
+    });
+    if (memberCount === 0) {
+      const joinedOthers = await this.familyRepository.count({
+        where: { userId, status: InviteStatus.ACCEPTED },
+      });
+      throw new BadRequestException(
+        joinedOthers > 0
+          ? '仅家庭创建者可修改成员昵称'
+          : '你还没有家庭成员，无法修改成员昵称',
+      );
     }
 
-    await this.assertMemberInFamily(familyOwnerId, targetUserId);
+    // 目标必须是我家庭的已接受成员
+    await this.assertMyFamilyMember(userId, targetUserId);
 
     const trimmed = (nickname || '').trim();
     const existing = await this.aliasRepository.findOne({
-      where: { familyOwnerId, targetUserId },
+      where: { familyOwnerId: userId, targetUserId },
     });
 
     // 恢复默认：删掉备注，回落到微信昵称
@@ -380,7 +394,7 @@ export class FamilyService {
     } else {
       await this.aliasRepository.save(
         this.aliasRepository.create({
-          familyOwnerId,
+          familyOwnerId: userId,
           targetUserId,
           nickname: trimmed,
           updatedBy: userId,
@@ -391,52 +405,17 @@ export class FamilyService {
     return { success: true, nickname: trimmed };
   }
 
-  /**
-   * 定位当前用户所属的家庭：
-   * 1. 有家人加入过我的家庭 → 我是创建者
-   * 2. 我加入过别人的家庭 → 我是成员
-   * 3. 只有自己建的宝宝、还没有家人加入 → 按一人家庭处理
-   */
-  private async resolveFamilyContext(
-    userId: string,
-  ): Promise<{ familyOwnerId: string; isOwner: boolean } | null> {
-    const asOwnerCount = await this.familyRepository.count({
-      where: { inviterId: userId, status: InviteStatus.ACCEPTED },
-    });
-    if (asOwnerCount > 0) {
-      return { familyOwnerId: userId, isOwner: true };
-    }
-
-    const myRecord = await this.familyRepository.findOne({
-      where: { userId, status: InviteStatus.ACCEPTED },
-    });
-    if (myRecord) {
-      return { familyOwnerId: myRecord.inviterId, isOwner: false };
-    }
-
-    const myBabies = await this.babyService.findAllByUser(userId);
-    if (myBabies.some(baby => baby.isOwner)) {
-      return { familyOwnerId: userId, isOwner: true };
-    }
-
-    return null;
-  }
-
-  // 目标用户必须确实属于这个家庭（创建者本人，或已接受的成员）
-  private async assertMemberInFamily(familyOwnerId: string, targetUserId: string) {
-    if (targetUserId === familyOwnerId) {
-      return;
-    }
-
+  // 目标用户必须确实是我家庭里已接受的成员（创建者自己除外，上面已拦）
+  private async assertMyFamilyMember(ownerId: string, targetUserId: string) {
     const member = await this.familyRepository.findOne({
       where: {
-        inviterId: familyOwnerId,
+        inviterId: ownerId,
         userId: targetUserId,
         status: InviteStatus.ACCEPTED,
       },
     });
     if (!member) {
-      throw new BadRequestException('该成员不属于当前家庭');
+      throw new BadRequestException('该成员不属于你的家庭');
     }
   }
 

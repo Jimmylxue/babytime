@@ -99,8 +99,9 @@ export default function FamilyPage() {
 
   const isSelf = (member: Member) => member.userId === userInfo?.id
 
-  // 创建者可改任意成员的昵称；普通成员只能改自己的
-  const canRename = (member: Member) => isOwner || isSelf(member)
+  // 备注名是给「别人」看的：只能由创建者改其他成员，谁都不能改自己
+  // （自己的名字去「我的」页改，那是全局昵称）
+  const canRename = (member: Member) => isOwner && !isSelf(member)
 
   // 创建者可移除除自己以外的成员
   const canRemove = (member: Member) => isOwner && !isSelf(member)
@@ -363,7 +364,9 @@ export default function FamilyPage() {
               )}
             </View>
           ))}
-          <Text className="members-tip">点击成员可修改昵称，备注仅本家庭可见</Text>
+          {members.some(m => canRename(m) || canRemove(m)) && (
+            <Text className="members-tip">点击其他成员可修改昵称，备注仅本家庭可见</Text>
+          )}
         </View>
       )}
 

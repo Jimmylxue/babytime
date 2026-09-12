@@ -15,6 +15,12 @@
  *   --owner=<userId>   指定家庭创建者（默认取「最近建过宝宝」的用户）
  *   --baby=<babyId>    指定挂在哪个宝宝下（默认取创建者最新建的宝宝）
  *   --api=<url>        接口地址（默认读 .env 的 API_BASE_URL）
+ *   --allow-remote     允许对非本机地址执行（默认禁止，防呆）
+ *
+ * ⚠️ 安全闸门：本脚本会真的插数据、真的调改名接口。所以默认只放行
+ *    DB_HOST / API_BASE_URL 都指向本机（localhost / 127.0.0.1）的场景；
+ *    任一指向线上会直接中止并打印实际目标。—— 因为 .env 里的
+ *    API_BASE_URL 会被切到线上域名，一不留神就会把测试数据写进生产。
  *
  * 只依赖 apps/server 已装的 mysql2，不额外装包；JWT 用 node crypto 自签。
  */
@@ -82,6 +88,43 @@ const results = [];
 function record(ok, label, detail) {
   results.push({ ok, label, detail });
   console.log(`${ok ? '✅' : '❌'} ${label}${detail ? `  → ${detail}` : ''}`);
+}
+
+// ---------- 防呆：只允许在本地环境跑 ----------
+// 这个脚本会真的插入用户/成员关系并调用改名接口，
+// 一旦 .env 的 DB_HOST / API_BASE_URL 被切到线上，就会直接写生产数据。
+// 所以默认只放行本机地址，远端必须显式加 --allow-remote。
+
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1', '0.0.0.0'];
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname;
+  } catch (error) {
+    return String(url);
+  }
+}
+
+function guardLocalTarget(env, action, baseUrl) {
+  if (process.argv.includes('--allow-remote')) return;
+
+  const dbHost = env.DB_HOST || '127.0.0.1';
+  const targets = [{ label: 'DB_HOST', value: dbHost, host: dbHost }];
+  if (baseUrl) {
+    targets.push({ label: 'API_BASE_URL', value: baseUrl, host: hostOf(baseUrl) });
+  }
+
+  const remote = targets.filter(target => !LOCAL_HOSTS.includes(target.host));
+  if (remote.length === 0) return;
+
+  throw new Error(
+    `${action}已中止：脚本会真的读写数据，但当前目标不是本地环境\n` +
+      targets
+        .map(t => `        ${t.label} = ${t.value}${LOCAL_HOSTS.includes(t.host) ? '' : '   ← 非本地'}`)
+        .join('\n') +
+      '\n        本地自测请把 .env 的 DB_HOST 与 API_BASE_URL 都指回 127.0.0.1；\n' +
+      '        确实要在远端执行时，显式加 --allow-remote（请先确认目标真的是测试环境）。',
+  );
 }
 
 // ---------- 数据库 ----------
@@ -283,16 +326,26 @@ async function check(env, options) {
   const aliased = (afterSet.body?.data || []).find(m => m.userId === member.id);
   record(aliased?.nickname === SEED_REMARK, '列表再次拉取能拿到备注名', `nickname=${aliased?.nickname}`);
 
-  // 3. 创建者改自己
+  // 3. 谁都不能改自己（自己的名字在「我的」页改）
   const selfRes = await callApi(baseUrl, ownerToken, 'PATCH', '/family/member/nickname', {
     targetUserId: owner.id,
     nickname: '我自己（备注测试）',
   });
-  record(selfRes.status === 200, '创建者可以改自己的备注名', `HTTP ${selfRes.status}`);
-  await callApi(baseUrl, ownerToken, 'PATCH', '/family/member/nickname', {
+  record(
+    selfRes.status === 400,
+    '创建者也不能改自己的昵称（应 400）',
+    `HTTP ${selfRes.status} ${selfRes.body?.message || ''}`,
+  );
+
+  const selfRestoreRes = await callApi(baseUrl, ownerToken, 'PATCH', '/family/member/nickname', {
     targetUserId: owner.id,
     nickname: '',
   });
+  record(
+    selfRestoreRes.status === 400,
+    '「清空自己昵称」同样被拦截（应 400，不会误删）',
+    `HTTP ${selfRestoreRes.status}`,
+  );
 
   // 4. 越权：改成非本家庭的用户
   const strangerRes = await callApi(baseUrl, ownerToken, 'PATCH', '/family/member/nickname', {
@@ -312,7 +365,7 @@ async function check(env, options) {
   });
   record(longRes.status === 400, '超过 20 字被拦截（应 400）', `HTTP ${longRes.status}`);
 
-  // 6. 普通成员的权限边界
+  // 6. 普通成员：既不能改别人，也不能改自己
   const memberRenameOwner = await callApi(baseUrl, memberToken, 'PATCH', '/family/member/nickname', {
     targetUserId: owner.id,
     nickname: '成员越权改名',
@@ -327,9 +380,10 @@ async function check(env, options) {
     targetUserId: member.id,
     nickname: '我自己起的名字',
   });
-  record(memberRenameSelf.status === 200, '普通成员可以改自己的昵称', `HTTP ${memberRenameSelf.status}`);
-  console.log(
-    '   ℹ️  备注只有一条记录，创建者和成员改的是同一行，谁最后改以谁为准（上面这步已把创建者的备注覆盖掉）',
+  record(
+    memberRenameSelf.status === 400,
+    '普通成员也不能改自己的昵称（应 400）',
+    `HTTP ${memberRenameSelf.status} ${memberRenameSelf.body?.message || ''}`,
   );
 
   // 7. 恢复默认
@@ -355,10 +409,11 @@ async function check(env, options) {
     console.log(`
 下一步（真机 / 开发者工具看效果）：
   1. 用创建者的账号打开「我的 → 家庭成员」，应能看到「${member.nickname}」显示为「${SEED_REMARK}」
-  2. 点这张卡片 → 弹出操作层「修改昵称 / 移除成员」
-  3. 点「修改昵称」改个名字保存，列表立刻更新；带「备注」小徽章
-  4. 再点开可看到「恢复默认（使用微信昵称）」，点它 + 保存 即回到微信昵称
-  5. 宝爸这个假账号的 token 没法在小程序里用，成员视角只由本脚本验证`);
+  2. 你自己那一行应该「点不动」（没有 ›），因为不能给自己设备注
+  3. 点假家人这张卡片 → 弹出操作层「修改昵称 / 移除成员」
+  4. 点「修改昵称」改个名字保存，列表立刻更新；带「备注」小徽章
+  5. 再点开可看到「恢复默认（使用微信昵称）」，点它 + 保存 即回到微信昵称
+  6. 普通成员的账号里没有「修改昵称」入口，接口也会 400（本脚本第 6 组断言已覆盖）`);
   }
 }
 
@@ -372,15 +427,20 @@ async function check(env, options) {
     api: argValue('api', ''),
   };
   const mode = process.argv[2] || 'all';
+  const apiUrl = options.api || env.API_BASE_URL || 'http://127.0.0.1:3000';
 
   try {
     if (mode === 'seed') {
+      guardLocalTarget(env, '造测试数据', null);
       await seed(env, options);
     } else if (mode === 'clean') {
+      guardLocalTarget(env, '清理测试数据', null);
       await clean(env);
     } else if (mode === 'check') {
+      guardLocalTarget(env, '接口自检', apiUrl);
       await check(env, options);
     } else {
+      guardLocalTarget(env, '造测试数据 + 接口自检', apiUrl);
       await seed(env, options);
       await check(env, options);
     }
