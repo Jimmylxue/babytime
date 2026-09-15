@@ -58,7 +58,7 @@ export default function VaccineTablePage() {
 			<View className="vtable-intro">
 				<Text className="vtable-intro-title">国家免疫规划疫苗</Text>
 				<Text className="vtable-intro-sub">
-					按月龄排列的常规接种时间参考（2021 版）
+					按月龄排列的常规接种时间参考（2026 年版）
 				</Text>
 			</View>
 

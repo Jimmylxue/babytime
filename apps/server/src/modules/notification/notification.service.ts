@@ -13,15 +13,18 @@ import { NotificationDelivery } from './entities/notification-delivery.entity';
 import { FamilyMember, InviteStatus } from '../family/entities/family-member.entity';
 import { VaccinePlan } from './entities/vaccine-plan.entity';
 
-// 与客户端 vaccineSchedule.ts 保持节点 ID 和月龄一致；地区接种安排仍以门诊为准。
+// 与客户端 vaccineSchedule.ts 的 TIMELINE_VACCINE_SCHEDULE 保持节点 ID、月龄、名称一致。
+// 依据《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》；13 周岁 HPV 超出 0–6 岁范围，不入此表。
+// ⚠️ 节点 ID 被 vaccine_plans / records 引用，调整月龄可以，改 ID 会让用户已有数据失联。
 const VACCINES = [
   ['hepb-1', 0, '乙肝疫苗 第1剂'], ['bcg-1', 0, '卡介苗'], ['hepb-2', 1, '乙肝疫苗 第2剂'],
-  ['ipv-1', 2, '脊灰疫苗 第1剂'], ['ipv-2', 3, '脊灰疫苗 第2剂'], ['dtap-1', 3, '百白破疫苗 第1剂'],
-  ['bopv-1', 4, '脊灰疫苗 第3剂'], ['dtap-2', 4, '百白破疫苗 第2剂'], ['dtap-3', 5, '百白破疫苗 第3剂'],
-  ['hepb-3', 6, '乙肝疫苗 第3剂'], ['men-a-1', 6, 'A群流脑疫苗 第1剂'], ['mr-1', 8, '麻疹风疹联合疫苗 第1剂'],
-  ['je-1', 8, '乙脑疫苗 第1剂'], ['men-a-2', 9, 'A群流脑疫苗 第2剂'], ['dtap-4', 18, '百白破疫苗 第4剂'],
-  ['mmr-1', 18, '麻腮风疫苗 第1剂'], ['hepa-1', 18, '甲肝疫苗'], ['je-2', 24, '乙脑疫苗 后续剂次'],
-  ['men-ac-1', 36, 'A+C群流脑疫苗 第1剂'], ['bopv-2', 48, '脊灰疫苗 第4剂'], ['dt-1', 72, '白破疫苗'], ['men-ac-2', 72, 'A+C群流脑疫苗 第2剂'],
+  ['ipv-1', 2, '脊灰灭活疫苗 第1剂'], ['dtap-1', 2, '百白破疫苗 第1剂'], ['ipv-2', 3, '脊灰灭活疫苗 第2剂'],
+  ['bopv-1', 4, '脊灰减毒活疫苗 第3剂'], ['dtap-2', 4, '百白破疫苗 第2剂'],
+  ['hepb-3', 6, '乙肝疫苗 第3剂'], ['dtap-3', 6, '百白破疫苗 第3剂'], ['men-a-1', 6, 'A群流脑多糖疫苗 第1剂'],
+  ['mr-1', 8, '麻腮风疫苗 第1剂'], ['je-1', 8, '乙脑疫苗 第1剂'], ['men-a-2', 9, 'A群流脑多糖疫苗 第2剂'],
+  ['dtap-4', 18, '百白破疫苗 第4剂'], ['mmr-1', 18, '麻腮风疫苗 第2剂'], ['hepa-1', 18, '甲肝疫苗 第1剂'],
+  ['je-2', 24, '乙脑疫苗 第2剂'], ['men-ac-1', 36, 'A+C群流脑多糖疫苗 第1剂'], ['bopv-2', 48, '脊灰减毒活疫苗 第4剂'],
+  ['dtap-5', 72, '百白破疫苗 第5剂'], ['men-ac-2', 72, 'A+C群流脑多糖疫苗 第2剂'],
 ] as const;
 
 @Injectable()

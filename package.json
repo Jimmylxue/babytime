@@ -12,7 +12,8 @@
 		"build:admin": "npm --prefix apps/admin run build",
 		"build": "npm run build:admin && npm run build:server && npm run build:client",
 		"check:family": "node apps/server/scripts/family-nickname-check.js",
-		"check:family:clean": "node apps/server/scripts/family-nickname-check.js clean"
+		"check:family:clean": "node apps/server/scripts/family-nickname-check.js clean",
+		"check:vaccine": "node apps/server/scripts/check-vaccine-sync.js"
 	},
 	"devDependencies": {
 		"typescript": "^5.4.5"

@@ -5,7 +5,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { recordApi, notificationApi, trackEvent, VaccinePlanItem } from '../../utils/request'
 import { calculateAge, formatDate } from '../../utils/date'
-import { getCurrentVaccineStage, getVaccineReferenceDate, VACCINE_SCHEDULE, VaccineScheduleItem } from '../../utils/vaccineSchedule'
+import { getCurrentVaccineStage, getVaccineReferenceDate, TIMELINE_VACCINE_SCHEDULE, VaccineScheduleItem } from '../../utils/vaccineSchedule'
 import vaccineRattle from '../../assets/vaccine-rattle.svg'
 import bellIcon from '../../assets/icons/bell.svg'
 import calendarIcon from '../../assets/icons/calendar-heart.svg'
@@ -20,7 +20,7 @@ interface VaccineRecord {
   isCustomVaccine?: boolean
 }
 
-const ageGroups = Array.from(new Set(VACCINE_SCHEDULE.map((item) => item.ageMonths)))
+const ageGroups = Array.from(new Set(TIMELINE_VACCINE_SCHEDULE.map((item) => item.ageMonths)))
 
 function formatVaccineDate(date: string) {
   const [year, month, day] = date.split('-').map(Number)
@@ -258,7 +258,7 @@ export default function VaccineTimelinePage() {
       ) : (
         <View className="timeline-list">
           {ageGroups.map((ageMonths) => {
-            const items = VACCINE_SCHEDULE.filter((item) => item.ageMonths === ageMonths)
+            const items = TIMELINE_VACCINE_SCHEDULE.filter((item) => item.ageMonths === ageMonths)
             const isCurrent = items.some((item) => currentItems.some((current) => current.id === item.id))
             // 走过的阶段节点用粉色标记，未到的保持灰色
             const groupState = isCurrent ? 'current' : ageMonths < currentStageAge ? 'past' : 'future'
