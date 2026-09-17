@@ -1,9 +1,36 @@
 .gc-container {
   width: 100%;
   height: 560rpx;
+  position: relative;
 }
 
 .gc-canvas {
   width: 100%;
   height: 100%;
+}
+
+// 手势蒙层：盖在画布上接管触摸（双指缩放 + 单指选中），
+// catchMove 阻止双指捏合时页面跟着滚
+.gc-gesture {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+// 点按选中的测量点：覆盖在画布上的圆环，不参与命中检测
+.gc-marker {
+  position: absolute;
+  width: 44rpx;
+  height: 44rpx;
+  margin-left: -22rpx;
+  margin-top: -22rpx;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 4rpx solid #FF8FA9;
+  background: rgba(255, 143, 169, 0.18);
+  pointer-events: none;
+  z-index: 3;
 }

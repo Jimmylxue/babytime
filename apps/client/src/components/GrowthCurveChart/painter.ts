@@ -1,6 +1,10 @@
 /** WHO 成长曲线绘制逻辑：屏幕渲染与分享海报共用 */
 import { easeOutCubic } from '../../utils/canvasDraw'
-import { getWhoTable, WHO_INDEX } from '../../utils/whoGrowthStandards'
+import {
+  getWhoTable,
+  getWhoPercentilesAt,
+  WHO_INDEX,
+} from '../../utils/whoGrowthStandards'
 
 export interface GrowthCurvePoint {
   /** 测量时的月龄（支持小数） */
@@ -16,12 +20,174 @@ export interface GrowthCurvePaintData {
   color?: string
   /** 屏幕上显示内嵌标题；海报中由海报统一绘制传 false */
   drawTitle?: boolean
+  /** 横轴视窗；不传表示展示完整的 0~36 月龄 */
+  view?: CurveView
 }
 
 const PERCENTILE_KEYS = ['p3', 'p10', 'p25', 'p50', 'p75', 'p90', 'p97'] as const
 const PERCENTILE_LABELS = ['P3', 'P10', 'P25', 'P50', 'P75', 'P90', 'P97']
 const AGE_MAX = 36
-const AGE_TICKS = [0, 6, 12, 18, 24, 30, 36]
+
+/** 横轴视窗：当前展示的月龄区间 */
+export interface CurveView {
+  xMin: number
+  xMax: number
+}
+
+/** 默认展示最近 6 个月 */
+export const DEFAULT_VIEW_SPAN = 6
+export const MIN_VIEW_SPAN = 1.5
+export const MAX_VIEW_SPAN = AGE_MAX
+
+const clampNum = (v: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, v))
+
+/** 校正视窗：跨度限制在允许区间内，且整体落在 0~36 月龄之间 */
+export function clampCurveView(xMin: number, xMax: number): CurveView {
+  const rawSpan = Number.isFinite(xMax - xMin) ? xMax - xMin : DEFAULT_VIEW_SPAN
+  const span = clampNum(rawSpan, MIN_VIEW_SPAN, MAX_VIEW_SPAN)
+  let lo = Number.isFinite(xMin) ? xMin : 0
+  if (lo < 0) lo = 0
+  if (lo + span > AGE_MAX) lo = AGE_MAX - span
+  return { xMin: lo, xMax: lo + span }
+}
+
+/** 以视窗中心为锚点缩放，factor > 1 表示放大（跨度变小） */
+export function zoomCurveView(view: CurveView, factor: number): CurveView {
+  const center = (view.xMin + view.xMax) / 2
+  const span = clampNum(
+    (view.xMax - view.xMin) / factor,
+    MIN_VIEW_SPAN,
+    MAX_VIEW_SPAN,
+  )
+  return clampCurveView(center - span / 2, center + span / 2)
+}
+
+/** 默认视窗：以宝宝当前月龄为右边界，向前取 6 个月 */
+export function makeDefaultCurveView(latestAgeMonths: number): CurveView {
+  const xMax = Math.min(
+    AGE_MAX,
+    Math.max(DEFAULT_VIEW_SPAN, latestAgeMonths || 0),
+  )
+  return clampCurveView(xMax - DEFAULT_VIEW_SPAN, xMax)
+}
+
+/**
+ * 横轴刻度：按视窗跨度自动切换精度。
+ * 候选步长 0.5 / 1 / 2 / 3 / 6 / 12 个月，取刻度数不超过 8 的最小步长。
+ */
+export function pickAgeTicks(xMin: number, xMax: number): number[] {
+  const span = Math.max(0.1, xMax - xMin)
+  const candidates = [0.5, 1, 2, 3, 6, 12]
+  const step =
+    candidates.find(c => span / c <= 8) || candidates[candidates.length - 1]
+  const ticks: number[] = []
+  const start = Math.ceil((xMin - 1e-9) / step) * step
+  for (let v = start; v <= xMax + 1e-9; v += step) {
+    ticks.push(Math.round(v * 1000) / 1000)
+  }
+  return ticks
+}
+
+/** 刻度标签：整数不带小数，小数保留一位 */
+export function formatAgeTick(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1)
+}
+
+export interface CurveLayout {
+  plotLeft: number
+  plotRight: number
+  plotTop: number
+  plotBottom: number
+  plotW: number
+  plotH: number
+  /** y 轴取值范围（上下各留 6%），y 轴刻度标签要用 */
+  yLow: number
+  yHigh: number
+  /** 当前横轴视窗 */
+  xMin: number
+  xMax: number
+  /** 当前横轴刻度（精度随视窗跨度变化） */
+  ageTicks: number[]
+  toX: (month: number) => number
+  toY: (value: number) => number
+}
+
+/**
+ * 成长曲线的坐标布局。绘制与点击命中检测共用同一套映射，
+ * 避免交互区域和画出来的点对不上。
+ *
+ * 视窗 view 同时决定横轴范围与纵轴范围 —— 放大时横纵一起收窄，
+ * 这样短时间内的变化才看得出来。
+ */
+export function getCurveLayout(
+  W: number,
+  H: number,
+  metric: 'height' | 'weight',
+  gender: 'male' | 'female',
+  drawTitle = false,
+  view?: CurveView,
+  points: GrowthCurvePoint[] = [],
+): CurveLayout {
+  const pad = { top: drawTitle ? 48 : 16, right: 44, bottom: 28, left: 40 }
+  const plotLeft = pad.left
+  const plotRight = W - pad.right
+  const plotTop = pad.top
+  const plotBottom = H - pad.bottom
+  const plotW = plotRight - plotLeft
+  const plotH = plotBottom - plotTop
+
+  const { xMin, xMax } = clampCurveView(
+    view ? view.xMin : 0,
+    view ? view.xMax : AGE_MAX,
+  )
+
+  // y 范围跟着视窗走：只取视窗内的参考线 + 宝宝实测点
+  const values: number[] = []
+  const sampleStep = Math.max(0.25, (xMax - xMin) / 24)
+  for (let m = xMin; m <= xMax + 1e-9; m += sampleStep) {
+    const p = getWhoPercentilesAt(metric, gender, m)
+    values.push(p[0], p[p.length - 1])
+  }
+  const endP = getWhoPercentilesAt(metric, gender, xMax)
+  values.push(endP[0], endP[endP.length - 1])
+  points.forEach(p => {
+    if (p.ageMonths >= xMin && p.ageMonths <= xMax) values.push(p.value)
+  })
+
+  const yMin = Math.min(...values)
+  const yMax = Math.max(...values)
+  // 兜底留白：视窗极窄时参考线跨度很小，避免 y 轴贴到曲线上
+  const yPad = Math.max((yMax - yMin) * 0.06, metric === 'height' ? 0.6 : 0.15)
+  const yLow = yMin - yPad
+  const yHigh = yMax + yPad
+
+  const span = xMax - xMin
+
+  return {
+    plotLeft,
+    plotRight,
+    plotTop,
+    plotBottom,
+    plotW,
+    plotH,
+    yLow,
+    yHigh,
+    xMin,
+    xMax,
+    ageTicks: pickAgeTicks(xMin, xMax),
+    toX: (month: number) => plotLeft + ((month - xMin) / span) * plotW,
+    toY: (value: number) =>
+      plotTop + (1 - (value - yLow) / (yHigh - yLow)) * plotH,
+  }
+}
+
+/** 曲线只画 0~36 月龄内的点并按年龄升序 —— 交互索引必须和这里保持一致 */
+export function filterCurvePoints(points: GrowthCurvePoint[]): GrowthCurvePoint[] {
+  return points
+    .filter(p => p.ageMonths >= 0 && p.ageMonths <= AGE_MAX)
+    .sort((a, b) => a.ageMonths - b.ageMonths)
+}
 
 export function paintGrowthCurve(
   ctx: any,
@@ -36,6 +202,7 @@ export function paintGrowthCurve(
     points,
     color = '#FF8FA9',
     drawTitle = true,
+    view,
   } = data
 
   ctx.save()
@@ -47,27 +214,20 @@ export function paintGrowthCurve(
   const unit = metric === 'height' ? 'cm' : 'kg'
   const metricLabel = metric === 'height' ? '身高' : '体重'
 
-  const pad = { top: drawTitle ? 48 : 16, right: 44, bottom: 28, left: 40 }
-  const plotLeft = pad.left
-  const plotRight = W - pad.right
-  const plotTop = pad.top
-  const plotBottom = H - pad.bottom
-  const plotW = plotRight - plotLeft
-  const plotH = plotBottom - plotTop
-
-  const allValues = table.flatMap(row => [
-    row[WHO_INDEX.p3],
-    row[WHO_INDEX.p97],
-  ])
-  const yMin = Math.min(...allValues)
-  const yMax = Math.max(...allValues)
-  const yPad = (yMax - yMin) * 0.04
-  const yLow = yMin - yPad
-  const yHigh = yMax + yPad
-
-  const toX = (month: number) => plotLeft + (month / AGE_MAX) * plotW
-  const toY = (v: number) =>
-    plotTop + (1 - (v - yLow) / (yHigh - yLow)) * plotH
+  const {
+    plotLeft,
+    plotRight,
+    plotTop,
+    plotBottom,
+    plotW,
+    plotH,
+    yLow,
+    yHigh,
+    xMax,
+    ageTicks,
+    toX,
+    toY,
+  } = getCurveLayout(W, H, metric, gender, drawTitle, view, points)
 
   // 图表均在白卡上，铺白色底避免海报导出时透明区域显示为黑色
   ctx.fillStyle = '#FFFFFF'
@@ -89,7 +249,8 @@ export function paintGrowthCurve(
     ctx.fillText(`WHO标准 · 0-${AGE_MAX}月龄`, plotRight, 15)
   }
 
-  // 虚线网格 + y 轴刻度
+  // 虚线网格 + y 轴刻度（纵轴范围随视窗收窄，刻度精度也跟着走）
+  const yDigits = yHigh - yLow < 10 ? 1 : 0
   ctx.font = '9px sans-serif'
   ctx.strokeStyle = '#F0EDE6'
   ctx.lineWidth = 1
@@ -104,22 +265,30 @@ export function paintGrowthCurve(
     ctx.fillStyle = '#B8B5AC'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
-    ctx.fillText(v.toFixed(metric === 'height' ? 0 : 1), plotLeft - 6, y)
+    ctx.fillText(v.toFixed(yDigits), plotLeft - 6, y)
   }
   ctx.setLineDash([])
 
-  // x 轴月龄刻度
+  // x 轴月龄刻度：步长由 pickAgeTicks 按视窗跨度决定（放大后从 6 个月一跳到 0.5 个月一跳）
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  AGE_TICKS.forEach(month => {
+  ageTicks.forEach(month => {
     const x = toX(month)
+    if (x < plotLeft - 1 || x > plotRight + 1) return
     ctx.fillStyle = '#B8B5AC'
-    ctx.fillText(month === AGE_MAX ? `${month}月` : `${month}`, x, plotBottom + 8)
+    ctx.fillText(formatAgeTick(month), x, plotBottom + 8)
   })
 
-  // WHO 百分位参考曲线
+  // WHO 百分位参考曲线：整条画完再按视窗横向裁剪，放大后仍保留真实曲率
   const labelRows = new Set(['p3', 'p50', 'p97'])
-  PERCENTILE_KEYS.forEach((key, pi) => {
+  const atViewEnd = getWhoPercentilesAt(metric, gender, xMax)
+  const labelY: number[] = []
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(plotLeft, 0, plotW, H)
+  ctx.clip()
+  PERCENTILE_KEYS.forEach(key => {
     ctx.beginPath()
     table.forEach((row, ri) => {
       const x = toX(row[WHO_INDEX.month])
@@ -130,31 +299,34 @@ export function paintGrowthCurve(
     ctx.strokeStyle = key === 'p50' ? '#EBB3C0' : '#F3CBD4'
     ctx.lineWidth = key === 'p50' ? 1.4 : 1
     ctx.stroke()
+  })
+  ctx.restore()
 
-    if (labelRows.has(key)) {
-      const lastRow = table[table.length - 1]
-      ctx.fillStyle = '#D9A2AF'
-      ctx.font = '8px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(
-        PERCENTILE_LABELS[pi],
-        toX(lastRow[WHO_INDEX.month]) + 5,
-        toY(lastRow[WHO_INDEX[key]]),
-      )
-    }
+  // 参考线标签贴视窗右边界；放大后 P3/P50/P97 可能挤到一起，太近的跳过
+  PERCENTILE_KEYS.forEach((key, pi) => {
+    if (!labelRows.has(key)) return
+    const y = toY(atViewEnd[pi])
+    if (labelY.some(v => Math.abs(v - y) < 9)) return
+    labelY.push(y)
+    ctx.fillStyle = '#D9A2AF'
+    ctx.font = '8px sans-serif'
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(PERCENTILE_LABELS[pi], plotRight + 5, y)
   })
 
   // 宝宝实测点（带从左向右生长动画）
-  const babyPoints = points
-    .filter(p => p.ageMonths >= 0 && p.ageMonths <= AGE_MAX)
-    .sort((a, b) => a.ageMonths - b.ageMonths)
+  const babyPoints = filterCurvePoints(points)
   if (babyPoints.length > 0) {
     const pts = babyPoints.map(p => ({ x: toX(p.ageMonths), y: toY(p.value) }))
 
     ctx.save()
     ctx.beginPath()
     ctx.rect(plotLeft - 6, 0, (plotW + 12) * easeOutCubic(progress), H)
+    ctx.clip()
+    // 再按横轴视窗裁一次：放大到某个区间后，视窗外的点不会画到坐标区外
+    ctx.beginPath()
+    ctx.rect(plotLeft, 0, plotW, H)
     ctx.clip()
 
     ctx.beginPath()
@@ -177,8 +349,9 @@ export function paintGrowthCurve(
 
     // 最新一点数值气泡
     const fade = Math.max(0, Math.min(1, (progress - 0.75) / 0.25))
-    if (fade > 0) {
-      const lastPt = pts[pts.length - 1]
+    const lastPt = pts[pts.length - 1]
+    // 最新测量点不在视窗内（比如放大看更早的区间）就不显示气泡
+    if (fade > 0 && lastPt.x >= plotLeft && lastPt.x <= plotRight) {
       const lastValue = babyPoints[babyPoints.length - 1].value
       const text = `${lastValue.toFixed(1)}${unit}`
       ctx.globalAlpha = fade

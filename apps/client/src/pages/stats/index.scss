@@ -400,6 +400,256 @@
   color: #A8A59E;
 }
 
+// WHO 成长曲线：独立模块。数据恒为 0-36 月龄全量，与上方时间范围筛选无关，
+// 所以单独成块并在标题行标注数据范围，避免被误认为受 7/14/30 天筛选影响。
+.who-section {
+  background: #fff;
+  border-radius: 36px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
+  border: 1px solid #F0EDE6;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+.who-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+// 标题图标：三条平行短横线，取 WHO 百分位参考线的意象（区别于趋势图的折线图标）
+.growth-heading-icon {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0;
+}
+
+.who-icon-bar {
+  height: 3px;
+  width: 14px;
+  border-radius: 3px;
+  background: #F58AA1;
+}
+
+.who-icon-bar-top { opacity: 0.4; }
+.who-icon-bar-mid { opacity: 0.7; }
+
+// 数据范围胶囊：明确告知这段数据不随时间范围变化
+.who-scope {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #FFF0F3;
+  flex-shrink: 0;
+}
+
+.who-scope-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #E8577A;
+  white-space: nowrap;
+}
+
+// 说明文字 + 「怎么看」入口：说明占满剩余宽度并允许换行，入口不压缩
+// （放在标题行会和「0-36 月龄」胶囊挤在一起，系统字体放大时容易溢出）
+.who-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  margin-bottom: 24px;
+}
+
+.who-section-hint {
+  flex: 1;
+  font-size: 21px;
+  color: #A8A59E;
+  line-height: 1.5;
+}
+
+.who-help-entry {
+  display: flex;
+  align-items: center;
+  padding: 6px 18px;
+  border-radius: 999px;
+  border: 1px solid #F4C0D1;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.who-help-entry-text {
+  font-size: 20px;
+  color: #E8577A;
+  white-space: nowrap;
+}
+
+// 缩放控件：左侧提示双指手势，右侧 −/范围/+（点范围可回到默认的最近 6 个月）
+.who-zoom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.who-zoom-hint {
+  font-size: 21px;
+  color: #B8B5AC;
+  flex-shrink: 0;
+}
+
+.who-zoom-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.who-zoom-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #FFF0F3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.who-zoom-btn-text {
+  font-size: 30px;
+  line-height: 1;
+  color: #E8577A;
+}
+
+.who-zoom-range {
+  height: 64px;
+  padding: 0 20px;
+  border-radius: 32px;
+  background: #FFF7F9;
+  border: 1px solid #FBEAF0;
+  display: flex;
+  align-items: center;
+}
+
+.who-zoom-range-text {
+  font-size: 20px;
+  color: #8E8B82;
+  white-space: nowrap;
+}
+
+// 点按曲线后的解读条
+.who-readout {
+  margin-top: 20px;
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: #FFF7F9;
+  border: 1px solid #FBEAF0;
+}
+
+.who-readout-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.who-readout-main {
+  font-size: 26px;
+  font-weight: 700;
+  color: #2D2A2E;
+}
+
+.who-readout-sub {
+  font-size: 22px;
+  color: #8E8B82;
+}
+
+.who-readout-hint {
+  font-size: 22px;
+  color: #A8A59E;
+}
+
+// 「怎么看」说明弹层
+.who-help-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(45, 42, 46, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 44px;
+  z-index: 999;
+}
+
+.who-help-card {
+  width: 100%;
+  max-height: 76vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 32px;
+  padding: 36px 34px 28px;
+  box-sizing: border-box;
+}
+
+.who-help-title {
+  display: block;
+  font-size: 31px;
+  font-weight: 700;
+  color: #2D2A2E;
+  margin-bottom: 26px;
+}
+
+.who-help-item {
+  margin-bottom: 22px;
+}
+
+.who-help-item-title {
+  display: block;
+  font-size: 25px;
+  font-weight: 600;
+  color: #2D2A2E;
+  line-height: 1.5;
+}
+
+.who-help-item-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 22px;
+  color: #8E8B82;
+  line-height: 1.6;
+}
+
+.who-help-foot {
+  display: block;
+  margin-top: 2px;
+  font-size: 21px;
+  color: #B8B5AC;
+  line-height: 1.5;
+}
+
+.who-help-ok {
+  margin-top: 28px;
+  height: 80px;
+  border-radius: 40px;
+  background: #FFA5B4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.who-help-ok-text {
+  font-size: 27px;
+  font-weight: 600;
+  color: #fff;
+}
+
 // 图表区域
 .charts-section {
   background: #fff;

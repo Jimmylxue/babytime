@@ -199,3 +199,64 @@ export function getWhoTable(
   if (metric === 'height') return gender === 'male' ? WHO_HEIGHT_BOYS : WHO_HEIGHT_GIRLS
   return gender === 'male' ? WHO_WEIGHT_BOYS : WHO_WEIGHT_GIRLS
 }
+
+export const WHO_PERCENTILE_LABELS = ['P3', 'P10', 'P25', 'P50', 'P75', 'P90', 'P97'] as const
+
+export const WHO_AGE_MAX = 36
+
+/** 按（可含小数的）月龄在 WHO 表上线性插值，返回 7 个百分位值 */
+export function getWhoPercentilesAt(
+  metric: 'height' | 'weight',
+  gender: 'male' | 'female',
+  ageMonths: number,
+): number[] {
+  const table = getWhoTable(metric, gender)
+  const clamped = Math.max(0, Math.min(WHO_AGE_MAX, ageMonths))
+  const lower = Math.floor(clamped)
+  const upper = Math.min(table.length - 1, lower + 1)
+  const t = clamped - lower
+  const a = table[lower]
+  const b = table[upper]
+  const out: number[] = []
+  for (let i = 0; i < WHO_PERCENTILE_LABELS.length; i++) {
+    out.push(a[i + 1] + (b[i + 1] - a[i + 1]) * t)
+  }
+  return out
+}
+
+export interface WhoBandResult {
+  /** 落在哪两条参考线之间：如 'P50~P75' / '低于 P3' / '高于 P97' */
+  band: string
+  /** 该月龄的 7 个百分位值（P3 → P97） */
+  percentiles: number[]
+  /** 与 P50（中位数）的差值，正数表示高于中位数 */
+  diffFromP50: number
+}
+
+/** 判断某个测量值，在对应月龄落在哪个百分位区间 */
+export function getWhoBand(
+  metric: 'height' | 'weight',
+  gender: 'male' | 'female',
+  ageMonths: number,
+  value: number,
+): WhoBandResult {
+  const percentiles = getWhoPercentilesAt(metric, gender, ageMonths)
+  const labels = WHO_PERCENTILE_LABELS
+
+  let band: string
+  if (value < percentiles[0]) {
+    band = `低于 ${labels[0]}`
+  } else if (value >= percentiles[labels.length - 1]) {
+    band = `高于 ${labels[labels.length - 1]}`
+  } else {
+    band = `${labels[0]}~${labels[1]}`
+    for (let i = 0; i < labels.length - 1; i++) {
+      if (value < percentiles[i + 1]) {
+        band = `${labels[i]}~${labels[i + 1]}`
+        break
+      }
+    }
+  }
+
+  return { band, percentiles, diffFromP50: value - percentiles[3] }
+}
