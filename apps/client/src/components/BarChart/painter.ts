@@ -19,6 +19,8 @@ export interface BarChartPaintData {
   unit?: string
   /** 柱宽，默认 12 */
   barWidth?: number
+  /** 高亮某根柱子（点按选中）；null / undefined 表示无选中 */
+  highlightIndex?: number | null
 }
 
 const PAD = { top: 26, bottom: 26 }
@@ -47,6 +49,7 @@ export function paintBarChart(
     showYAxis = false,
     unit,
     barWidth = BAR_WIDTH,
+    highlightIndex = null,
   } = data
   if (!points.length) return
 
@@ -120,11 +123,14 @@ export function paintBarChart(
 
   points.forEach((point, index) => {
     const centerX = plotLeft + slotW * index + slotW / 2
-    const x = centerX - barWidth / 2
+    const isActive = highlightIndex === index
+    // 选中的柱子略宽一点，配合深色形成强调
+    const w = isActive ? barWidth + 4 : barWidth
+    const x = centerX - w / 2
 
-    // 底部标签
+    // 底部标签：选中的那天用主色强调
     ctx.font = showYAxis ? '11px sans-serif' : '10px sans-serif'
-    ctx.fillStyle = '#8E8B82'
+    ctx.fillStyle = isActive ? '#E8577A' : '#8E8B82'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
     ctx.fillText(point.label, centerX, plotBottom + 9)
@@ -139,9 +145,14 @@ export function paintBarChart(
     const barH = Math.max((point.value / axisMax) * plotH, 6) * t
     const barY = plotBottom - barH
     const gradient = ctx.createLinearGradient(0, barY, 0, plotBottom)
-    gradient.addColorStop(0, color)
-    gradient.addColorStop(1, 'rgba(255, 214, 224, 0.35)')
-    roundTopRect(ctx, x, barY, barWidth, barH, barWidth / 2)
+    if (isActive) {
+      gradient.addColorStop(0, '#FF7B96')
+      gradient.addColorStop(1, 'rgba(255, 165, 180, 0.6)')
+    } else {
+      gradient.addColorStop(0, color)
+      gradient.addColorStop(1, 'rgba(255, 214, 224, 0.35)')
+    }
+    roundTopRect(ctx, x, barY, w, barH, w / 2)
     ctx.fillStyle = gradient
     ctx.fill()
 
@@ -149,7 +160,7 @@ export function paintBarChart(
     if (t > 0.5) {
       ctx.globalAlpha = (t - 0.5) / 0.5
       ctx.font = showYAxis ? 'bold 12px sans-serif' : 'bold 11px sans-serif'
-      ctx.fillStyle = showYAxis ? '#E86A8A' : color
+      ctx.fillStyle = isActive ? '#E8577A' : showYAxis ? '#E86A8A' : color
       ctx.textAlign = 'center'
       ctx.textBaseline = 'bottom'
       ctx.fillText(point.display, centerX, plotBottom - barH - 6)

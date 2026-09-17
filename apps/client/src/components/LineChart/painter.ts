@@ -15,6 +15,8 @@ export interface LineChartPaintData {
   /** y 轴最小跨度：身高传 1（cm）、体重传 0.2（kg） */
   minSpan?: number
   color?: string
+  /** 高亮某个数据点（点按选中）；null / undefined 时数值气泡标在末点 */
+  highlightIndex?: number | null
 }
 
 export const LINE_PAD = { top: 34, right: 16, bottom: 24, left: 38 }
@@ -25,7 +27,13 @@ export function paintLineChart(
   data: LineChartPaintData,
   progress = 1,
 ) {
-  const { points, unit, minSpan = 1, color = '#FF8FA9' } = data
+  const {
+    points,
+    unit,
+    minSpan = 1,
+    color = '#FF8FA9',
+    highlightIndex = null,
+  } = data
   if (!points.length) return
 
   ctx.save()
@@ -56,6 +64,10 @@ export function paintLineChart(
     plotTop + (1 - (value - lowerBound) / range) * plotH
 
   const pts = points.map((p, index) => ({ x: toX(index), y: toY(p.value) }))
+  const hasHighlight =
+    highlightIndex != null &&
+    highlightIndex >= 0 &&
+    highlightIndex < points.length
 
   // 图表均在白卡上，铺白色底避免海报导出时透明区域显示为黑色
   ctx.fillStyle = '#FFFFFF'
@@ -151,25 +163,40 @@ export function paintLineChart(
     ctx.lineWidth = 2
     ctx.stroke()
   })
+
+  // 选中点强调：实心点 + 白环，比普通测量点更醒目
+  if (hasHighlight) {
+    const pt = pts[highlightIndex as number]
+    ctx.beginPath()
+    ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2)
+    ctx.fillStyle = color
+    ctx.fill()
+    ctx.strokeStyle = '#FFFFFF'
+    ctx.lineWidth = 2
+    ctx.stroke()
+  }
   ctx.restore()
 
-  // 末点数值气泡
+  // 数值气泡：默认标在末点，有选中点时改标在选中点
   const fade = Math.max(0, Math.min(1, (progress - 0.75) / 0.25))
+  const activeIndex = hasHighlight
+    ? (highlightIndex as number)
+    : points.length - 1
   if (fade > 0) {
-    const last = points[points.length - 1]
-    const lastPt = pts[pts.length - 1]
-    const text = `${last.value.toFixed(1)}${unit}`
+    const active = points[activeIndex]
+    const activePt = pts[activeIndex]
+    const text = `${active.value.toFixed(1)}${unit}`
     ctx.globalAlpha = fade
     ctx.font = 'bold 11px sans-serif'
     const textW = ctx.measureText(text).width
     const badgeW = textW + 20
     const badgeH = 22
     const badgeX = Math.min(
-      Math.max(lastPt.x - badgeW / 2, plotLeft - 6),
+      Math.max(activePt.x - badgeW / 2, plotLeft - 6),
       W - badgeW - 2,
     )
-    let badgeY = lastPt.y - 14 - badgeH
-    if (badgeY < 4) badgeY = lastPt.y + 14
+    let badgeY = activePt.y - 14 - badgeH
+    if (badgeY < 4) badgeY = activePt.y + 14
 
     roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 11)
     ctx.fillStyle = color

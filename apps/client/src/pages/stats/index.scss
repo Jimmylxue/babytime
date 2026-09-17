@@ -181,12 +181,31 @@
 
 // 日期切换
 .date-nav {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 24px;
   margin-bottom: 24px;
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+// 一键回到今天：只在不是今天时出现。
+// 用绝对定位脱离文档流 —— 否则它会把「‹ 日期 ›」这组挤偏，看起来不居中
+.date-today {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 56px;
+  padding: 0 20px;
+  border-radius: 28px;
+  background: #FFF0F3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #E8577A;
 }
 
 .date-arrow {
@@ -806,6 +825,13 @@
   &.growth-height { background: #FF8FA3; box-shadow: 0 0 0 4px #FFE1E7; }
   &.growth-weight { background: #54B6A7; box-shadow: 0 0 0 4px #DDF5EE; }
   &.temperature-point { background: #F37C8D; box-shadow: 0 0 0 4px #FDE2E6; }
+
+  // 点按选中的那天：加深颜色并放大光环
+  &.temperature-point.active {
+    background: #E24B4A;
+    box-shadow: 0 0 0 6px #FBD9D9;
+    z-index: 3;
+  }
 }
 
 .temperature-chart {

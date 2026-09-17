@@ -137,6 +137,8 @@ export default function StatsPage() {
 	const [whoHelpVisible, setWhoHelpVisible] = useState(false)
 	// 成长曲线横轴视窗；null 表示用默认的「最近 6 个月」
 	const [whoViewOverride, setWhoViewOverride] = useState<CurveView | null>(null)
+	// 身高/体重趋势图点按选中的点（该页签没有明细卡，只用来把数值显示出来）
+	const [growthPointIndex, setGrowthPointIndex] = useState<number | null>(null)
 
 	// 拉取选中日期的明细/汇总，完成后拷贝到本页状态，之后 store 再被谁覆盖都不影响本页展示
 	const loadDayDetail = async (babyId: string, type: string, date: string) => {
@@ -320,10 +322,11 @@ export default function StatsPage() {
 	const whoView = whoViewOverride || whoDefaultView
 	const whoViewLabel = `${whoView.xMin.toFixed(1)} ~ ${whoView.xMax.toFixed(1)} 月龄`
 
-	// 换宝宝或切换身高/体重后，手动缩放的视窗要回到默认
+	// 换宝宝、切换指标或时间范围后，重置成长视窗与趋势图的选中点
 	useEffect(() => {
 		setWhoViewOverride(null)
-	}, [currentBaby?.id, growthMetric])
+		setGrowthPointIndex(null)
+	}, [currentBaby?.id, growthMetric, days])
 
 	const zoomWhoView = (factor: number) => {
 		setWhoViewOverride(prev => zoomCurveView(prev || whoDefaultView, factor))
@@ -371,6 +374,11 @@ export default function StatsPage() {
 				label: dayLabels[new Date(stat.date).getDay()],
 			}
 		})
+		// 选中的那天：让图表高亮与顶部日期导航用同一口径，点柱子后两边会同步
+		const activeIndex = stats.findIndex(
+			stat => formatDate(stat.date) === formatDate(selectedDate),
+		)
+
 		// 「次数」类标题本身已含单位，不再重复；奶量/时长把单位标在标题上
 		const titleSuffix =
 			unit && unit !== '次' ? ` (${unit === '时' ? '小时' : unit})` : ''
@@ -471,7 +479,16 @@ export default function StatsPage() {
 					{renderChartActions(posterOpts)}
 				</View>
 				<ScrollView scrollX className="chart-scroll-view" showScrollbar={false}>
-					<BarChart canvasId={`bar-${key}-chart`} points={points} />
+					<BarChart
+						canvasId={`bar-${key}-chart`}
+						points={points}
+						highlightIndex={activeIndex >= 0 ? activeIndex : null}
+						onSelectIndex={index => {
+							if (index == null) return
+							const stat = stats[index]
+							if (stat?.date) handleDateChange(stat.date)
+						}}
+					/>
 				</ScrollView>
 			</View>
 		)
@@ -654,6 +671,8 @@ export default function StatsPage() {
 					unit={unit}
 					minSpan={key === 'height' ? 1 : 0.2}
 					points={posterOpts.data.points as LineChartPoint[]}
+					highlightIndex={growthPointIndex}
+					onSelectIndex={setGrowthPointIndex}
 				/>
 			</View>
 		)
@@ -886,8 +905,13 @@ export default function StatsPage() {
 												? latestPointId
 												: undefined
 										}
-										className="growth-point temperature-point"
+										className={`growth-point temperature-point${
+											formatDate(point.date) === formatDate(selectedDate)
+												? ' active'
+												: ''
+										}`}
 										style={{ left: `${point.x}%`, bottom: `${point.y}%` }}
+										onClick={() => handleDateChange(formatDate(point.date))}
 									>
 										{showValue && (
 											<Text className="growth-value" style={highValueStyle}>
@@ -1427,6 +1451,15 @@ export default function StatsPage() {
 					>
 						<Text>›</Text>
 					</View>
+					{/* 一键回到今天：只在不是今天时出现，避免与日期标签上的「今天」重复 */}
+					{!isToday(selectedDate) && (
+						<View
+							className="date-today"
+							onClick={() => handleDateChange(formatDate(new Date()))}
+						>
+							<Text>今天</Text>
+						</View>
+					)}
 				</View>
 			)}
 
