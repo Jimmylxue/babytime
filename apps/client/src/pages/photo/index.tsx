@@ -3,7 +3,7 @@ import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
 import { useRef, useState } from 'react';
 import { photoApi, trackEvent, PhotoTimelineGroup } from '../../utils/request';
 import { takePhotoAndSave } from '../../utils/upload';
-import albumBaby from '../../assets/album-baby.png';
+import albumBaby from '../../assets/album-baby.webp';
 import cameraIcon from '../../assets/icons/camera-white.svg';
 import albumPinkIcon from '../../assets/icons/album-pink.svg';
 import heartIcon from '../../assets/icons/heart-pink.svg';

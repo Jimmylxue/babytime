@@ -243,6 +243,54 @@
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+// 首屏骨架屏：复用 baby-card 的容器和内层布局，只把内容换成占位块，
+// 这样数据回来时卡片尺寸不变，不会有跳版
+.baby-skeleton {
+  .sk-avatar {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(255, 255, 255, 0.55);
+    box-shadow: none;
+  }
+
+  .sk-bar {
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.86);
+  }
+
+  .sk-bar-name {
+    width: 72%;
+    height: 34px;
+  }
+
+  .sk-bar-age {
+    width: 52%;
+    height: 26px;
+    margin-top: 12px;
+  }
+
+  .sk-tile {
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: none;
+  }
+
+  // 只让占位块呼吸，卡片容器本身保持稳定
+  .sk-avatar,
+  .sk-bar,
+  .sk-tile {
+    animation: skPulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes skPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 // 柔光装饰
 .baby-deco {
   position: absolute;
@@ -1432,6 +1480,19 @@
   border-radius: 24px;
   background: #FFF3F0;
   flex-shrink: 0;
+}
+
+// 照片区的首屏骨架：与照片同尺寸，加载完成时不会跳版；超出屏幕的部分裁掉
+.moments-skeleton {
+  display: flex;
+  gap: 16px;
+  padding: 4px 2px 12px;
+  overflow: hidden;
+
+  .sk-photo {
+    background: #FFF6F4;
+    animation: skPulse 1.4s ease-in-out infinite;
+  }
 }
 
 .moments-tail {

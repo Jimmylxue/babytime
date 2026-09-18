@@ -9,7 +9,7 @@ import clockCoralIcon from '../../assets/icons/clock-coral.svg'
 import noteEditDarkIcon from '../../assets/icons/note-edit-dark.svg'
 import saveWhiteIcon from '../../assets/icons/save-white.svg'
 import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
-import diaperBabyIllu from '../../assets/diaper-baby.jpg'
+import diaperBabyIllu from '../../assets/diaper-baby.webp'
 import { buildRecordDate, buildTimeOnDate } from './components/timeUtils'
 import type { RecordFormComponent, RecordFormHandle } from './components/types'
 import FeedingForm, {

@@ -32,10 +32,10 @@ import {
 	VaccinePlanItem,
 } from '../../utils/request'
 import miniProgramCode from '../../assets/mini-program-code.jpg'
-import babyIllustration from '../../assets/baby-illustration.jpg'
-import babyIllustrationGirl from '../../assets/baby-illustration-girl.jpg'
-import vaccineSafety from '../../assets/vaccine-safety.jpg'
-import emptyBabyIllustration from '../../assets/empty-baby.jpg'
+import babyIllustration from '../../assets/baby-illustration.webp'
+import babyIllustrationGirl from '../../assets/baby-illustration-girl.webp'
+import vaccineSafety from '../../assets/vaccine-safety.webp'
+import emptyBabyIllustration from '../../assets/empty-baby.webp'
 import plusCircleIcon from '../../assets/icons/plus-circle-white.svg'
 import editIcon from '../../assets/icons/edit.svg'
 import trendingUpIcon from '../../assets/icons/trending-up.svg'
@@ -124,6 +124,10 @@ export default function Index() {
 	const [showTips, setShowTips] = useState(false)
 	const [showAddGuide, setShowAddGuide] = useState(false)
 	const [now, setNow] = useState(() => Date.now())
+	// 首屏宝宝数据是否已回来。冷启动时 currentBaby 必然为 null，
+	// 必须靠这个标志区分「还在加载」和「真的没有宝宝档案」，
+	// 否则每次打开都会先闪一下「还没有宝宝信息」的空状态。
+	const [babyReady, setBabyReady] = useState(false)
 	const [statusBarHeight] = useState(
 		() => Taro.getSystemInfoSync().statusBarHeight || 20,
 	)
@@ -151,6 +155,9 @@ export default function Index() {
 	>('never')
 	const [nextVaccine, setNextVaccine] = useState<VaccinePlanItem | null>(null)
 	const [recentPhotos, setRecentPhotos] = useState<RecentPhoto[]>([])
+	// 首屏照片是否已拉取过。recentPhotos 初始为空数组，
+	// 不区分「还在加载」就会先闪一下「还没有照片」的拍照引导。
+	const [photosReady, setPhotosReady] = useState(false)
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
 	const requestingVaccineSubscriptionRef = useRef(false)
@@ -219,6 +226,7 @@ export default function Index() {
 				setRecentPhotos(items.flatMap(item => item.photos).slice(0, 9))
 			})
 			.catch(() => {})
+			.then(() => setPhotosReady(true))
 	}
 
 	const handleMomentsPreview = (photo: RecentPhoto) => {
@@ -264,6 +272,7 @@ export default function Index() {
 				.then(res => setVaccineState(res.data?.state || 'never'))
 				.catch(() => setVaccineState('never'))
 			fetchBabies().then(() => {
+				setBabyReady(true)
 				const baby = useBabyStore.getState().currentBaby
 				if (baby) {
 					setNextVaccine(null)
@@ -650,8 +659,23 @@ export default function Index() {
 				</View>
 			)}
 
-			{/* 宝宝档案：已登录未建档时显示专属空状态（按 UI 稿还原），其余走原宝宝卡 */}
-			{isLoggedIn && !currentBaby ? (
+			{/* 宝宝档案：首屏数据未回来时显示骨架屏（避免闪「还没有宝宝信息」），
+			    已登录未建档时显示专属空状态（按 UI 稿还原），其余走原宝宝卡 */}
+			{isLoggedIn && !babyReady ? (
+				<View className="baby-card baby-skeleton">
+					<View className="baby-main">
+						<View className="baby-avatar sk-avatar" />
+						<View className="baby-info">
+							<View className="sk-bar sk-bar-name" />
+							<View className="sk-bar sk-bar-age" />
+						</View>
+					</View>
+					<View className="baby-metrics">
+						<View className="baby-metric sk-tile" />
+						<View className="baby-metric sk-tile" />
+					</View>
+				</View>
+			) : isLoggedIn && !currentBaby ? (
 				<View className="empty-baby-state">
 					<Image
 						className="ebs-illustration"
@@ -1034,6 +1058,12 @@ export default function Index() {
 								</View>
 							</View>
 						</ScrollView>
+					) : !photosReady ? (
+						<View className="moments-skeleton">
+							<View className="moments-photo sk-photo" />
+							<View className="moments-photo sk-photo" />
+							<View className="moments-photo sk-photo" />
+						</View>
 					) : (
 						<View
 							className="moments-empty"

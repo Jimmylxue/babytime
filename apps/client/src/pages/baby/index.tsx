@@ -5,7 +5,7 @@ import { useBabyStore, Baby } from '../../stores/babyStore';
 import { calculateAge, formatDate } from '../../utils/date';
 import babyFacePink from '../../assets/icons/baby-face-pink.svg';
 import babyFaceBlue from '../../assets/icons/baby-face-blue.svg';
-import bearHeart from '../../assets/baby-bear-heart.jpg';
+import bearHeart from '../../assets/baby-bear-heart.webp';
 import heartDeco from '../../assets/icons/heart-deco.svg';
 import plusWhite from '../../assets/icons/plus-white.svg';
 import crownGold from '../../assets/icons/crown-gold.svg';
