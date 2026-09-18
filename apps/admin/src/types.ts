@@ -109,13 +109,23 @@ export interface AdminUser {
 	nickname: string;
 	avatar: string | null;
 	openId: string | null;
+	/** 获客来源（扫码场景值）；null = 自然流入 */
+	acquisitionSource?: string | null;
 	babyCount: number;
 	recordCount: number;
 	createdAt: string;
 }
 
+export interface UserSourceCount {
+	/** null 表示自然流入（没带场景值注册的） */
+	source: string | null;
+	count: number;
+}
+
 export interface UserListResult {
 	list: AdminUser[];
+	/** 按来源汇总的用户数（全量，不受分页影响） */
+	sourceCounts?: UserSourceCount[];
 	total: number;
 	page: number;
 	pageSize: number;

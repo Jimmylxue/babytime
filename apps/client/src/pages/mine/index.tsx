@@ -24,7 +24,7 @@ import bellIcon from '../../assets/icons/bell.svg'
 import parentIcon from '../../assets/icons/parent.svg'
 import albumPinkIcon from '../../assets/icons/album-pink.svg'
 import minePig from '../../assets/mine-pig.jpg'
-import miniProgramCode from '../../assets/mini-program-code.jpg'
+import { fetchPosterQrCode } from '../../utils/posterQr'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -73,6 +73,8 @@ export default function MinePage() {
 				range: data.rangeTitle,
 				photos: data.photos.length,
 			})
+			// 带场景值的码：扫码进来可归因「纪念册带来的新用户」；失败自动回退静态码
+			const miniProgramCode = await fetchPosterQrCode('album')
 			await deliverAlbumPoster(data, 'share', miniProgramCode)
 		} catch (error) {
 			console.error('album poster failed', error)

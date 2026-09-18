@@ -28,6 +28,14 @@ export class User {
   @Column({ name: 'role', nullable: true, comment: '角色: father/mother' })
   role: string;
 
+  /**
+   * 获客来源：扫码进入时携带的场景值（如 album/daily/chart/family）。
+   * 只在**创建用户**时写入一次（first-write-wins），老用户扫码不回填，
+   * 否则归因口径会被老用户污染。线上加列走 docs/acquisition-source.sql。
+   */
+  @Column({ name: 'acquisition_source', type: 'varchar', length: 32, nullable: true, comment: '获客来源(扫码场景值)' })
+  acquisitionSource: string | null;
+
   @Column({ name: 'last_seen_at', type: 'datetime', nullable: true })
   lastSeenAt: Date;
 

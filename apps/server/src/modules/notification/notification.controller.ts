@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Request, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Request, UseGuards, HttpCode } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { NotificationService } from './notification.service';
 import { SetVaccinePlanDto } from './dto/set-vaccine-plan.dto';
@@ -23,6 +23,24 @@ export class NotificationController {
   async getStatus(@Request() req) {
     const data = await this.service.getUserVaccineStatus(req.user.id);
     return { code: 0, message: 'success', data };
+  }
+
+  /**
+   * 海报用的小程序码（带场景值，扫码后可归因来源）。
+   * 返回 PNG 的 base64（不带 data: 前缀），客户端落成本地文件给画布用。
+   * env 仅用于验收：小程序未发布新版本时传 trial 才能扫开。
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('poster-qrcode')
+  async getPosterQrCode(
+    @Query('scene') scene?: string,
+    @Query('env') env?: string,
+  ) {
+    const base64 = await this.service.getPosterQrCode(
+      (scene || '').trim(),
+      (env || 'release').trim(),
+    );
+    return { code: 0, message: 'success', data: { base64 } };
   }
 
   @UseGuards(JwtAuthGuard)

@@ -56,6 +56,8 @@ export class UserService {
         openId: openid,
         unionId: unionid,
         nickname: '微信用户',
+        // 归因：只在创建时写一次，取不到或不在白名单就留空
+        acquisitionSource: this.normalizeAcquisitionSource(loginDto.source),
       });
       user = await this.userRepository.save(user);
     }
@@ -76,8 +78,18 @@ export class UserService {
     };
   }
 
-  private async getWxOpenId(code: string) {
-    const appId = process.env.WECHAT_APP_ID;
+  /**
+   * 归因来源白名单。必须与海报二维码的场景值一一对应
+   * （见 NotificationService 的 POSTER_QR_SCENES），不认识的一律丢弃，
+   * 避免客户端随意传字符串污染统计口径。
+   */
+  private normalizeAcquisitionSource(source?: string): string | null {
+    const allowed = new Set(['album', 'daily', 'chart', 'family']);
+    const value = (source || '').trim().toLowerCase();
+    return allowed.has(value) ? value : null;
+  }
+
+  private async getWxOpenId(code: string) {    const appId = process.env.WECHAT_APP_ID;
     const appSecret = process.env.WECHAT_APP_SECRET;
     const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appId}&secret=${appSecret}&js_code=${code}&grant_type=authorization_code`;
 

@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Card, Input, List, Modal, Spin, Table } from 'antd';
+import { Avatar, Card, Input, List, Modal, Space, Spin, Table, Tag, Typography } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { apiGet } from '../api/client';
-import { GENDER_LABELS, formatAge } from '../constants';
-import type { AdminUser, UserBabyItem, UserListResult } from '../types';
+import { GENDER_LABELS, formatAge, formatSourceLabel } from '../constants';
+import type { AdminUser, UserBabyItem, UserListResult, UserSourceCount } from '../types';
 
 export default function Users() {
 	const navigate = useNavigate();
 	const [list, setList] = useState<AdminUser[]>([]);
 	const [total, setTotal] = useState(0);
+	// 来源分布（全量统计，不受当前分页影响）
+	const [sourceCounts, setSourceCounts] = useState<UserSourceCount[]>([]);
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(20);
 	const [keyword, setKeyword] = useState('');
@@ -31,6 +33,7 @@ export default function Users() {
 			});
 			setList(data.list);
 			setTotal(data.total);
+			setSourceCounts(data.sourceCounts || []);
 		} finally {
 			setLoading(false);
 		}
@@ -69,6 +72,17 @@ export default function Users() {
 				</div>
 			),
 		},
+		{
+			title: '来源',
+			dataIndex: 'acquisitionSource',
+			width: 100,
+			render: (value: string | null) =>
+				value ? (
+					<Tag color="pink">{formatSourceLabel(value)}</Tag>
+				) : (
+					<Typography.Text type="secondary">自然流入</Typography.Text>
+				),
+		},
 		{ title: 'OpenID', dataIndex: 'openId', width: 160 },
 		{
 			title: '宝宝数',
@@ -106,6 +120,26 @@ export default function Users() {
 				/>
 			}
 		>
+			{sourceCounts.length > 0 && (
+				<div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+					<Typography.Text type="secondary" style={{ fontSize: 12, marginRight: 2 }}>
+						来源分布
+					</Typography.Text>
+					{/* 有归因的排前面（这才是要看的），自然流入垫底 */}
+					{[...sourceCounts]
+						.sort((a, b) => {
+							const aOrganic = !a.source;
+							const bOrganic = !b.source;
+							if (aOrganic !== bOrganic) return aOrganic ? 1 : -1;
+							return b.count - a.count;
+						})
+						.map((item) => (
+							<Tag key={item.source || 'organic'} color={item.source ? 'pink' : 'default'}>
+								{formatSourceLabel(item.source)} {item.count}
+							</Tag>
+						))}
+				</div>
+			)}
 			<Table
 				rowKey="id"
 				columns={columns}

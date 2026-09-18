@@ -19,6 +19,21 @@ export const GENDER_LABELS: Record<string, string> = {
 	female: '女宝宝',
 };
 
+// 与 apps/server 的 acquire 白名单保持一致：
+// user.service 的 normalizeAcquisitionSource / notification.service 的 POSTER_QR_SCENES
+export const ACQUISITION_SOURCE_LABELS: Record<string, string> = {
+	album: '纪念册',
+	daily: '日报',
+	chart: '图表',
+	family: '家庭邀请',
+};
+
+/** 来源的中文名；null / 未知值一律显示为自然流入 */
+export function formatSourceLabel(source: string | null | undefined): string {
+	if (!source) return '自然流入';
+	return ACQUISITION_SOURCE_LABELS[source] || source;
+}
+
 // 按出生日期计算月龄文案，如 "5个月" / "1岁3个月"
 export function formatAge(birthday: string | null | undefined): string {
 	if (!birthday) return '-';

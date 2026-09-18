@@ -30,8 +30,7 @@ import {
 	photoApi,
 	trackEvent,
 	VaccinePlanItem,
-} from '../../utils/request'
-import miniProgramCode from '../../assets/mini-program-code.jpg'
+	} from '../../utils/request'
 import babyIllustration from '../../assets/baby-illustration.webp'
 import babyIllustrationGirl from '../../assets/baby-illustration-girl.webp'
 import vaccineSafety from '../../assets/vaccine-safety.webp'
@@ -51,6 +50,7 @@ import { DailyMetric } from '../../utils/dailyPoster'
 import reportPlusIcon from '../../assets/icons/report-plus.svg'
 import sparklePinkIcon from '../../assets/icons/sparkle-pink.svg'
 import { deliverDailyPoster } from '../../utils/chartExport'
+import { fetchPosterQrCode } from '../../utils/posterQr'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -603,7 +603,7 @@ export default function Index() {
 					ageText: `${age.months}个月 ${age.days}天`,
 					metrics,
 					reviewText,
-					miniProgramCodeUrl: miniProgramCode,
+					miniProgramCodeUrl: await fetchPosterQrCode('daily'),
 				},
 				action,
 			)

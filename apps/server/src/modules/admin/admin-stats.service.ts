@@ -128,6 +128,7 @@ export class AdminStatsService {
 
     const rows = await this.dataSource.query(
       `SELECT u.id, u.nickname, u.avatar, u.open_id AS openId, u.created_at AS createdAt,
+        u.acquisition_source AS acquisitionSource,
         (SELECT COUNT(*) FROM babies b WHERE b.user_id = u.id) AS babyCount,
         (SELECT COUNT(*) FROM records r INNER JOIN babies b ON b.id = r.baby_id WHERE b.user_id = u.id) AS recordCount
        FROM users u ${whereClause}
@@ -136,16 +137,27 @@ export class AdminStatsService {
       [...params, safePageSize, offset],
     );
 
+    // 按来源汇总：光有一列看不出「纪念册到底带来多少人」，这里给个总数
+    const sourceRows = await this.dataSource.query(
+      `SELECT acquisition_source AS source, COUNT(*) AS count FROM users GROUP BY acquisition_source`,
+    );
+    const sourceCounts = sourceRows.map((row) => ({
+      source: row.source || null,
+      count: Number(row.count),
+    }));
+
     return {
       list: rows.map((row) => ({
         id: row.id,
         nickname: row.nickname,
         avatar: row.avatar,
         openId: row.openId ? `${String(row.openId).slice(0, 6)}****` : null,
+        acquisitionSource: row.acquisitionSource || null,
         babyCount: Number(row.babyCount),
         recordCount: Number(row.recordCount),
         createdAt: row.createdAt,
       })),
+      sourceCounts,
       total: Number(countRow.total),
       page: safePage,
       pageSize: safePageSize,

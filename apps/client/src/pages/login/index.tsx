@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { userApi } from '../../utils/request'
+import { getAcquisitionSource } from '../../utils/attribution'
 import appLogo from '../../assets/app-logo.webp'
 import editIcon from '../../assets/icons/edit.svg'
 import trendingUpIcon from '../../assets/icons/trending-up.svg'
@@ -26,7 +27,7 @@ export default function LoginPage() {
 			const loginRes = await Taro.login()
 			const { code } = loginRes
 
-			const res = await userApi.login(code)
+			const res = await userApi.login(code, getAcquisitionSource())
 
 			Taro.setStorageSync('token', res.data.token)
 			Taro.setStorageSync('userInfo', res.data.user)

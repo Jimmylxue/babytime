@@ -45,6 +45,7 @@ import {
 } from '../../components/GrowthCurveChart/painter'
 import { getWhoBand } from '../../utils/whoGrowthStandards'
 import { deliverChartPoster, ChartPosterOptions } from '../../utils/chartExport'
+import { fetchPosterQrCode } from '../../utils/posterQr'
 import downloadIcon from '../../assets/icons/download.svg'
 import shareIcon from '../../assets/icons/share.svg'
 import pencilWhiteIcon from '../../assets/icons/pencil-white.svg'
@@ -52,7 +53,6 @@ import growthBoyIllu from '../../assets/growth-baby-boy.jpg'
 import growthGirlIllu from '../../assets/growth-baby-girl.jpg'
 import scaleBabyBoyIllu from '../../assets/scale-baby-boy.jpg'
 import scaleBabyGirlIllu from '../../assets/scale-baby-girl.jpg'
-import miniProgramCode from '../../assets/mini-program-code.jpg'
 import './index.scss'
 
 function isToday(dateStr: string): boolean {
@@ -277,6 +277,8 @@ export default function StatsPage() {
 		action: 'save' | 'share',
 	) => {
 		try {
+			// 带场景值的码（来源=图表海报），失败自动回退静态码
+			const miniProgramCode = await fetchPosterQrCode('chart')
 			await deliverChartPoster(
 				{ ...opts, miniProgramCodeUrl: miniProgramCode },
 				action,

@@ -9,6 +9,12 @@ interface RequestOptions {
 	header?: Record<string, string>
 	/** 是否需要 token，默认 true */
 	needToken?: boolean
+	/**
+	 * 静默请求：失败不弹 toast，也不因 401 清除登录态。
+	 * 用于「有兜底、失败也无所谓」的后台调用（如海报场景码），
+	 * 否则服务端未部署时会凭空弹一个「请求失败」。
+	 */
+	silent?: boolean
 }
 
 interface ApiResponse<T = any> {
@@ -20,7 +26,7 @@ interface ApiResponse<T = any> {
 export const request = <T = any>(
 	options: RequestOptions,
 ): Promise<ApiResponse<T>> => {
-	const { needToken = true, ...restOptions } = options
+	const { needToken = true, silent = false, ...restOptions } = options
 	// 直接从 storage 获取 token，确保是最新的
 	const token = Taro.getStorageSync('token')
 
@@ -44,8 +50,8 @@ export const request = <T = any>(
 				if (res.statusCode === 200) {
 					resolve(res.data as ApiResponse<T>)
 				} else if (res.statusCode === 401) {
-					// token 过期，清除登录状态
-					if (needToken) {
+					// token 过期，清除登录状态（静默请求不动全局登录态）
+					if (needToken && !silent) {
 						Taro.removeStorageSync('token')
 						Taro.removeStorageSync('userInfo')
 						useAuthStore.setState({
@@ -57,15 +63,19 @@ export const request = <T = any>(
 					}
 					reject(new Error(res.data?.message || '未授权'))
 				} else {
-					Taro.showToast({
-						title: res.data?.message || '请求失败',
-						icon: 'none',
-					})
+					if (!silent) {
+						Taro.showToast({
+							title: res.data?.message || '请求失败',
+							icon: 'none',
+						})
+					}
 					reject(new Error(res.data?.message))
 				}
 			},
 			fail: err => {
-				Taro.showToast({ title: '网络错误', icon: 'none' })
+				if (!silent) {
+					Taro.showToast({ title: '网络错误', icon: 'none' })
+				}
 				reject(err)
 			},
 		})
@@ -74,11 +84,12 @@ export const request = <T = any>(
 
 // 用户相关 API
 export const userApi = {
-	login: (code: string) =>
+	login: (code: string, source?: string | null) =>
 		request<{ token: string; user: any }>({
 			url: '/user/login',
 			method: 'POST',
-			data: { code },
+			// source：扫码场景值，服务端只在新用户创建时落库（获客归因）
+			data: source ? { code, source } : { code },
 			needToken: false, // 登录接口不需要 token
 		}),
 	getProfile: () => request<any>({ url: '/user/profile' }),

@@ -21,7 +21,7 @@ const MENU_ITEMS = [
 	{ key: '/analytics', icon: <BarChartOutlined />, label: '数据分析' },
 	{ key: '/mini-apps', icon: <AppstoreOutlined />, label: '小应用' },
 	{ key: '/announcements', icon: <NotificationOutlined />, label: '公告管理' },
-	{ key: '/notifications', icon: <BellOutlined />, label: '订阅用户' },
+	{ key: '/notifications', icon: <BellOutlined />, label: '订阅消息' },
 ];
 
 export default function AdminLayout() {
