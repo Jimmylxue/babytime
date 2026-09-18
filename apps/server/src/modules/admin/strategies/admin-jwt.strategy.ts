@@ -10,7 +10,10 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('ADMIN_JWT_SECRET', 'baby-time-admin-secret'),
+      secretOrKey: configService.getOrThrow<string>(
+        'ADMIN_JWT_SECRET',
+        'ADMIN_JWT_SECRET 未配置（应写在仓库根目录 .env），拒绝以默认密钥启动',
+      ),
     });
   }
 

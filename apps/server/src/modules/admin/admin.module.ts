@@ -20,7 +20,10 @@ import { NotificationModule } from '../notification/notification.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('ADMIN_JWT_SECRET', 'baby-time-admin-secret'),
+        secret: configService.getOrThrow<string>(
+          'ADMIN_JWT_SECRET',
+          'ADMIN_JWT_SECRET 未配置（应写在仓库根目录 .env），拒绝以默认密钥签发 token',
+        ),
         signOptions: { expiresIn: '7d' },
       }),
     }),

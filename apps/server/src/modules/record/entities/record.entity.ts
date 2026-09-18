@@ -9,6 +9,7 @@ import {
 	JoinColumn,
 } from 'typeorm'
 import { Baby } from '../../baby/entities/baby.entity'
+import { decimalTransformer } from '../../../common/decimal.transformer'
 
 // 记录类型
 export enum RecordType {
@@ -132,6 +133,7 @@ export class Record {
 		scale: 1,
 		nullable: true,
 		comment: '体温(°C)',
+		transformer: decimalTransformer,
 	})
 	temperature: number
 
@@ -143,6 +145,7 @@ export class Record {
 		scale: 1,
 		nullable: true,
 		comment: '身高(cm)',
+		transformer: decimalTransformer,
 	})
 	height: number
 
@@ -153,6 +156,7 @@ export class Record {
 		scale: 2,
 		nullable: true,
 		comment: '体重(kg)',
+		transformer: decimalTransformer,
 	})
 	weight: number
 

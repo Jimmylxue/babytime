@@ -22,7 +22,10 @@ import { ContentSecurityModule } from '../content-security/content-security.modu
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'baby-time-secret'),
+        secret: configService.getOrThrow<string>(
+          'JWT_SECRET',
+          'JWT_SECRET 未配置（应写在仓库根目录 .env），拒绝以默认密钥签发 token',
+        ),
         signOptions: { expiresIn: '7d' },
       }),
     }),
