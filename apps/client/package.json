@@ -20,6 +20,7 @@
     "ios >= 8"
   ],
   "dependencies": {
+    "@baby-time/shared": "workspace:*",
     "@babel/runtime": "^7.21.5",
     "@tarojs/components": "3.6.31",
     "@tarojs/helper": "3.6.31",

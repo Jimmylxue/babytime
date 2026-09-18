@@ -6,7 +6,7 @@ import {
 	VACCINE_SCHEDULE,
 	getCurrentVaccineStage,
 	VaccineScheduleItem,
-} from '../../../utils/vaccineSchedule'
+} from '@baby-time/shared'
 import { calculateAge } from '../../../utils/date'
 import { trackEvent } from '../../../utils/request'
 import { needLogin } from '../../../utils/needLogin'

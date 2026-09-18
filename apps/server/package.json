@@ -11,6 +11,7 @@
     "start:prod": "node dist/main"
   },
   "dependencies": {
+    "@baby-time/shared": "workspace:*",
     "@nestjs/axios": "^3.0.2",
     "@nestjs/common": "^10.3.7",
     "@nestjs/config": "^3.2.2",

@@ -1,3 +1,4 @@
+// 疫苗计划表 · 前后端唯一数据源（客户端展示 / 服务端接种提醒都从这里 import）
 export interface VaccineScheduleItem {
   id: string
   ageMonths: number

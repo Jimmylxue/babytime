@@ -251,7 +251,11 @@
   - [x] 双价 HPV 疫苗（13 周岁女孩，2 剂间隔 6 个月）作为参考行加入疫苗表，但不进宝宝时间轴与提醒（超出 0–6 岁范围）
   - [x] 新增 `npm run check:vaccine`：校验前后端两份计划表（节点 ID/月龄/名称）不漂移
   - [x] 服务器执行 `docs/vaccine-schedule-2026.sql`（清理已下线的 dt-1 自定义日期）（2026-09-17 用户确认已执行）
-  - [ ] 技术债：计划表在前后端各存一份（`packages/shared` 是空壳未接线），建议后续抽到共享包
+  - [x] 技术债已还：疫苗计划表抽到 `packages/shared/src/vaccineSchedule.ts`（2026-09-18）
+    - 前后端唯一数据源：客户端 3 处 import 改 `@baby-time/shared`，服务端 `notification.service` 直接用 `TIMELINE_VACCINE_SCHEDULE`
+    - 迁移时逐字段核对过，服务端新旧表 22 节点完全一致，纯接线不改数据
+    - shared 包补了 tsc 构建（ES5 产物，两端通用）；root 新增 `build:shared`/`prepare`，`pnpm install` 后自动编译
+    - `check:vaccine` 防漂移脚本随单源化删除（脚本存在的唯一理由「两份表」已消失）
 
 ## 一句话总结
 

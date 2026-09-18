@@ -1,3 +1,5 @@
+export * from './vaccineSchedule'
+
 // 记录类型枚举
 export enum RecordType {
 	FEEDING = 'feeding', // 喂奶

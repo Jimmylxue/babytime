@@ -4,16 +4,17 @@
 	"private": true,
 	"description": "育娃手记 - 婴儿日常记录工具",
 	"scripts": {
+		"build:shared": "npm --prefix packages/shared run build",
+		"prepare": "npm run build:shared",
 		"dev:client": "npm --prefix apps/client run dev",
 		"dev:server": "npm --prefix apps/server run start:dev",
 		"dev:admin": "npm --prefix apps/admin run dev",
-		"build:client": "npm --prefix apps/client run build",
-		"build:server": "npm --prefix apps/server run build",
+		"build:client": "npm run build:shared && npm --prefix apps/client run build",
+		"build:server": "npm run build:shared && npm --prefix apps/server run build",
 		"build:admin": "npm --prefix apps/admin run build",
 		"build": "npm run build:admin && npm run build:server && npm run build:client",
 		"check:family": "node apps/server/scripts/family-nickname-check.js",
-		"check:family:clean": "node apps/server/scripts/family-nickname-check.js clean",
-		"check:vaccine": "node apps/server/scripts/check-vaccine-sync.js"
+		"check:family:clean": "node apps/server/scripts/family-nickname-check.js clean"
 	},
 	"devDependencies": {
 		"typescript": "^5.4.5"

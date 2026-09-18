@@ -9,7 +9,7 @@ import {
 	VACCINE_SCHEDULE,
 	VACCINE_SCHEDULE_VERSION,
 	VaccineScheduleItem,
-} from '../../../utils/vaccineSchedule'
+} from '@baby-time/shared'
 import type { RecordFormHandle, RecordFormProps } from './types'
 
 const VaccineForm = forwardRef<RecordFormHandle, RecordFormProps>(

@@ -61,7 +61,11 @@ log "安装依赖..."
 cd "$SCRIPT_DIR"
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
-# 6. 构建小程序
+# 6. 构建小程序（先编译共享包：疫苗计划表等前后端共用代码）
+log "构建共享包..."
+cd "$SCRIPT_DIR"
+npm run build:shared
+
 log "构建小程序..."
 cd "$CLIENT_DIR"
 npm run build
