@@ -3,7 +3,7 @@
 -- 生产库 DB_SYNCHRONIZE=false 不会自动建表，部署含此功能的服务端前先执行本文件。
 -- 对应实体：apps/server/src/modules/admin/entities/admin-audit-log.entity.ts
 -- 执行方式（服务器上）：bash 登录后
---   mysql -u<用户> -p baby_time < docs/admin-audit-logs.sql
+--   mysql -u<用户> -p baby_time < docs/sql/admin-audit-logs.sql
 -- 验证：SHOW CREATE TABLE admin_audit_logs\G  并确认列/索引一致。
 
 CREATE TABLE IF NOT EXISTS `admin_audit_logs` (

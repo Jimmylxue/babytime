@@ -5,7 +5,7 @@
 -- 对应实体：apps/server/src/modules/family/entities/family-member-alias.entity.ts
 -- 执行方式（服务器上）：
 --   bash backup-db.sh pre-deploy
---   mysql -u<用户> -p baby_time < docs/family-member-nickname.sql
+--   mysql -u<用户> -p baby_time < docs/sql/family-member-nickname.sql
 -- 验证：SHOW CREATE TABLE family_member_aliases\G  并确认列/唯一索引一致。
 
 CREATE TABLE IF NOT EXISTS `family_member_aliases` (

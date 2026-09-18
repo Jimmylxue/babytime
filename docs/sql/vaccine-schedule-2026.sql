@@ -12,7 +12,7 @@
 --
 -- 执行（服务器）：
 --   bash backup-db.sh pre-deploy
---   mysql -u<用户> -p baby_time < docs/vaccine-schedule-2026.sql
+--   mysql -u<用户> -p baby_time < docs/sql/vaccine-schedule-2026.sql
 --
 -- 注意：本次**不需要**改节点 ID，所以 vaccine_plans / records 里的历史引用继续有效。
 --       只有 dtap-1（3 月龄→2 月龄）、dtap-3（5 月龄→6 月龄）两个节点的月龄变了，

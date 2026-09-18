@@ -98,7 +98,7 @@
   - [x] 兜底副作用修复：`request()` 加 `silent` 选项（不弹 toast、401 不清登录态），
     场景码请求走静默；失败不写内存缓存，服务端上线后同会话内再生成一次即可用上场景码
     （验证：`/tmp/verify-fallback.js` 抽真实源码打桩，10/10 全过）
-  - **部署顺序**：① 生产先执行 `docs/acquisition-source.sql` → ② `bash server.sh` → ③ admin 重新构建 → ④ `bash mini.sh`
+  - **部署顺序**：① 生产先执行 `docs/sql/acquisition-source.sql` → ② `bash server.sh` → ③ admin 重新构建 → ④ `bash mini.sh`
   - ⚠️ 归因只对**过审发布后的新版本**生效（扫码打开的是线上版，老版没有上报代码）
 - [ ] **8. 数据导出备份**
   - [x] **成长纪念册**（2026-09-18 完成，待真机验收）—— 把一段时间的记录排成一张可保存/分享的长图
@@ -255,7 +255,7 @@
   - [x] 乙脑、甲肝补注减毒/灭活两种剂次方案
   - [x] 双价 HPV 疫苗（13 周岁女孩，2 剂间隔 6 个月）作为参考行加入疫苗表，但不进宝宝时间轴与提醒（超出 0–6 岁范围）
   - [x] 新增 `npm run check:vaccine`：校验前后端两份计划表（节点 ID/月龄/名称）不漂移
-  - [x] 服务器执行 `docs/vaccine-schedule-2026.sql`（清理已下线的 dt-1 自定义日期）（2026-09-17 用户确认已执行）
+  - [x] 服务器执行 `docs/sql/vaccine-schedule-2026.sql`（清理已下线的 dt-1 自定义日期）（2026-09-17 用户确认已执行）
   - [x] 技术债已还：疫苗计划表抽到 `packages/shared/src/vaccineSchedule.ts`（2026-09-18）
     - 前后端唯一数据源：客户端 3 处 import 改 `@baby-time/shared`，服务端 `notification.service` 直接用 `TIMELINE_VACCINE_SCHEDULE`
     - 迁移时逐字段核对过，服务端新旧表 22 节点完全一致，纯接线不改数据
@@ -315,7 +315,7 @@
   - [x] 移除成员 / 退出家庭时清理备注名
   - [x] 本地自测工具：`npm run check:family`（造一个「假家人」+ 13 项接口断言，解决本地没法真邀请第二个微信号的问题；清理用 `npm run check:family:clean`）
     - 带安全闸门：默认只放行 DB_HOST / API_BASE_URL 都指向本机的场景，指向线上直接中止
-  - [x] 执行 `docs/family-member-nickname.sql` 建表（2026-09-17 用户确认已执行）
+  - [x] 执行 `docs/sql/family-member-nickname.sql` 建表（2026-09-17 用户确认已执行）
 - [ ] 增加家庭成员角色和权限：只读、可记录、管理员
 - [ ] 优化成员退出、重新加入、多宝宝和复杂家庭关系的处理
 - [ ] 记录邀请曝光 → 点击 → 登录 → 加入成功的转化率及失败原因
