@@ -1,105 +1,31 @@
-import {
-	View,
-	Text,
-	ScrollView,
-	Picker,
-	Image,
-	Canvas,
-} from '@tarojs/components'
+import { View, Text, Canvas } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import {
 	useRecordStore,
-	DailyStat,
+	HeightWeightTrendPoint,
 	DetailRecord,
 	DetailSummary,
-	HeightWeightTrendPoint,
-	TemperatureTrendPoint,
 } from '../../stores/recordStore'
-import {
-	formatDate,
-	formatDuration,
-	formatDurationLong,
-	formatHM,
-} from '../../utils/date'
+import { formatDate } from '../../utils/date'
 import { needLogin } from '../../utils/needLogin'
 import { MOCK_STATS, MOCK_DETAIL } from '../../utils/mock'
-import {
-	detailTypeTabs,
-	getRecordMainText,
-	getIntervalText,
-} from '../../utils/recordDisplay'
+import { detailTypeTabs } from '../../utils/recordDisplay'
 import { recordApi } from '../../utils/request'
 import TabBar from '../../components/TabBar'
-import LineChart, { LineChartPoint } from '../../components/LineChart'
-import BarChart from '../../components/BarChart'
-import GrowthCurveChart, {
-	GrowthCurvePoint,
-	CurveView,
-} from '../../components/GrowthCurveChart'
-import {
-	makeDefaultCurveView,
-	zoomCurveView,
-} from '../../components/GrowthCurveChart/painter'
-import { getWhoBand } from '../../utils/whoGrowthStandards'
-import { deliverChartPoster, ChartPosterOptions } from '../../utils/chartExport'
+import { ChartPosterOptions, deliverChartPoster } from '../../utils/chartExport'
 import { fetchPosterQrCode } from '../../utils/posterQr'
-import downloadIcon from '../../assets/icons/download.svg'
-import shareIcon from '../../assets/icons/share.svg'
-import pencilWhiteIcon from '../../assets/icons/pencil-white.svg'
-import growthBoyIllu from '../../assets/growth-baby-boy.jpg'
-import growthGirlIllu from '../../assets/growth-baby-girl.jpg'
-import scaleBabyBoyIllu from '../../assets/scale-baby-boy.jpg'
-import scaleBabyGirlIllu from '../../assets/scale-baby-girl.jpg'
+import { buildGrowthSeries, shiftDate } from './utils'
+import GrowthHeroCard from './components/GrowthHeroCard'
+import DateNav from './components/DateNav'
+import DayDetailCard from './components/DayDetailCard'
+import WhoSection from './components/WhoSection'
+import DailyBarChart from './components/DailyBarChart'
+import GrowthTrendChart from './components/GrowthTrendChart'
+import TemperatureChart from './components/TemperatureChart'
 import './index.scss'
-
-function isToday(dateStr: string): boolean {
-	return dateStr === formatDate(new Date())
-}
-
-function shiftDate(dateStr: string, delta: number): string {
-	const d = new Date(dateStr)
-	d.setDate(d.getDate() + delta)
-	return formatDate(d)
-}
-
-function getDateLabel(dateStr: string): string {
-	if (isToday(dateStr)) return '今天'
-	if (dateStr === shiftDate(formatDate(new Date()), -1)) return '昨天'
-	const d = new Date(dateStr)
-	const weekLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-	return `${d.getMonth() + 1}月${d.getDate()}日 ${weekLabels[d.getDay()]}`
-}
-
-interface GrowthSeriesPoint extends HeightWeightTrendPoint {
-	heightMeasured: boolean
-	weightMeasured: boolean
-}
-
-const WHO_HELP_ITEMS = [
-	{
-		title: '横轴是月龄，纵轴是身高 / 体重',
-		text: '7 条浅色线是 WHO 标准里同龄同性别孩子的 7 个百分位位置，从 P3 到 P97。',
-	},
-	{
-		title: 'P50 不是及格线',
-		text: '它只是「一半孩子比这高、一半比这低」的中点，不需要刻意追上去。',
-	},
-	{
-		title: '看通道，不看单点',
-		text: '只要宝宝的曲线大致平行于参考线，即使位置一直偏低，也是正常生长。',
-	},
-	{
-		title: 'P3 ~ P97 覆盖约 94% 的健康孩子',
-		text: '落在带子外面也不一定有问题，大约 6% 的健康孩子天生就在外面。',
-	},
-	{
-		title: '这些情况才建议问医生',
-		text: '短期内连续跨越两条线向下掉。单次波动不用紧张 —— 在家测量本身有 1~2cm 误差。',
-	},
-]
 
 export default function StatsPage() {
 	const { isLoggedIn } = useAuthStore()
@@ -131,12 +57,6 @@ export default function StatsPage() {
 	)
 	// 成长曲线用全量身高体重历史（stats 接口无 days 上限）
 	const [whoSeries, setWhoSeries] = useState<HeightWeightTrendPoint[]>([])
-	const [growthChartRatio, setGrowthChartRatio] = useState(0.46)
-	// 点按成长曲线选中的某次测量，以及「怎么看」说明弹层
-	const [whoSelected, setWhoSelected] = useState<GrowthCurvePoint | null>(null)
-	const [whoHelpVisible, setWhoHelpVisible] = useState(false)
-	// 成长曲线横轴视窗；null 表示用默认的「最近 6 个月」
-	const [whoViewOverride, setWhoViewOverride] = useState<CurveView | null>(null)
 	// 身高/体重趋势图点按选中的点（该页签没有明细卡，只用来把数值显示出来）
 	const [growthPointIndex, setGrowthPointIndex] = useState<number | null>(null)
 
@@ -191,20 +111,10 @@ export default function StatsPage() {
 			.catch(() => setWhoSeries([]))
 	}, [isLoggedIn, currentBaby?.id, activeType])
 
+	// 切换宝宝、指标或时间范围后，重置趋势图的选中点
 	useEffect(() => {
-		// 宽高比只被温度趋势图使用（身高/体重已改为 Canvas 绘制）
-		if (activeType !== 'temperature') return
-		Taro.nextTick(() => {
-			Taro.createSelectorQuery()
-				.select('.line-chart')
-				.boundingClientRect(rect => {
-					if (rect?.width && rect.height) {
-						setGrowthChartRatio(rect.height / rect.width)
-					}
-				})
-				.exec()
-		})
-	}, [activeType, days, heightWeightTrend.length, temperatureTrend.length])
+		setGrowthPointIndex(null)
+	}, [currentBaby?.id, growthMetric, days])
 
 	const handleDaysChange = (newDays: number) => {
 		setDays(newDays)
@@ -219,7 +129,7 @@ export default function StatsPage() {
 		setSelectedDate(newDate)
 	}
 
-	const goToFullDetail = (overrideType?: string) => {
+	const goToFullDetail = () => {
 		if (!isLoggedIn) {
 			needLogin()
 			return
@@ -229,12 +139,13 @@ export default function StatsPage() {
 			Taro.showToast({ title: '请先添加宝贝', icon: 'none' })
 			return
 		}
-		const t = overrideType || activeType
 		// 身高/体重独立入口，把当前指标带给完整明细页
 		const metricParam =
-			t === 'height_weight' && activeMetric ? `&metric=${activeMetric}` : ''
+			activeType === 'height_weight' && activeMetric
+				? `&metric=${activeMetric}`
+				: ''
 		Taro.navigateTo({
-			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${t}${metricParam}`,
+			url: `/pages/record-detail/index?babyId=${currentBaby.id}&type=${activeType}${metricParam}`,
 		})
 	}
 
@@ -288,648 +199,6 @@ export default function StatsPage() {
 		}
 	}
 
-	// 成长曲线的实测点：全量历史中的真实测量值换算为月龄
-	const babyCurvePoints = currentBaby
-		? whoSeries
-				.filter(point => point[growthMetric] != null)
-				.map(point => ({
-					ageMonths:
-						(new Date(point.date).getTime() -
-							new Date(currentBaby.birthday).getTime()) /
-						(30.4375 * 24 * 3600 * 1000),
-					value: point[growthMetric] as number,
-				}))
-		: []
-
-	// 选中点的解读：按当时的月龄去 WHO 表插值，算出落在哪两条参考线之间
-	const whoSelectedBand = useMemo(() => {
-		if (!whoSelected || !currentBaby) return null
-		return getWhoBand(
-			growthMetric,
-			currentBaby.gender,
-			whoSelected.ageMonths,
-			whoSelected.value,
-		)
-	}, [whoSelected, growthMetric, currentBaby])
-
-	// 成长曲线默认视窗：以宝宝当前月龄为右边界，向前取 6 个月
-	const whoDefaultView = useMemo(() => {
-		if (!currentBaby) return makeDefaultCurveView(0)
-		const months =
-			(Date.now() - new Date(currentBaby.birthday).getTime()) /
-			(30.4375 * 24 * 3600 * 1000)
-		return makeDefaultCurveView(months)
-	}, [currentBaby])
-
-	const whoView = whoViewOverride || whoDefaultView
-	const whoViewLabel = `${whoView.xMin.toFixed(1)} ~ ${whoView.xMax.toFixed(1)} 月龄`
-
-	// 换宝宝、切换指标或时间范围后，重置成长视窗与趋势图的选中点
-	useEffect(() => {
-		setWhoViewOverride(null)
-		setGrowthPointIndex(null)
-	}, [currentBaby?.id, growthMetric, days])
-
-	const zoomWhoView = (factor: number) => {
-		setWhoViewOverride(prev => zoomCurveView(prev || whoDefaultView, factor))
-	}
-
-	const renderChartActions = (posterOpts: ChartPosterOptions) => (
-		<View className="chart-actions">
-			<View
-				className="chart-action-btn"
-				onClick={() => handleChartExport(posterOpts, 'share')}
-			>
-				<Image className="chart-action-icon" src={shareIcon} />
-			</View>
-			<View
-				className="chart-action-btn"
-				onClick={() => handleChartExport(posterOpts, 'save')}
-			>
-				<Image className="chart-action-icon" src={downloadIcon} />
-			</View>
-		</View>
-	)
-
-	const renderBarChart = (
-		stats: DailyStat[],
-		key: keyof DailyStat,
-		label: string,
-		unit: string = '',
-	) => {
-		const dayLabels = ['日', '一', '二', '三', '四', '五', '六']
-		// 单位放到标题里，柱顶只留数字，避免相邻标签拥挤
-		const points = stats.map(stat => {
-			const value = (stat[key] as number) || 0
-			let display = ''
-			if (value > 0) {
-				if (unit === '时') {
-					// 睡眠分钟数转为小时，去掉多余的 .0
-					display = (value / 60).toFixed(1).replace(/\.0$/, '')
-				} else {
-					display = `${value}`
-				}
-			}
-			return {
-				value,
-				display,
-				label: dayLabels[new Date(stat.date).getDay()],
-			}
-		})
-		// 选中的那天：让图表高亮与顶部日期导航用同一口径，点柱子后两边会同步
-		const activeIndex = stats.findIndex(
-			stat => formatDate(stat.date) === formatDate(selectedDate),
-		)
-
-		// 「次数」类标题本身已含单位，不再重复；奶量/时长把单位标在标题上
-		const titleSuffix =
-			unit && unit !== '次' ? ` (${unit === '时' ? '小时' : unit})` : ''
-
-		const total = displayDailyStats.reduce(
-			(sum, stat) => sum + ((stat[key] as number) || 0),
-			0,
-		)
-		const avgPerDay = (total / days).toFixed(1)
-		// 日期范围直接取自数据首尾，保证与图表内容永远一致
-		// 兼容 YYYY-MM-DD 与 ISO 带时间两种格式
-		const fmtShort = (d: string) => {
-			if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-				const [, m, dd] = d.split('-')
-				return `${+m}/${+dd}`
-			}
-			const date = new Date(d)
-			return `${date.getMonth() + 1}/${date.getDate()}`
-		}
-		const dataRangeText = stats.length
-			? `${fmtShort(stats[0].date)} – ${fmtShort(stats[stats.length - 1].date)}`
-			: dateRangeText
-		const rangeWord = days === 7 ? '本周' : `近${days}天`
-
-		let metaTexts: string[]
-		let reviewText: string
-		if (key === 'totalMilk') {
-			metaTexts = [
-				`近${days}天共 ${total}ml`,
-				`日均 ${Math.round(total / days)}ml`,
-			]
-			reviewText = `${rangeWord}奶量稳定，日均 ${Math.round(total / days)}ml，宝宝吃得棒棒哒！`
-		} else if (key === 'sleepTotal') {
-			metaTexts = [`近${days}天共 ${formatDurationLong(total)}`]
-			reviewText = `${rangeWord}累计睡眠 ${formatDurationLong(total)}，睡得好的宝宝才能长得好～`
-		} else if (key === 'diaperCount') {
-			metaTexts = [`近${days}天共 ${total} 次`]
-			reviewText = `${rangeWord}共更换尿布 ${total} 次，小屁屁保持干爽，照顾得很细心～`
-		} else {
-			metaTexts = [`近${days}天共 ${total} 次`, `日均 ${avgPerDay} 次`]
-			reviewText = `${rangeWord}喂奶规律，日均 ${avgPerDay} 次，宝宝吃得棒棒哒！`
-		}
-
-		// 7 天：日粒度柱状图；14/30 天柱子会互相重叠，改用趋势折线表达
-		const posterOpts: ChartPosterOptions =
-			days <= 7
-				? {
-						kind: 'bar',
-						title: `${label}${titleSuffix}`,
-						babyName: currentBaby?.name,
-						avatarUrl: currentBaby?.avatar,
-						genderText,
-						rangeText: dataRangeText,
-						metaTexts,
-						reviewTitle: '本周小结',
-						reviewText,
-						data: {
-							points,
-							color: '#FF8FA9',
-							showYAxis: true,
-							unit: unit === '时' ? '小时' : unit || undefined,
-							barWidth: 18,
-						},
-					}
-				: {
-						kind: 'line',
-						title: `${label}${titleSuffix}`,
-						babyName: currentBaby?.name,
-						avatarUrl: currentBaby?.avatar,
-						genderText,
-						rangeText: dataRangeText,
-						metaTexts,
-						reviewTitle: `近${days}天小结`,
-						reviewText,
-						data: {
-							points: stats.map(stat => {
-								const value = (stat[key] as number) || 0
-								const [, m, dd] = stat.date.split('-')
-								return {
-									value,
-									label: `${+m}/${+dd}`,
-									measured: value > 0,
-								}
-							}),
-							unit: unit === '时' ? '小时' : unit,
-							minSpan: key === 'totalMilk' ? 50 : 1,
-							color: '#FF8FA9',
-						},
-					}
-
-		return (
-			<View className="chart-card">
-				<View className="growth-chart-header">
-					<Text className="chart-title">
-						{label}
-						{titleSuffix}
-					</Text>
-					{renderChartActions(posterOpts)}
-				</View>
-				<ScrollView scrollX className="chart-scroll-view" showScrollbar={false}>
-					<BarChart
-						canvasId={`bar-${key}-chart`}
-						points={points}
-						highlightIndex={activeIndex >= 0 ? activeIndex : null}
-						onSelectIndex={index => {
-							if (index == null) return
-							const stat = stats[index]
-							if (stat?.date) handleDateChange(stat.date)
-						}}
-					/>
-				</ScrollView>
-			</View>
-		)
-	}
-
-	const buildGrowthSeries = (
-		points: HeightWeightTrendPoint[],
-		rangeDays: number,
-	): GrowthSeriesPoint[] => {
-		const sortedPoints = points
-			.slice()
-			.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-		const start = new Date()
-		start.setHours(0, 0, 0, 0)
-		start.setDate(start.getDate() - rangeDays + 1)
-		const heightValues: Array<number | null> = Array(rangeDays).fill(null)
-		const weightValues: Array<number | null> = Array(rangeDays).fill(null)
-		const heightMeasured = Array(rangeDays).fill(false)
-		const weightMeasured = Array(rangeDays).fill(false)
-		let baselineHeight: number | null = null
-		let baselineWeight: number | null = null
-
-		sortedPoints.forEach(point => {
-			const pointDate = new Date(formatDate(point.date))
-			const index = Math.round(
-				(pointDate.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
-			)
-			if (index < 0) {
-				if (point.height != null) baselineHeight = point.height
-				if (point.weight != null) baselineWeight = point.weight
-				return
-			}
-			if (index >= rangeDays) return
-			if (point.height != null) {
-				heightValues[index] = point.height
-				heightMeasured[index] = true
-			}
-			if (point.weight != null) {
-				weightValues[index] = point.weight
-				weightMeasured[index] = true
-			}
-		})
-
-		const fillTrendValues = (
-			values: Array<number | null>,
-			baseline: number | null,
-		) => {
-			const result = values.slice()
-			const knownIndexes = values
-				.map((value, index) => (value == null ? null : index))
-				.filter((index): index is number => index != null)
-			if (baseline != null && !knownIndexes.includes(0)) {
-				result[0] = baseline
-				knownIndexes.unshift(0)
-			}
-			if (knownIndexes.length === 0) return result
-
-			for (let index = 0; index < knownIndexes[0]; index++) {
-				result[index] = result[knownIndexes[0]]
-			}
-			for (let index = 1; index < knownIndexes.length; index++) {
-				const from = knownIndexes[index - 1]
-				const to = knownIndexes[index]
-				const fromValue = result[from] as number
-				const toValue = result[to] as number
-				for (let day = from + 1; day < to; day++) {
-					result[day] =
-						fromValue + ((toValue - fromValue) * (day - from)) / (to - from)
-				}
-			}
-			for (
-				let index = knownIndexes[knownIndexes.length - 1] + 1;
-				index < rangeDays;
-				index++
-			) {
-				result[index] = result[knownIndexes[knownIndexes.length - 1]]
-			}
-			return result
-		}
-
-		const filledHeights = fillTrendValues(heightValues, baselineHeight)
-		const filledWeights = fillTrendValues(weightValues, baselineWeight)
-		return Array.from({ length: rangeDays }, (_, index) => {
-			const date = new Date(start)
-			date.setDate(start.getDate() + index)
-			return {
-				date: date.toISOString(),
-				height: filledHeights[index],
-				weight: filledWeights[index],
-				heightMeasured: heightMeasured[index],
-				weightMeasured: weightMeasured[index],
-			}
-		})
-	}
-
-	const fmtShort2 = (d: string) => {
-		if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-			const [, m, dd] = d.split('-')
-			return `${+m}/${+dd}`
-		}
-		const date = new Date(d)
-		return `${date.getMonth() + 1}/${date.getDate()}`
-	}
-
-	const renderHeightWeightLineChart = (
-		points: HeightWeightTrendPoint[],
-		key: 'height' | 'weight',
-		label: string,
-		unit: string,
-	) => {
-		const values = points
-			.map(point => point[key])
-			.filter((value): value is number => value != null)
-		if (values.length === 0) return null
-
-		const minValue = Math.min(...values)
-		const maxValue = Math.max(...values)
-		const padding = Math.max(
-			(maxValue - minValue) * 0.2,
-			key === 'height' ? 1 : 0.2,
-		)
-		const lowerBound = minValue - padding
-		const upperBound = maxValue + padding
-
-		const lastValue = points[points.length - 1][key] as number
-		const metricLabel = key === 'height' ? '身高' : '体重'
-		const firstMeasured = points.find(point =>
-			key === 'height'
-				? (point as GrowthSeriesPoint).heightMeasured
-				: (point as GrowthSeriesPoint).weightMeasured,
-		)?.[key] as number | undefined
-		const reviewText =
-			firstMeasured != null
-				? `近${days}天${metricLabel}从 ${firstMeasured.toFixed(1)}${unit} 到 ${lastValue.toFixed(1)}${unit}，宝宝在稳稳长大～`
-				: `近${days}天${metricLabel}最新 ${lastValue.toFixed(1)}${unit}，宝宝在稳稳长大～`
-		const whoRangeText = displayHeightWeightSeries.length
-			? `${fmtShort2(displayHeightWeightSeries[0].date)} – ${fmtShort2(displayHeightWeightSeries[displayHeightWeightSeries.length - 1].date)}`
-			: dateRangeText
-		const posterOpts: ChartPosterOptions = {
-			kind: 'line',
-			title: label,
-			babyName: currentBaby?.name,
-			avatarUrl: currentBaby?.avatar,
-			genderText,
-			rangeText: whoRangeText,
-			metaTexts: [`近${days}天`, `最新 ${lastValue.toFixed(1)}${unit}`],
-			reviewTitle: `近${days}天小结`,
-			reviewText,
-			data: {
-				points: points.map(point => {
-					const d = new Date(point.date)
-					return {
-						value: point[key] as number,
-						label: `${d.getMonth() + 1}/${d.getDate()}`,
-						measured:
-							key === 'height'
-								? (point as GrowthSeriesPoint).heightMeasured
-								: (point as GrowthSeriesPoint).weightMeasured,
-					}
-				}),
-				unit,
-				minSpan: key === 'height' ? 1 : 0.2,
-			},
-		}
-
-		return (
-			<View className="chart-card growth-chart-card">
-				<View className="growth-chart-header">
-					<Text className="chart-title">{label}</Text>
-					<View className="chart-actions">
-						<Text className="growth-chart-range">
-							{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}
-							{unit}
-						</Text>
-						{renderChartActions(posterOpts)}
-					</View>
-				</View>
-				<LineChart
-					canvasId={`growth-${key}-chart`}
-					unit={unit}
-					minSpan={key === 'height' ? 1 : 0.2}
-					points={posterOpts.data.points as LineChartPoint[]}
-					highlightIndex={growthPointIndex}
-					onSelectIndex={setGrowthPointIndex}
-				/>
-			</View>
-		)
-	}
-
-	const renderTemperatureLineChart = (points: TemperatureTrendPoint[]) => {
-		const sortedPoints = points
-			.slice()
-			.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-		if (sortedPoints.length === 0) return null
-		const rangeStart = new Date()
-		rangeStart.setHours(0, 0, 0, 0)
-		rangeStart.setDate(rangeStart.getDate() - days + 1)
-		const rangeEnd = new Date()
-		rangeEnd.setHours(23, 59, 59, 999)
-		const timeRange = rangeEnd.getTime() - rangeStart.getTime()
-		const detailedTimeline = days <= 7
-		const dailyPoints = Array.from({ length: days }, (_, index) => {
-			const date = new Date(rangeStart)
-			date.setDate(rangeStart.getDate() + index)
-			const readings = sortedPoints.filter(
-				point => formatDate(point.date) === formatDate(date),
-			)
-			if (readings.length === 0) return null
-			return {
-				date: date.toISOString(),
-				temperature: Math.max(...readings.map(point => point.temperature)),
-				lowestTemperature: Math.min(
-					...readings.map(point => point.temperature),
-				),
-			}
-		}).filter(
-			(
-				point,
-			): point is {
-				date: string
-				temperature: number
-				lowestTemperature: number
-			} => point != null,
-		)
-		const chartPoints = detailedTimeline ? sortedPoints : dailyPoints
-		const values = chartPoints.flatMap(point =>
-			'lowestTemperature' in point
-				? [point.temperature, point.lowestTemperature]
-				: [point.temperature],
-		)
-		const lowerBound = Math.floor((Math.min(...values) - 0.2) * 10) / 10
-		const upperBound = Math.ceil((Math.max(...values) + 0.2) * 10) / 10
-		const valueRange = upperBound - lowerBound || 1
-		const plotPoints = chartPoints.reduce<
-			Array<{
-				date: string
-				temperature: number
-				lowestTemperature?: number
-				x: number
-				y: number
-				lowY?: number
-				labelOffset: number
-			}>
-		>((result, point, index) => {
-			const rawX = Math.max(
-				0,
-				Math.min(
-					100,
-					((new Date(point.date).getTime() - rangeStart.getTime()) /
-						timeRange) *
-						100,
-				),
-			)
-			const previous = result[index - 1]
-			// 同一时刻或相邻时刻的读数保留顺序，并留出最小可视间距避免重叠。
-			const x = detailedTimeline
-				? previous && rawX - previous.x < 1.4
-					? Math.min(100, previous.x + 1.4)
-					: rawX
-				: days === 1
-					? 50
-					: (Math.round(
-							(new Date(formatDate(point.date)).getTime() -
-								rangeStart.getTime()) /
-								(24 * 60 * 60 * 1000),
-						) /
-							(days - 1)) *
-						100
-			result.push({
-				...point,
-				x,
-				// 底部留给日期轴，避免最低读数和横坐标重叠。
-				y: 15 + ((point.temperature - lowerBound) / valueRange) * 85,
-				lowY:
-					'lowestTemperature' in point
-						? 15 + ((point.lowestTemperature - lowerBound) / valueRange) * 85
-						: undefined,
-				labelOffset: 24 + (index % 3) * 28,
-			})
-			return result
-		}, [])
-		const timeTicks = Array.from({ length: days }, (_, index) => {
-			const date = new Date(rangeStart)
-			date.setDate(rangeStart.getDate() + index)
-			return {
-				label:
-					days <= 7 ||
-					index === 0 ||
-					index === days - 1 ||
-					index % Math.ceil(days / 6) === 0
-						? formatDate(date).slice(5)
-						: '',
-				x: days === 1 ? 50 : (index / (days - 1)) * 100,
-			}
-		})
-		const showAllValues = !detailedTimeline || plotPoints.length <= 8
-		const chartWidth = detailedTimeline
-			? Math.max(days * 220, 750)
-			: Math.max(days * 100, 750)
-		const latestPointId = `temperature-point-${plotPoints.length - 1}`
-
-		return (
-			<View className="chart-card growth-chart-card temperature-chart-card">
-				<View className="growth-chart-header">
-					<Text className="chart-title">
-						{detailedTimeline ? '体温趋势' : `近${days}天每日体温范围`}
-					</Text>
-					<Text className="growth-chart-range">
-						{lowerBound.toFixed(1)} - {upperBound.toFixed(1)}°C
-					</Text>
-				</View>
-				<ScrollView
-					className="temperature-scroll"
-					scrollX
-					scrollIntoView={latestPointId}
-					showScrollbar={false}
-				>
-					<View
-						className="growth-chart line-chart temperature-chart temperature-chart-wide"
-						style={{ width: `${chartWidth}rpx` }}
-					>
-						{[0, 50, 100].map(position => (
-							<View
-								key={position}
-								className="growth-grid-line"
-								style={{ bottom: `${position}%` }}
-							/>
-						))}
-						{Array.from({ length: days - 1 }, (_, index) => (
-							<View
-								key={index}
-								className="temperature-day-divider"
-								style={{ left: `${((index + 1) / days) * 100}%` }}
-							/>
-						))}
-						<Text className="temperature-axis-label temperature-axis-top">
-							{upperBound.toFixed(1)}°
-						</Text>
-						<Text className="temperature-axis-label temperature-axis-middle">
-							{(lowerBound + valueRange / 2).toFixed(1)}°
-						</Text>
-						<Text className="temperature-axis-label temperature-axis-bottom">
-							{lowerBound.toFixed(1)}°
-						</Text>
-						{timeTicks.map(tick => (
-							<Text
-								key={tick.x}
-								className="growth-date"
-								style={{ left: `${tick.x}%` }}
-							>
-								{tick.label}
-							</Text>
-						))}
-						{plotPoints.map((point, index) => {
-							const previous = plotPoints[index - 1]
-							const dx = previous ? point.x - previous.x : 0
-							const dy = previous ? point.y - previous.y : 0
-							const angle = previous
-								? -Math.atan2(dy * growthChartRatio, dx) * (180 / Math.PI)
-								: 0
-							const length = previous
-								? Math.sqrt(
-										dx * dx + dy * growthChartRatio * (dy * growthChartRatio),
-									)
-								: 0
-							const showValue =
-								showAllValues ||
-								index === 0 ||
-								index === plotPoints.length - 1 ||
-								point.temperature >= 37.5
-							const highValueStyle =
-								point.y > 80
-									? { top: '24rpx', bottom: 'auto' }
-									: { bottom: `${point.labelOffset}rpx` }
-							return (
-								<View key={`${point.date}-${point.temperature}`}>
-									{previous && (
-										<View
-											className="growth-line temperature-line"
-											style={{
-												left: `${previous.x}%`,
-												bottom: `${previous.y}%`,
-												width: `${length}%`,
-												transform: `rotate(${angle}deg)`,
-											}}
-										/>
-									)}
-									{point.lowY != null && point.lowY !== point.y && (
-										<>
-											<View
-												className="temperature-range-bar"
-												style={{
-													left: `${point.x}%`,
-													bottom: `${point.lowY}%`,
-													height: `${point.y - point.lowY}%`,
-												}}
-											/>
-											<View
-												className="temperature-low-point"
-												style={{
-													left: `${point.x}%`,
-													bottom: `${point.lowY}%`,
-												}}
-											>
-												<Text className="temperature-low-value">
-													{point.lowestTemperature?.toFixed(1)}°
-												</Text>
-											</View>
-										</>
-									)}
-									<View
-										id={
-											index === plotPoints.length - 1
-												? latestPointId
-												: undefined
-										}
-										className={`growth-point temperature-point${
-											formatDate(point.date) === formatDate(selectedDate)
-												? ' active'
-												: ''
-										}`}
-										style={{ left: `${point.x}%`, bottom: `${point.y}%` }}
-										onClick={() => handleDateChange(formatDate(point.date))}
-									>
-										{showValue && (
-											<Text className="growth-value" style={highValueStyle}>
-												{point.temperature.toFixed(1)}°
-											</Text>
-										)}
-									</View>
-								</View>
-							)
-						})}
-					</View>
-				</ScrollView>
-			</View>
-		)
-	}
-
 	// 未登录时使用 mock 数据
 	const displayDailyStats =
 		isLoggedIn && currentBaby ? dailyStats : MOCK_STATS.dailyStats
@@ -945,11 +214,6 @@ export default function StatsPage() {
 		isLoggedIn && currentBaby ? dayItems : MOCK_DETAIL[activeType].items
 	const summary =
 		isLoggedIn && currentBaby ? daySummary : MOCK_DETAIL[activeType].summary
-	// 身高/体重分开记录后，同一类型下只统计与展示当前指标的记录
-	const growthItems =
-		activeType === 'height_weight'
-			? displayItems.filter(item => item[growthMetric] != null)
-			: displayItems
 
 	// 英雄卡：最新一次身高/体重测量（登录取成长曲线的全量历史，未登录示例退回窗口数据）
 	const growthHistory =
@@ -975,265 +239,14 @@ export default function StatsPage() {
 				),
 			)
 		: null
-	const growthHeroIllu =
-		currentBaby?.gender === 'male' ? growthBoyIllu : growthGirlIllu
 
-	// 刻度尺联动（固定插画 + 动态尺子）：虚线永远贴宝宝头顶、插画恒定高度踩尺底，
-	// 身高变化只动刻度尺——量程取整档（身高 20cm / 体重 4kg），尺高按 头顶高度×量程÷测量值 反推，
-	// 使虚线落点的刻度读数正好等于测量值（全档位尺高稳定在 197~203pt，视觉无跳变）
-	const growthNum =
-		latestGrowthValue != null ? parseFloat(latestGrowthValue) : null
-	const rulerStep = growthMetric === 'height' ? 20 : 2
-	const rulerMin = growthMetric === 'height' ? 60 : 4
-	// 量程收紧到测量值 1.25 倍左右（整档），头顶上方只留一档内呼吸感，卡片不虚高
-	let rulerMax = growthMetric === 'height' ? 100 : 16
-	if (growthNum != null && growthNum > 0) {
-		rulerMax = Math.max(
-			rulerMin,
-			Math.round((growthNum * 1.25) / rulerStep) * rulerStep,
-		)
-		// 保证头顶与尺顶至少 10% 余量，虚线不顶到尺顶数字
-		if (rulerMax < growthNum * 1.1) {
-			rulerMax += rulerStep
-		}
-	}
-	const rulerTicks = Array.from(
-		{ length: rulerMax / rulerStep + 1 },
-		(_, i) => i * rulerStep,
-	)
-	// 插画固定 130×160pt（aspectFill 裁两侧装饰边）；素材头顶距图顶 5.9%/8.1%
-	const growthIlluHeadPct = currentBaby?.gender === 'male' ? 0.059 : 0.081
-	const growthIlluWidthPt = 158
-	const growthIlluHeightPt = 160
-	const growthMarkHeightPt = growthIlluHeightPt * (1 - growthIlluHeadPct)
-	// 尺高反推：头顶(固定) ÷ (测量值/量程)；无数据用默认尺高 200pt
-	const rulerHeightPt =
-		growthNum != null && growthNum > 0
-			? (growthMarkHeightPt * rulerMax) / growthNum
-			: 200
-
-	// ── 体重仪表盘（同「固定插画 + 动态刻度」思路：宝宝站秤不动，指针角度随体重）──
-	// 量程 = 测量值 1.25 倍取偶数档，向下跨 4 档（8kg 跨度，贴 UI 稿 4-12kg：9.2 → 4-12）
-	const gaugeStep = 2
-	const gaugeMax =
-		growthNum != null && growthNum > 0
-			? Math.max(
-					gaugeStep * 2,
-					Math.round((growthNum * 1.25) / gaugeStep) * gaugeStep,
-				)
-			: 12
-	const gaugeMin = Math.max(0, gaugeMax - gaugeStep * 4)
-	// 角度系：0° = 正上、顺时针为正；弧从 -136°(min) 到 -21°(max)，与 UI 稿一致
-	// 弧心 = 宝宝躯干位置：弧带围着宝宝，脚踩区域底
-	const gaugeStartDeg = -136
-	const gaugeSpanDeg = 115
-	const gaugeCenterX = 100 // pt，左区坐标系
-	const gaugeCenterY = 100
-	const gaugeT =
-		growthNum != null
-			? Math.min(1, Math.max(0, (growthNum - gaugeMin) / (gaugeMax - gaugeMin)))
-			: 0
-	const gaugePointerDeg = gaugeStartDeg + gaugeT * gaugeSpanDeg
-	// 极坐标 → 左区 pt 坐标
-	const gaugePos = (deg: number, radius: number) => ({
-		left: `${gaugeCenterX + radius * Math.sin((deg * Math.PI) / 180)}px`,
-		top: `${gaugeCenterY - radius * Math.cos((deg * Math.PI) / 180)}px`,
-	})
-	// 弧带用 SVG data-URI 渲染（小程序 webview 对 conic-gradient+mask 支持不可靠）：
-	// 轨道浅粉全程，进度深粉 min→当前值；viewBox 200×200 与左区 pt 坐标系 1:1
-	const gaugeDeg2XY = (deg: number, radius: number) => [
-		100 + radius * Math.sin((deg * Math.PI) / 180),
-		100 - radius * Math.cos((deg * Math.PI) / 180),
-	]
-	const gaugeArcPath = (a1: number, a2: number) => {
-		const [x1, y1] = gaugeDeg2XY(a1, 87.5)
-		const [x2, y2] = gaugeDeg2XY(a2, 87.5)
-		const large = a2 - a1 > 180 ? 1 : 0
-		return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A 87.5 87.5 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`
-	}
-	const gaugeProgressDeg = gaugeStartDeg + gaugeT * gaugeSpanDeg
-	// 指针三角画进同一张 SVG（顶点朝外指向弧带），避免 CSS 三角旋转的歧义
-	const gaugePointerSvg =
-		growthNum != null && growthNum > 0
-			? (() => {
-					const [ax, ay] = gaugeDeg2XY(gaugePointerDeg, 76)
-					const [b1x, b1y] = gaugeDeg2XY(gaugePointerDeg - 9, 58)
-					const [b2x, b2y] = gaugeDeg2XY(gaugePointerDeg + 9, 58)
-					return `<polygon points="${ax},${ay} ${b1x},${b1y} ${b2x},${b2y}" fill="#FD4670"/>`
-				})()
-			: ''
-	// 进度起点 = 轨道起点（min 刻度）：轨道圆头帽处叠深粉圆填充，读数末端保持平头精确
-	const [gaugeCapX, gaugeCapY] = gaugeDeg2XY(gaugeStartDeg, 87.5)
-	const gaugeArcSrc =
-		'data:image/svg+xml;charset=utf-8,' +
-		encodeURIComponent(
-			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">` +
-				`<path d="${gaugeArcPath(gaugeStartDeg, gaugeStartDeg + gaugeSpanDeg)}" stroke="#FBC9D5" stroke-width="13" fill="none" stroke-linecap="round"/>` +
-				(gaugeT > 0
-					? `<path d="${gaugeArcPath(gaugeStartDeg, gaugeProgressDeg)}" stroke="#FD7FA0" stroke-width="13" fill="none" stroke-linecap="butt"/>` +
-						`<circle cx="${gaugeCapX.toFixed(2)}" cy="${gaugeCapY.toFixed(2)}" r="6.5" fill="#FD7FA0"/>`
-					: '') +
-				gaugePointerSvg +
-				`</svg>`,
-		)
-	// 刻度：主刻度在偶数档位，档间 3 个副刻度
-	const gaugeTicks: { deg: number; major: boolean }[] = []
-	const gaugeSegDeg = gaugeSpanDeg / ((gaugeMax - gaugeMin) / gaugeStep)
-	for (let kg = gaugeMin; kg <= gaugeMax; kg += gaugeStep) {
-		const deg =
-			gaugeStartDeg + ((kg - gaugeMin) / (gaugeMax - gaugeMin)) * gaugeSpanDeg
-		gaugeTicks.push({ deg, major: true })
-		if (kg < gaugeMax) {
-			for (let m = 1; m <= 3; m++) {
-				gaugeTicks.push({
-					deg: deg + (gaugeSegDeg * m) / 4,
-					major: false,
-				})
-			}
-		}
-	}
-	const gaugeLabels: { deg: number; label: number }[] = []
-	for (let kg = gaugeMin; kg <= gaugeMax; kg += gaugeStep) {
-		gaugeLabels.push({
-			deg: gaugeStartDeg + ((kg - gaugeMin) / (gaugeMax - gaugeMin)) * gaugeSpanDeg,
-			label: kg,
-		})
-	}
-	const gaugeScaleBaby =
-		currentBaby?.gender === 'male' ? scaleBabyBoyIllu : scaleBabyGirlIllu
-
-	const avgIntervalText =
-		summary?.avgIntervalMinutes != null
-			? formatDuration(summary.avgIntervalMinutes)
-			: '-'
-
-	// 「较昨日」对比文案：昨日无数据或今日昨日都为 0 时不展示
-	const buildDelta = (
-		today: number | null | undefined,
-		yesterday: number | null | undefined,
-		format: (abs: number) => string = n => `${n}`,
-	): string | undefined => {
-		if (prevDaySummary == null) return undefined
-		if (today == null || yesterday == null) return undefined
-		if (today === 0 && yesterday === 0) return undefined
-		const diff = today - yesterday
-		if (diff === 0) return '较昨日 持平'
-		return `较昨日 ${diff > 0 ? '+' : '-'}${format(Math.abs(diff))}`
-	}
-
-	let summaryTiles: { label: string; value: string; delta?: string }[]
-	if (activeType === 'feeding') {
-		summaryTiles = [
-			{
-				label: '总次数',
-				value: `${summary?.count ?? 0}次`,
-				delta: buildDelta(summary?.count, prevDaySummary?.count),
-			},
-			{
-				label: '总奶量',
-				value: `${summary?.totalAmount ?? 0}ml`,
-				delta: buildDelta(
-					summary?.totalAmount,
-					prevDaySummary?.totalAmount,
-					n => `${n}ml`,
-				),
-			},
-			{
-				label: '平均间隔',
-				value: avgIntervalText,
-				delta: buildDelta(
-					summary?.avgIntervalMinutes,
-					prevDaySummary?.avgIntervalMinutes,
-					formatDuration,
-				),
-			},
-		]
-	} else if (activeType === 'diaper') {
-		const breakdown = displayItems.reduce(
-			(acc, item) => {
-				if (item.diaperStatus === 'wet') acc.wet++
-				else if (item.diaperStatus === 'dirty') acc.dirty++
-				else if (item.diaperStatus === 'both') acc.both++
-				return acc
-			},
-			{ wet: 0, dirty: 0, both: 0 },
-		)
-		const breakdownParts: string[] = []
-		if (breakdown.wet > 0) breakdownParts.push(`尿${breakdown.wet}`)
-		if (breakdown.dirty > 0) breakdownParts.push(`拉${breakdown.dirty}`)
-		if (breakdown.both > 0) breakdownParts.push(`都有${breakdown.both}`)
-		summaryTiles = [
-			{
-				label: '总次数',
-				value: `${summary?.count ?? 0}次`,
-				delta: buildDelta(summary?.count, prevDaySummary?.count),
-			},
-			{ label: '类型分布', value: breakdownParts.join(' ') || '-' },
-			{
-				label: '平均间隔',
-				value: avgIntervalText,
-				delta: buildDelta(
-					summary?.avgIntervalMinutes,
-					prevDaySummary?.avgIntervalMinutes,
-					formatDuration,
-				),
-			},
-		]
-	} else if (activeType === 'temperature') {
-		summaryTiles = [
-			{
-				label: '总次数',
-				value: `${summary?.count ?? 0}次`,
-				delta: buildDelta(summary?.count, prevDaySummary?.count),
-			},
-			{
-				label: '最新体温',
-				value:
-					summary?.latestTemperature != null
-						? `${summary.latestTemperature}°C`
-						: '-',
-				delta: buildDelta(
-					summary?.latestTemperature,
-					prevDaySummary?.latestTemperature,
-					n => `${n.toFixed(1)}℃`,
-				),
-			},
-			{
-				label: '平均间隔',
-				value: avgIntervalText,
-				delta: buildDelta(
-					summary?.avgIntervalMinutes,
-					prevDaySummary?.avgIntervalMinutes,
-					formatDuration,
-				),
-			},
-		]
-	} else {
-		summaryTiles = [
-			{
-				label: '总次数',
-				value: `${summary?.count ?? 0}次`,
-				delta: buildDelta(summary?.count, prevDaySummary?.count),
-			},
-			{
-				label: '总时长',
-				value: formatDurationLong(summary?.totalDuration ?? 0),
-				delta: buildDelta(
-					summary?.totalDuration,
-					prevDaySummary?.totalDuration,
-					formatDuration,
-				),
-			},
-			{
-				label: '平均清醒间隔',
-				value: avgIntervalText,
-				delta: buildDelta(
-					summary?.avgIntervalMinutes,
-					prevDaySummary?.avgIntervalMinutes,
-					formatDuration,
-				),
-			},
-		]
+	// 各图表卡片共用的海报上下文
+	const posterContext = {
+		babyName: currentBaby?.name,
+		avatarUrl: currentBaby?.avatar,
+		genderText,
+		dateRangeText,
+		exportPoster: handleChartExport,
 	}
 
 	return (
@@ -1293,410 +306,50 @@ export default function StatsPage() {
 				))}
 			</View>
 
-			{/* 最新身高/体重英雄卡：身高=动态刻度尺，体重=动态仪表盘；插画固定+信息列共用 */}
+			{/* 最新身高/体重英雄卡：身高=动态刻度尺，体重=动态仪表盘 */}
 			{activeType === 'height_weight' && (
-				<View className="growth-hero-card">
-					{growthMetric === 'height' ? (
-						<View
-							className="growth-hero-left"
-							style={{ height: `${rulerHeightPt}px` }}
-						>
-							<View className="growth-hero-ruler">
-								{rulerTicks.map(num => (
-									<Text
-										key={num}
-										className={`growth-ruler-num ${
-											num === rulerMax ? 'at-top' : num === 0 ? 'at-bottom' : ''
-										}`}
-										style={{ top: `${(1 - num / rulerMax) * 100}%` }}
-									>
-										{num}
-									</Text>
-								))}
-								<View className="growth-ruler-ticks" />
-								<View className="growth-ruler-line" />
-							</View>
-							{/* 数值刻度线：位置恒等于头顶（bottom 固定），身高变化由尺子刻度吸收 */}
-							{growthNum != null && growthNum > 0 && (
-								<View
-									className="growth-hero-mark"
-									style={{ bottom: `${growthMarkHeightPt}px` }}
-								/>
-							)}
-							{/* 宝宝插画固定尺寸踩尺底，不随测量值缩放 */}
-							<Image
-								className="growth-hero-illu"
-								style={{
-									width: `${growthIlluWidthPt}px`,
-									height: `${growthIlluHeightPt}px`,
-								}}
-								src={growthHeroIllu}
-								mode="aspectFill"
-							/>
-						</View>
-					) : (
-						/* 体重仪表盘：弧带进度(SVG) + 刻度数字 + 指针 + 数值气泡 + 站秤宝宝 */
-						<View className="growth-gauge-region">
-							{/* 弧带：SVG 轨道 + 进度（兼容性最稳的画法） */}
-							<Image
-								className="growth-gauge-arc"
-								src={gaugeArcSrc}
-							/>
-							{gaugeTicks.map((tick, i) => (
-								<View
-									key={`t${i}`}
-									className={`growth-gauge-tick ${
-										tick.major ? 'major' : 'minor'
-									}`}
-									style={{
-										...gaugePos(tick.deg, 92.5),
-										transform: `translate(-50%,-50%) rotate(${tick.deg}deg)`,
-									}}
-								/>
-							))}
-							{gaugeLabels.map(({ deg, label }) => (
-								<Text
-									key={label}
-									className="growth-gauge-num"
-									style={gaugePos(deg, 99)}
-								>
-									{label}
-								</Text>
-							))}
-							<Text className="growth-gauge-unit" style={gaugePos(-150, 99)}>
-								kg
-							</Text>
-							{/* 数值气泡：浮在表盘内、指针旁（r=48 恒在区内） */}
-							{latestGrowthValue && (
-								<View
-									className="growth-gauge-bubble"
-									style={gaugePos(gaugePointerDeg, 48)}
-								>
-									<Text className="growth-gauge-bubble-text">
-										{latestGrowthValue}
-										kg
-									</Text>
-								</View>
-							)}
-							{/* 站秤宝宝：盒子宽度按素材比例显式给定（防 image 默认 320rpx 盒溢出盖住按钮点击区） */}
-							<Image
-								className="growth-gauge-baby"
-								style={{
-									height: '150px',
-									width: `${
-										currentBaby?.gender === 'male' ? 90 : 92
-									}px`,
-								}}
-								src={gaugeScaleBaby}
-								mode="aspectFit"
-							/>
-						</View>
-					)}
-					<View className="growth-hero-info">
-						<Text className="growth-hero-label">
-							最新{growthMetric === 'height' ? '身高' : '体重'}
-						</Text>
-						<View className="growth-hero-value-row">
-							<Text className="growth-hero-value">
-								{latestGrowthValue ?? '--'}
-							</Text>
-							<Text className="growth-hero-unit">
-								{growthMetric === 'height' ? 'cm' : 'kg'}
-							</Text>
-						</View>
-						{latestGrowthDate && (
-							<Text className="growth-hero-date">
-								记录于 {latestGrowthDate}
-							</Text>
-						)}
-						<View className="growth-hero-btn" onClick={handleGrowthRecord}>
-							<Image className="growth-hero-btn-icon" src={pencilWhiteIcon} />
-							<Text className="growth-hero-btn-text">
-								记录{growthMetric === 'height' ? '身高' : '体重'}
-							</Text>
-						</View>
-						{daysSinceLastGrowth != null && (
-							<Text className="growth-hero-last">
-								距离上次记录 {daysSinceLastGrowth} 天
-							</Text>
-						)}
-					</View>
-				</View>
+				<GrowthHeroCard
+					metric={growthMetric}
+					gender={currentBaby?.gender}
+					latestValue={latestGrowthValue}
+					latestDate={latestGrowthDate}
+					daysSince={daysSinceLastGrowth}
+					onRecord={handleGrowthRecord}
+				/>
 			)}
 
 			{/* 日期切换：身高/体重看趋势图即可，无单日视图 */}
 			{activeType !== 'height_weight' && (
-				<View className="date-nav">
-					<View
-						className="date-arrow"
-						onClick={() => handleDateChange(shiftDate(selectedDate, -1))}
-					>
-						<Text>‹</Text>
-					</View>
-					<Picker
-						mode="date"
-						value={selectedDate}
-						end={formatDate(new Date())}
-						onChange={e => handleDateChange(e.detail.value as string)}
-					>
-						<View className="date-label-wrap">
-							<Text className="date-label">{getDateLabel(selectedDate)}</Text>
-							<Text className="date-icon">📅</Text>
-						</View>
-					</Picker>
-					<View
-						className={`date-arrow ${isToday(selectedDate) ? 'disabled' : ''}`}
-						onClick={() =>
-							!isToday(selectedDate) &&
-							handleDateChange(shiftDate(selectedDate, 1))
-						}
-					>
-						<Text>›</Text>
-					</View>
-					{/* 一键回到今天：只在不是今天时出现，避免与日期标签上的「今天」重复 */}
-					{!isToday(selectedDate) && (
-						<View
-							className="date-today"
-							onClick={() => handleDateChange(formatDate(new Date()))}
-						>
-							<Text>今天</Text>
-						</View>
-					)}
-				</View>
+				<DateNav selectedDate={selectedDate} onChange={handleDateChange} />
 			)}
 
 			{/* 明细卡：仅每日多次记录类型展示；身高/体重只看趋势图，入口在图表下方按钮 */}
 			{activeType !== 'height_weight' && (
-				<View className="detail-card">
-					<View className="detail-card-header">
-						<View className="section-heading">
-							<View className="section-heading-icon summary-heading-icon">
-								<View className="summary-icon-bar summary-icon-bar-short" />
-								<View className="summary-icon-bar summary-icon-bar-medium" />
-								<View className="summary-icon-bar summary-icon-bar-tall" />
-							</View>
-							<Text className="section-heading-title">
-								{isToday(selectedDate)
-									? '今日总结'
-									: `${getDateLabel(selectedDate)}总结`}
-							</Text>
-						</View>
-						<View className="detail-link" onClick={() => goToFullDetail()}>
-							<Text>完整明细 ›</Text>
-						</View>
-					</View>
-
-					<View className="summary-tiles">
-						{summaryTiles.map(tile => (
-							<View key={tile.label} className="summary-tile">
-								<Text className="summary-tile-value">{tile.value}</Text>
-								<Text className="summary-tile-label">{tile.label}</Text>
-								{tile.delta && (
-									<Text className="summary-tile-delta">{tile.delta}</Text>
-								)}
-							</View>
-						))}
-					</View>
-
-					{growthItems.length > 0 ? (
-						<View className="timeline">
-							{growthItems.map((item, idx) => (
-								<View key={item.id} className="timeline-item">
-									<View className="timeline-track">
-										<View className="timeline-dot" />
-										{idx < growthItems.length - 1 && (
-											<View className="timeline-line" />
-										)}
-									</View>
-									<View className="timeline-content">
-										<View className="timeline-row">
-											<Text className="timeline-time">
-												{formatHM(item.startTime)}
-											</Text>
-											<Text className="timeline-interval">
-												{getIntervalText(activeType, item.intervalMinutes)}
-											</Text>
-										</View>
-										<View className="timeline-text-row">
-											<View className="timeline-text-content">
-												<Text className="timeline-text">
-													{getRecordMainText(activeType, item, growthMetric)}
-												</Text>
-												{item.note && (
-													<Text className="timeline-note">
-														备注：{item.note}
-													</Text>
-												)}
-											</View>
-											{activeType === 'diaper' && item.diaperImage && (
-												<Image
-													className="timeline-thumb"
-													src={item.diaperImage}
-													mode="aspectFill"
-													onClick={() =>
-														Taro.previewImage({
-															current: item.diaperImage,
-															urls: [item.diaperImage],
-														})
-													}
-												/>
-											)}
-										</View>
-									</View>
-								</View>
-							))}
-						</View>
-					) : (
-						<View className="timeline-empty">
-							<Text>这一天还没有记录</Text>
-						</View>
-					)}
-				</View>
+				<DayDetailCard
+					activeType={activeType}
+					growthMetric={growthMetric}
+					selectedDate={selectedDate}
+					items={displayItems}
+					summary={summary}
+					prevDaySummary={prevDaySummary}
+					onOpenDetail={goToFullDetail}
+				/>
 			)}
 
 			{/* WHO 成长曲线：独立模块，恒定 0-36 月龄全量数据，不受时间范围筛选影响 */}
 			{activeType === 'height_weight' && currentBaby && (
-				<View className="who-section">
-					<View className="who-section-head">
-						<View className="section-heading">
-							<View className="section-heading-icon growth-heading-icon">
-								<View className="who-icon-bar who-icon-bar-top" />
-								<View className="who-icon-bar who-icon-bar-mid" />
-								<View className="who-icon-bar who-icon-bar-bottom" />
-							</View>
-							<Text className="section-heading-title">WHO 成长曲线</Text>
-						</View>
-						<View className="who-scope">
-							<Text className="who-scope-text">0-36 月龄</Text>
-						</View>
-					</View>
-					<View className="who-hint-row">
-						<Text className="who-section-hint">
-							按出生月龄对照 WHO 生长标准，取全部历史记录，不随时间范围筛选变化
-						</Text>
-						<View
-							className="who-help-entry"
-							onClick={() => setWhoHelpVisible(true)}
-						>
-							<Text className="who-help-entry-text">怎么看</Text>
-						</View>
-					</View>
-					{babyCurvePoints.length > 0 ? (
-						<View className="chart-card growth-chart-card">
-							<View className="growth-chart-header">
-								<Text className="chart-title">
-									{growthMetric === 'height' ? '身高' : '体重'}成长曲线
-								</Text>
-								{renderChartActions({
-									kind: 'growth',
-									title: `${growthMetric === 'height' ? '身高' : '体重'}成长曲线`,
-									babyName: currentBaby.name,
-									avatarUrl: currentBaby.avatar,
-									genderText,
-									rangeText: '0-36月龄',
-									metaTexts: [
-										'WHO 生长标准',
-										`共 ${babyCurvePoints.length} 次测量`,
-									],
-									reviewTitle: '成长小结',
-									reviewText: '对照 WHO 生长标准，看见宝宝成长的每一步～',
-									data: {
-										metric: growthMetric,
-										gender: currentBaby.gender,
-										points: babyCurvePoints,
-									},
-								})}
-							</View>
-							<GrowthCurveChart
-								canvasId="growth-who-chart"
-								metric={growthMetric}
-								gender={currentBaby.gender}
-								babyName={currentBaby.name}
-								points={babyCurvePoints}
-								showTitle={false}
-								view={whoView}
-								onViewChange={setWhoViewOverride}
-								onSelectPoint={setWhoSelected}
-							/>
-							<View className="who-zoom-bar">
-								<Text className="who-zoom-hint">双指缩放 · 拖动平移</Text>
-								<View className="who-zoom-actions">
-									<View
-										className="who-zoom-btn"
-										onClick={() => zoomWhoView(1 / 1.5)}
-									>
-										<Text className="who-zoom-btn-text">−</Text>
-									</View>
-									<View
-										className="who-zoom-range"
-										onClick={() => setWhoViewOverride(null)}
-									>
-										<Text className="who-zoom-range-text">{whoViewLabel}</Text>
-									</View>
-									<View
-										className="who-zoom-btn"
-										onClick={() => zoomWhoView(1.5)}
-									>
-										<Text className="who-zoom-btn-text">+</Text>
-									</View>
-								</View>
-							</View>
-							<View className="who-readout">
-								{whoSelected && whoSelectedBand ? (
-									<View className="who-readout-body">
-										<Text className="who-readout-main">
-											{`${whoSelected.ageMonths.toFixed(1)} 月龄 · ${whoSelected.value.toFixed(1)}${growthMetric === 'height' ? 'cm' : 'kg'}`}
-										</Text>
-										<Text className="who-readout-sub">
-											{`落在 ${whoSelectedBand.band} · ${
-												whoSelectedBand.diffFromP50 >= 0 ? '高于' : '低于'
-											}中位数 ${Math.abs(whoSelectedBand.diffFromP50).toFixed(1)}${growthMetric === 'height' ? 'cm' : 'kg'}`}
-										</Text>
-									</View>
-								) : (
-									<Text className="who-readout-hint">
-										点一下曲线上的点，看看当时在同龄人里的位置
-									</Text>
-								)}
-							</View>
-							<Text className="who-disclaimer">
-								参考线为
-								WHO《儿童生长标准》P3~P97，仅供日常参考，具体以儿保医生评估为准
-							</Text>
-						</View>
-					) : (
-						<View className="chart-card growth-empty">
-							<Text>记录身高体重后，这里会画出宝宝的成长曲线</Text>
-						</View>
-					)}
-				</View>
-			)}
-
-			{/* 「怎么看」说明弹层 */}
-			{whoHelpVisible && (
-				<View
-					className="who-help-mask"
-					onClick={() => setWhoHelpVisible(false)}
-				>
-					<View className="who-help-card">
-						<Text className="who-help-title">WHO 成长曲线怎么看</Text>
-						{WHO_HELP_ITEMS.map(item => (
-							<View className="who-help-item" key={item.title}>
-								<Text className="who-help-item-title">{item.title}</Text>
-								<Text className="who-help-item-text">{item.text}</Text>
-							</View>
-						))}
-						<Text className="who-help-foot">
-							本图仅供日常参考，不能替代医生的评估与诊断
-						</Text>
-						<View
-							className="who-help-ok"
-							onClick={() => setWhoHelpVisible(false)}
-						>
-							<Text className="who-help-ok-text">我知道了</Text>
-						</View>
-					</View>
-				</View>
+				<WhoSection
+					babyId={currentBaby.id}
+					metric={growthMetric}
+					gender={currentBaby.gender}
+					birthday={currentBaby.birthday}
+					babyName={currentBaby.name}
+					avatarUrl={currentBaby.avatar}
+					genderText={genderText}
+					trendPoints={whoSeries}
+					days={days}
+					exportPoster={handleChartExport}
+				/>
 			)}
 
 			{/* 统计图表 */}
@@ -1724,24 +377,69 @@ export default function StatsPage() {
 							</View>
 						))}
 					</View>
-					{activeType === 'feeding' &&
-						renderBarChart(displayDailyStats, 'feedingCount', '喂奶次数', '次')}
-					{activeType === 'feeding' &&
-						renderBarChart(displayDailyStats, 'totalMilk', '奶量', 'ml')}
-					{activeType === 'diaper' &&
-						renderBarChart(displayDailyStats, 'diaperCount', '尿布次数', '次')}
-					{activeType === 'sleep' &&
-						renderBarChart(displayDailyStats, 'sleepTotal', '睡眠时长', '时')}
+					{activeType === 'feeding' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="feedingCount"
+							label="喂奶次数"
+							unit="次"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'feeding' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="totalMilk"
+							label="奶量"
+							unit="ml"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'diaper' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="diaperCount"
+							label="尿布次数"
+							unit="次"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'sleep' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="sleepTotal"
+							label="睡眠时长"
+							unit="时"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
 					{/* 身高/体重：趋势折线图（WHO 成长曲线已移至上方独立模块） */}
 					{activeType === 'height_weight' &&
 						displayHeightWeightSeries.some(
 							point => point[growthMetric] != null,
-						) &&
-						renderHeightWeightLineChart(
-							displayHeightWeightSeries,
-							growthMetric,
-							growthMetric === 'height' ? '身高趋势' : '体重趋势',
-							growthMetric === 'height' ? 'cm' : 'kg',
+						) && (
+							<GrowthTrendChart
+								points={displayHeightWeightSeries}
+								metric={growthMetric}
+								label={growthMetric === 'height' ? '身高趋势' : '体重趋势'}
+								unit={growthMetric === 'height' ? 'cm' : 'kg'}
+								days={days}
+								highlightIndex={growthPointIndex}
+								onSelectIndex={setGrowthPointIndex}
+								{...posterContext}
+							/>
 						)}
 					{activeType === 'height_weight' &&
 						!displayHeightWeightSeries.some(
@@ -1756,8 +454,14 @@ export default function StatsPage() {
 							</View>
 						)}
 					{activeType === 'temperature' &&
-						displayTemperatureTrend.length > 0 &&
-						renderTemperatureLineChart(displayTemperatureTrend)}
+						displayTemperatureTrend.length > 0 && (
+							<TemperatureChart
+								points={displayTemperatureTrend}
+								days={days}
+								selectedDate={selectedDate}
+								onDateChange={handleDateChange}
+							/>
+						)}
 					{activeType === 'temperature' &&
 						displayTemperatureTrend.length === 0 && (
 							<View className="chart-card growth-empty">
@@ -1769,7 +473,7 @@ export default function StatsPage() {
 
 			{/* 身高/体重：趋势图为主视图，完整明细入口收进图表下方按钮 */}
 			{activeType === 'height_weight' && (
-				<View className="growth-detail-btn" onClick={() => goToFullDetail()}>
+				<View className="growth-detail-btn" onClick={goToFullDetail}>
 					<Text className="growth-detail-btn-text">查看完整明细</Text>
 					<Text className="growth-detail-btn-arrow">›</Text>
 				</View>

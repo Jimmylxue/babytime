@@ -207,6 +207,11 @@
   - [x] 日期导航加「一键回到今天」胶囊（固定位置，已是今天时置灰，避免日期变化时布局跳动）
   - [ ] 备选（若真机仍嫌误触）：改成两步式 —— 点柱子只高亮 + 显示数值，图表下方给「查看这天明细 ›」按钮，明确点击才切日期（零副作用，多一次点击）
   - [ ] 待真机验收：窄屏横向滚动时不应误触发选中、体温图数据点点击区域偏小（16px）、切换记录类型/时间范围后高亮是否正确重置
+- [x] **巨型页面拆分**（2026-09-18，纯搬家不改逻辑）
+  - [x] `pages/stats` 1794 → 498 行：拆出 GrowthHeroCard（刻度尺/仪表盘）、WhoSection（曲线+缩放+怎么看弹层）、DayDetailCard（总结格+时间线）、DailyBarChart、GrowthTrendChart、TemperatureChart、DateNav + `utils.ts`（日期助手/buildGrowthSeries，fmtShort 两处重复合并）；WHO 视窗/选中态等局部状态下沉进组件
+  - [x] `pages/index` 1184 → 442 行：拆出 BabyCard（骨架屏/空状态/宝宝卡三分支）、VaccineReminderCard（订阅三态+授权流程整体下沉，页面展示时经 refreshKey 触发刷新，行为同原 useDidShow 拉取）、QuickRecord（宫格+更多弹窗）、MomentsSection、TipsSheet + `dailyReportData.ts`（日报海报数据组装）
+  - [x] 验证：taro build 通过；tsc 错误与拆分前基线逐条对齐（0 新增），顺手清掉 2 个未使用变量（records/displaySummary）
+  - [ ] 待真机回归：统计页各页签（图表点按联动、WHO 缩放/选中、海报导出）、首页（疫苗卡订阅、日报生成、照片预览、更多记录弹层、骨架屏）——纯搬家理论无行为差，但组件边界动了，建议体验版过一遍再发
 
 ## 包体积与首屏性能（2026-09-17 起，09-18 修正方案）
 
