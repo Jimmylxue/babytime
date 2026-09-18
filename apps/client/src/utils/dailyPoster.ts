@@ -1,7 +1,6 @@
 /** 宝宝日报海报：全天多指标汇总卡片（区别于单图表海报） */
-import Taro from '@tarojs/taro'
 import { drawSoftBlob, drawHeart, roundRect } from './canvasDraw'
-import { loadCanvasImage, POSTER_RENDER_SCALE } from './posterHelpers'
+import { loadCanvasImage, preparePosterCanvas } from './posterHelpers'
 
 /** 日报逻辑尺寸（CSS 像素）；位图尺寸 = 逻辑尺寸 × POSTER_RENDER_SCALE */
 export const DAILY_POSTER_W = 340
@@ -107,29 +106,13 @@ function drawDashedLine(ctx: any, x1: number, x2: number, y: number, color: stri
   ctx.restore()
 }
 
-export function renderDailyPoster(opts: DailyPosterOptions): Promise<void> {
-  return new Promise((resolve, reject) => {
-    Taro.createSelectorQuery()
-      .select(`#${DAILY_POSTER_CANVAS_ID}`)
-      .fields({ node: true })
-      .exec(async res => {
-        const r = (Array.isArray(res) ? res[0] : res) as { node?: any } | null
-        if (!r || !r.node) {
-          reject(new Error('日报画布未就绪'))
-          return
-        }
-        const node = r.node
-        // 渲染倍数固定 3x（不跟设备 dpr），保证导出宽度一致且清晰
-        node.width = DAILY_POSTER_W * POSTER_RENDER_SCALE
-        node.height = DAILY_POSTER_H * POSTER_RENDER_SCALE
-        const ctx = node.getContext('2d')
-        ctx.scale(POSTER_RENDER_SCALE, POSTER_RENDER_SCALE)
-        const avatar = await loadCanvasImage(node, opts.avatarUrl)
-        const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
-        drawDailyPoster(ctx, DAILY_POSTER_W, DAILY_POSTER_H, opts, avatar, miniProgramCode)
-        resolve()
-      })
-  })
+export async function renderDailyPoster(opts: DailyPosterOptions): Promise<void> {
+  const { node, ctx } = await preparePosterCanvas(
+    DAILY_POSTER_CANVAS_ID, DAILY_POSTER_W, DAILY_POSTER_H, '日报画布未就绪',
+  )
+  const avatar = await loadCanvasImage(node, opts.avatarUrl)
+  const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
+  drawDailyPoster(ctx, DAILY_POSTER_W, DAILY_POSTER_H, opts, avatar, miniProgramCode)
 }
 
 function drawDailyPoster(

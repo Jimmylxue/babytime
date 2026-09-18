@@ -106,16 +106,18 @@ async function shareImage(filePath: string) {
   }
 }
 
-/** 生成单图表分享海报，并执行保存或分享 */
-export async function deliverChartPoster(
-  opts: ChartPosterOptions,
+/** 海报投递的统一管线：loading → 渲染 → 导出 → 保存/分享 */
+async function deliverPoster(
+  render: () => Promise<void>,
+  canvasId: string,
   action: 'save' | 'share',
+  loadingTitle = '生成图片中',
 ) {
-  Taro.showLoading({ title: '生成图片中', mask: true })
+  Taro.showLoading({ title: loadingTitle, mask: true })
   let filePath: string
   try {
-    await renderChartPoster(opts)
-    filePath = await exportChartCanvas(POSTER_CANVAS_ID)
+    await render()
+    filePath = await exportChartCanvas(canvasId)
   } catch (error) {
     Taro.hideLoading()
     throw error
@@ -126,49 +128,28 @@ export async function deliverChartPoster(
   } else {
     await shareImage(filePath)
   }
+}
+
+/** 生成单图表分享海报，并执行保存或分享 */
+export function deliverChartPoster(opts: ChartPosterOptions, action: 'save' | 'share') {
+  return deliverPoster(() => renderChartPoster(opts), POSTER_CANVAS_ID, action)
 }
 
 /** 生成宝宝日报海报，并执行保存或分享 */
-export async function deliverDailyPoster(
-  opts: DailyPosterOptions,
-  action: 'save' | 'share',
-) {
-  Taro.showLoading({ title: '生成图片中', mask: true })
-  let filePath: string
-  try {
-    await renderDailyPoster(opts)
-    filePath = await exportChartCanvas(DAILY_POSTER_CANVAS_ID)
-  } catch (error) {
-    Taro.hideLoading()
-    throw error
-  }
-  Taro.hideLoading()
-  if (action === 'save') {
-    await saveToAlbum(filePath)
-  } else {
-    await shareImage(filePath)
-  }
+export function deliverDailyPoster(opts: DailyPosterOptions, action: 'save' | 'share') {
+  return deliverPoster(() => renderDailyPoster(opts), DAILY_POSTER_CANVAS_ID, action)
 }
 
 /** 生成成长纪念册长图，并执行保存或分享 */
-export async function deliverAlbumPoster(
+export function deliverAlbumPoster(
   data: AlbumData,
   action: 'save' | 'share',
   miniProgramCodeUrl?: string,
 ) {
-  Taro.showLoading({ title: '生成纪念册中', mask: true })
-  let filePath: string
-  try {
-    await renderAlbumPoster(data, miniProgramCodeUrl)
-    filePath = await exportChartCanvas(ALBUM_CANVAS_ID)
-  } catch (error) {
-    Taro.hideLoading()
-    throw error
-  }
-  Taro.hideLoading()
-  if (action === 'save') {
-    await saveToAlbum(filePath)
-  } else {
-    await shareImage(filePath)
-  }
+  return deliverPoster(
+    () => renderAlbumPoster(data, miniProgramCodeUrl),
+    ALBUM_CANVAS_ID,
+    action,
+    '生成纪念册中',
+  )
 }

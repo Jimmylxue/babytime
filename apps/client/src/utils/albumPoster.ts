@@ -12,7 +12,6 @@
  * ⚠️ 画布高度**不固定**：照片少时照片墙变矮，位图高度由内容决定
  *    （导出不传 width/height，走的就是整张位图）。
  */
-import Taro from '@tarojs/taro'
 import {
   roundRect,
   drawSoftBlob,
@@ -20,7 +19,7 @@ import {
   pathSmoothLine,
   fitText,
 } from './canvasDraw'
-import { loadCanvasImage, POSTER_RENDER_SCALE } from './posterHelpers'
+import { loadCanvasImage, queryPosterNode, POSTER_RENDER_SCALE } from './posterHelpers'
 import type { AlbumData, AlbumPhoto } from './albumData'
 
 export const ALBUM_CANVAS_ID = 'album-canvas'
@@ -149,51 +148,37 @@ function drawCard(
   ctx.restore()
 }
 
-export function renderAlbumPoster(
+export async function renderAlbumPoster(
   data: AlbumData,
   miniProgramCodeUrl?: string,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    Taro.createSelectorQuery()
-      .select(`#${ALBUM_CANVAS_ID}`)
-      .fields({ node: true })
-      .exec(async res => {
-        const r = (Array.isArray(res) ? res[0] : res) as { node?: any } | null
-        if (!r || !r.node) {
-          reject(new Error('纪念册画布未就绪'))
-          return
-        }
-        const node = r.node
-        const ctx = node.getContext('2d')
+  const node = await queryPosterNode(ALBUM_CANVAS_ID, '纪念册画布未就绪')
+  const ctx = node.getContext('2d')
 
-        // 头像 + 照片 + 小程序码，全部并行加载
-        const [avatar, ...rest] = await Promise.all([
-          loadCanvasImage(node, data.avatarUrl),
-          ...data.photos.map(p => loadAlbumPhoto(node, p)),
-          loadCanvasImage(node, miniProgramCodeUrl),
-        ])
-        const qr = rest[rest.length - 1]
-        const photos = rest.slice(0, rest.length - 1).filter(Boolean)
+  // 头像 + 照片 + 小程序码，全部并行加载
+  const [avatar, ...rest] = await Promise.all([
+    loadCanvasImage(node, data.avatarUrl),
+    ...data.photos.map(p => loadAlbumPhoto(node, p)),
+    loadCanvasImage(node, miniProgramCodeUrl),
+  ])
+  const qr = rest[rest.length - 1]
+  const photos = rest.slice(0, rest.length - 1).filter(Boolean)
 
-        // 画布高度随内容走：照片少时照片墙变矮，沿用固定高度会在底部留一大片空白。
-        // 做法是先按标称高度画一遍量出内容高度，再按实际高度重画一次。
-        const paint = (h: number) => {
-          node.width = ALBUM_W * POSTER_RENDER_SCALE
-          node.height = h * POSTER_RENDER_SCALE
-          // ⚠️ 改动画布尺寸会重置绘制状态，必须重新应用缩放，否则第二遍会是错位的
-          ctx.setTransform(1, 0, 0, 1, 0, 0)
-          ctx.scale(POSTER_RENDER_SCALE, POSTER_RENDER_SCALE)
-          ctx.clearRect(0, 0, ALBUM_W, h)
-          return drawAlbum(ctx, data, avatar, photos, qr, h)
-        }
+  // 画布高度随内容走：照片少时照片墙变矮，沿用固定高度会在底部留一大片空白。
+  // 做法是先按标称高度画一遍量出内容高度，再按实际高度重画一次。
+  const paint = (h: number) => {
+    node.width = ALBUM_W * POSTER_RENDER_SCALE
+    node.height = h * POSTER_RENDER_SCALE
+    // ⚠️ 改动画布尺寸会重置绘制状态，必须重新应用缩放，否则第二遍会是错位的
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.scale(POSTER_RENDER_SCALE, POSTER_RENDER_SCALE)
+    ctx.clearRect(0, 0, ALBUM_W, h)
+    return drawAlbum(ctx, data, avatar, photos, qr, h)
+  }
 
-        const measured = paint(ALBUM_H)
-        const finalH = Math.max(Math.round(measured), MIN_ALBUM_H)
-        if (finalH !== ALBUM_H) paint(finalH)
-
-        resolve()
-      })
-  })
+  const measured = paint(ALBUM_H)
+  const finalH = Math.max(Math.round(measured), MIN_ALBUM_H)
+  if (finalH !== ALBUM_H) paint(finalH)
 }
 
 /**

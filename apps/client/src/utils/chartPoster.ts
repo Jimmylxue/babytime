@@ -1,5 +1,4 @@
 /** 图表分享海报：宝宝信息 + 品牌头部 + 汇总数据 + 图表 + 本周小结 + 水印 */
-import Taro from '@tarojs/taro'
 import { drawSoftBlob, drawHeart, roundRect, fitText } from './canvasDraw'
 import { paintLineChart, LineChartPaintData } from '../components/LineChart/painter'
 import { paintBarChart, BarChartPaintData } from '../components/BarChart/painter'
@@ -7,7 +6,7 @@ import {
   paintGrowthCurve,
   GrowthCurvePoint,
 } from '../components/GrowthCurveChart/painter'
-import { loadCanvasImage, POSTER_RENDER_SCALE } from './posterHelpers'
+import { loadCanvasImage, preparePosterCanvas } from './posterHelpers'
 
 /** 海报逻辑尺寸（CSS 像素）；位图尺寸 = 逻辑尺寸 × POSTER_RENDER_SCALE */
 export const POSTER_W = 340
@@ -95,30 +94,13 @@ function drawTextWithHeart(
   drawHeart(ctx, x + textW + 8, y, heartSize, heartColor)
 }
 
-export function renderChartPoster(opts: ChartPosterOptions): Promise<void> {
-  return new Promise((resolve, reject) => {
-    Taro.createSelectorQuery()
-      .select(`#${POSTER_CANVAS_ID}`)
-      .fields({ node: true })
-      .exec(async res => {
-        const r = (Array.isArray(res) ? res[0] : res) as { node?: any } | null
-        if (!r || !r.node) {
-          reject(new Error('海报画布未就绪'))
-          return
-        }
-        const node = r.node
-        // 尺寸由常量决定，不依赖画布的 CSS 布局，避免被压缩；
-        // 渲染倍数固定 3x（不跟设备 dpr），保证导出宽度一致且清晰
-        node.width = POSTER_W * POSTER_RENDER_SCALE
-        node.height = POSTER_H * POSTER_RENDER_SCALE
-        const ctx = node.getContext('2d')
-        ctx.scale(POSTER_RENDER_SCALE, POSTER_RENDER_SCALE)
-        const avatar = await loadCanvasImage(node, opts.avatarUrl)
-        const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
-        drawPoster(ctx, POSTER_W, POSTER_H, opts, avatar, miniProgramCode)
-        resolve()
-      })
-  })
+export async function renderChartPoster(opts: ChartPosterOptions): Promise<void> {
+  const { node, ctx } = await preparePosterCanvas(
+    POSTER_CANVAS_ID, POSTER_W, POSTER_H, '海报画布未就绪',
+  )
+  const avatar = await loadCanvasImage(node, opts.avatarUrl)
+  const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
+  drawPoster(ctx, POSTER_W, POSTER_H, opts, avatar, miniProgramCode)
 }
 
 function drawPoster(

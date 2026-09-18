@@ -1,4 +1,5 @@
 /** 海报绘制共享的工具函数 */
+import Taro from '@tarojs/taro'
 
 /**
  * 海报位图的渲染倍数：**固定 3x，不跟设备 dpr 走**。
@@ -40,4 +41,40 @@ export function loadCanvasImage(
     }
     img.src = src
   })
+}
+
+/** 按 id 取海报 canvas 节点（画布必须是页面里 type="2d" 的专用隐藏画布） */
+export function queryPosterNode(canvasId: string, notReadyMsg: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    Taro.createSelectorQuery()
+      .select(`#${canvasId}`)
+      .fields({ node: true })
+      .exec(res => {
+        const r = (Array.isArray(res) ? res[0] : res) as { node?: any } | null
+        if (!r || !r.node) {
+          reject(new Error(notReadyMsg))
+          return
+        }
+        resolve(r.node)
+      })
+  })
+}
+
+/**
+ * 固定尺寸海报的画布准备：位图 = 逻辑尺寸 × POSTER_RENDER_SCALE，
+ * 返回已按渲染倍数放大过的 ctx（绘制代码可以直接用 CSS 像素坐标）。
+ * 尺寸由常量决定、不依赖画布 CSS 布局，避免被压缩。
+ */
+export async function preparePosterCanvas(
+  canvasId: string,
+  logicalW: number,
+  logicalH: number,
+  notReadyMsg: string,
+): Promise<{ node: any; ctx: any }> {
+  const node = await queryPosterNode(canvasId, notReadyMsg)
+  node.width = logicalW * POSTER_RENDER_SCALE
+  node.height = logicalH * POSTER_RENDER_SCALE
+  const ctx = node.getContext('2d')
+  ctx.scale(POSTER_RENDER_SCALE, POSTER_RENDER_SCALE)
+  return { node, ctx }
 }
