@@ -525,3 +525,10 @@
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
+
+// 成长纪念册的离屏画布：移出可视区，但必须保持可绘制（不能用 display:none）
+.poster-canvas-wrap {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+}

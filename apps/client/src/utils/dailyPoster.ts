@@ -1,9 +1,9 @@
 /** 宝宝日报海报：全天多指标汇总卡片（区别于单图表海报） */
 import Taro from '@tarojs/taro'
 import { drawSoftBlob, drawHeart, roundRect } from './canvasDraw'
-import { loadCanvasImage } from './posterHelpers'
+import { loadCanvasImage, POSTER_RENDER_SCALE } from './posterHelpers'
 
-/** 日报逻辑尺寸（CSS 像素）；位图尺寸 = 逻辑尺寸 × dpr */
+/** 日报逻辑尺寸（CSS 像素）；位图尺寸 = 逻辑尺寸 × POSTER_RENDER_SCALE */
 export const DAILY_POSTER_W = 340
 export const DAILY_POSTER_H = 600
 export const DAILY_POSTER_CANVAS_ID = 'daily-report-canvas'
@@ -119,11 +119,11 @@ export function renderDailyPoster(opts: DailyPosterOptions): Promise<void> {
           return
         }
         const node = r.node
-        const dpr = Taro.getSystemInfoSync().pixelRatio || 2
-        node.width = DAILY_POSTER_W * dpr
-        node.height = DAILY_POSTER_H * dpr
+        // 渲染倍数固定 3x（不跟设备 dpr），保证导出宽度一致且清晰
+        node.width = DAILY_POSTER_W * POSTER_RENDER_SCALE
+        node.height = DAILY_POSTER_H * POSTER_RENDER_SCALE
         const ctx = node.getContext('2d')
-        ctx.scale(dpr, dpr)
+        ctx.scale(POSTER_RENDER_SCALE, POSTER_RENDER_SCALE)
         const avatar = await loadCanvasImage(node, opts.avatarUrl)
         const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
         drawDailyPoster(ctx, DAILY_POSTER_W, DAILY_POSTER_H, opts, avatar, miniProgramCode)

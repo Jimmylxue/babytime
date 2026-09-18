@@ -1,10 +1,13 @@
-import { View, Text, Image, Input, Button } from '@tarojs/components'
+import { View, Text, Image, Input, Button, Canvas } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { userApi, notificationApi, trackEvent } from '../../utils/request'
 import { chooseAndUploadImage } from '../../utils/upload'
+import { fetchAlbumData } from '../../utils/albumData'
+import { deliverAlbumPoster } from '../../utils/chartExport'
+import { ALBUM_W, ALBUM_H, ALBUM_CANVAS_ID } from '../../utils/albumPoster'
 import babySmileIcon from '../../assets/icons/baby-smile.svg'
 import familyFilledIcon from '../../assets/icons/family-filled.svg'
 import agreementFilledIcon from '../../assets/icons/agreement-filled.svg'
@@ -19,7 +22,9 @@ import trendingUpIcon from '../../assets/icons/trending-up.svg'
 import familyIcon from '../../assets/icons/family.svg'
 import bellIcon from '../../assets/icons/bell.svg'
 import parentIcon from '../../assets/icons/parent.svg'
+import albumPinkIcon from '../../assets/icons/album-pink.svg'
 import minePig from '../../assets/mine-pig.jpg'
+import miniProgramCode from '../../assets/mini-program-code.jpg'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -32,6 +37,8 @@ export default function MinePage() {
 	const [editRole, setEditRole] = useState('')
 	const [reviewTemplateId, setReviewTemplateId] = useState('')
 	const [reviewSubscribed, setReviewSubscribed] = useState(false)
+	// 生成纪念册期间置忙，避免连点造成重复绘制同一个画布
+	const [albumBusy, setAlbumBusy] = useState(false)
 
 	useDidShow(() => {
 		if (isLoggedIn) {
@@ -47,6 +54,33 @@ export default function MinePage() {
 				.catch(() => {})
 		}
 	})
+
+	// 成长纪念册：拉数据 → 画长图 → 拉起微信分享面板（面板里可发送给好友或存相册）
+	const handleAlbum = async () => {
+		if (!currentBaby) {
+			Taro.showToast({ title: '请先添加宝宝信息', icon: 'none' })
+			return
+		}
+		if (albumBusy) return
+		setAlbumBusy(true)
+		try {
+			const data = await fetchAlbumData(currentBaby)
+			if (data.activeDays === 0) {
+				Taro.showToast({ title: '这段时间还没有记录', icon: 'none' })
+				return
+			}
+			void trackEvent('album_generate', {
+				range: data.rangeTitle,
+				photos: data.photos.length,
+			})
+			await deliverAlbumPoster(data, 'share', miniProgramCode)
+		} catch (error) {
+			console.error('album poster failed', error)
+			Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
+		} finally {
+			setAlbumBusy(false)
+		}
+	}
 
 	// 晚间回顾订阅：从首页今日记录模块迁移至此
 	const handleReviewSubscribe = async () => {
@@ -280,6 +314,20 @@ export default function MinePage() {
 						<Text className="mi-arrow">›</Text>
 					</View>
 				</View>
+				<View className="mine-item" onClick={handleAlbum}>
+					<View className="mi-icon mi-icon-3">
+						<Image className="mi-icon-img" src={albumPinkIcon} />
+					</View>
+					<View className="mi-copy">
+						<Text className="mi-title">成长纪念册</Text>
+						<Text className="mi-sub">
+							{albumBusy ? '正在生成…' : '把这一个月记成一张长图'}
+						</Text>
+					</View>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</View>
 			</View>
 
 			{/* 提醒 */}
@@ -489,6 +537,18 @@ export default function MinePage() {
 					</View>
 				</View>
 			)}
+
+			{/* 成长纪念册的离屏画布：移出屏幕，绘制与 CSS 完全解耦，导出整张位图 */}
+			<View
+				className="poster-canvas-wrap"
+				style={{ width: `${ALBUM_W}px`, height: `${ALBUM_H}px` }}
+			>
+				<Canvas
+					type="2d"
+					id={ALBUM_CANVAS_ID}
+					style={{ width: `${ALBUM_W}px`, height: `${ALBUM_H}px` }}
+				/>
+			</View>
 
 			<TabBar />
 		</View>

@@ -7,9 +7,9 @@ import {
   paintGrowthCurve,
   GrowthCurvePoint,
 } from '../components/GrowthCurveChart/painter'
-import { loadCanvasImage } from './posterHelpers'
+import { loadCanvasImage, POSTER_RENDER_SCALE } from './posterHelpers'
 
-/** 海报逻辑尺寸（CSS 像素）；位图尺寸 = 逻辑尺寸 × dpr */
+/** 海报逻辑尺寸（CSS 像素）；位图尺寸 = 逻辑尺寸 × POSTER_RENDER_SCALE */
 export const POSTER_W = 340
 export const POSTER_H = 570
 /** 专用隐藏海报画布 id（统计页 JSX 中挂载），与屏幕上的图表画布无关 */
@@ -107,12 +107,12 @@ export function renderChartPoster(opts: ChartPosterOptions): Promise<void> {
           return
         }
         const node = r.node
-        const dpr = Taro.getSystemInfoSync().pixelRatio || 2
-        // 尺寸由常量决定，不依赖画布的 CSS 布局，避免被压缩
-        node.width = POSTER_W * dpr
-        node.height = POSTER_H * dpr
+        // 尺寸由常量决定，不依赖画布的 CSS 布局，避免被压缩；
+        // 渲染倍数固定 3x（不跟设备 dpr），保证导出宽度一致且清晰
+        node.width = POSTER_W * POSTER_RENDER_SCALE
+        node.height = POSTER_H * POSTER_RENDER_SCALE
         const ctx = node.getContext('2d')
-        ctx.scale(dpr, dpr)
+        ctx.scale(POSTER_RENDER_SCALE, POSTER_RENDER_SCALE)
         const avatar = await loadCanvasImage(node, opts.avatarUrl)
         const miniProgramCode = await loadCanvasImage(node, opts.miniProgramCodeUrl)
         drawPoster(ctx, POSTER_W, POSTER_H, opts, avatar, miniProgramCode)

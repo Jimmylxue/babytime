@@ -10,11 +10,20 @@ import {
   DailyPosterOptions,
   DAILY_POSTER_CANVAS_ID,
 } from './dailyPoster'
+import { renderAlbumPoster, ALBUM_CANVAS_ID } from './albumPoster'
+import type { AlbumData } from './albumData'
 
 export type { ChartPosterOptions }
 
 /**
- * 将页面上的 Canvas 画布导出为临时图片文件（2 倍分辨率）
+ * 将页面上的 Canvas 画布导出为临时图片文件。
+ *
+ * ⚠️ 必须显式传 `destWidth/destHeight = 位图尺寸`：
+ * 微信文档里这俩的默认值是 `width × 屏幕像素密度`，而 2d 画布不传 width 时
+ * 取的是**位图宽度**（已是 dpr 放大过的）—— 相当于把位图再插值放大 dpr 倍，
+ * 照片类内容会明显发虚（纯色图表看不出来，纪念册这种带照片的一眼假）。
+ * 显式 1:1 导出不做任何重采样，位图上是什么样导出来就是什么样。
+ * fileType 显式给 png（默认值，但别依赖默认）。
  */
 export function exportChartCanvas(canvasId: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -28,10 +37,13 @@ export function exportChartCanvas(canvasId: string): Promise<string> {
           return
         }
         const node = r.node
-        // 不传 x/y/width/height/dest*：默认导出整张位图（已按 dpr 放大，清晰），
+        // 不传 x/y/width/height：默认导出整张位图，
         // 导出结果与画布的 CSS 尺寸/位置完全解耦
         const options = {
           canvas: node,
+          fileType: 'png' as const,
+          destWidth: node.width,
+          destHeight: node.height,
           success: (out: { tempFilePath: string }) => resolve(out.tempFilePath),
           fail: (err: { errMsg?: string }) =>
             reject(new Error(err?.errMsg || '导出失败')),
@@ -126,6 +138,29 @@ export async function deliverDailyPoster(
   try {
     await renderDailyPoster(opts)
     filePath = await exportChartCanvas(DAILY_POSTER_CANVAS_ID)
+  } catch (error) {
+    Taro.hideLoading()
+    throw error
+  }
+  Taro.hideLoading()
+  if (action === 'save') {
+    await saveToAlbum(filePath)
+  } else {
+    await shareImage(filePath)
+  }
+}
+
+/** 生成成长纪念册长图，并执行保存或分享 */
+export async function deliverAlbumPoster(
+  data: AlbumData,
+  action: 'save' | 'share',
+  miniProgramCodeUrl?: string,
+) {
+  Taro.showLoading({ title: '生成纪念册中', mask: true })
+  let filePath: string
+  try {
+    await renderAlbumPoster(data, miniProgramCodeUrl)
+    filePath = await exportChartCanvas(ALBUM_CANVAS_ID)
   } catch (error) {
     Taro.hideLoading()
     throw error
