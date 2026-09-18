@@ -10,11 +10,14 @@ import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
 import { FamilyMember } from '../family/entities/family-member.entity';
 import { VaccinePlan } from './entities/vaccine-plan.entity';
+import { WechatSubscribeService } from './wechat-subscribe.service';
+import { VaccinePlanService } from './vaccine-plan.service';
+import { VaccineReminderService } from './vaccine-reminder.service';
 
 @Module({
   imports: [HttpModule, TypeOrmModule.forFeature([User, Baby, BabyRecord, FamilyMember, SubscriptionGrant, NotificationDelivery, VaccinePlan])],
   controllers: [NotificationController],
-  providers: [NotificationService],
+  providers: [NotificationService, WechatSubscribeService, VaccinePlanService, VaccineReminderService],
   exports: [NotificationService],
 })
 export class NotificationModule {}
