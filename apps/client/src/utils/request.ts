@@ -23,11 +23,63 @@ interface ApiResponse<T = any> {
 	data: T
 }
 
-export const request = <T = any>(
+// ── token 静默续期 ──
+// token 7 天过期原本会强制用户回登录页；但微信登录本身无密码、可静默完成，
+// 所以 401 时用新 code 换新 token 并重放原请求，用户无感。单飞：并发 401 只续期一次。
+let refreshPromise: Promise<string> | null = null
+
+function refreshToken(): Promise<string> {
+	if (!refreshPromise) {
+		refreshPromise = doRefreshToken().finally(() => {
+			refreshPromise = null
+		})
+	}
+	return refreshPromise
+}
+
+async function doRefreshToken(): Promise<string> {
+	const loginRes = await Taro.login()
+	// 不走 request()：登录接口失败（如 code 无效）不得递归触发续期
+	const res = await new Promise<any>((resolve, reject) => {
+		Taro.request({
+			url: `${API_PREFIX}/user/login`,
+			method: 'POST',
+			data: { code: loginRes.code },
+			header: { 'Content-Type': 'application/json' },
+			success: r =>
+				r.statusCode === 200 ? resolve(r.data) : reject(new Error('token-refresh-failed')),
+			fail: reject,
+		})
+	})
+	const token = res?.data?.token
+	if (res?.code !== 0 || !token) {
+		throw new Error('token-refresh-bad-payload')
+	}
+	const user = res.data.user
+	Taro.setStorageSync('token', token)
+	Taro.setStorageSync('userInfo', user)
+	useAuthStore.setState({ token, userInfo: user, isLoggedIn: true })
+	return token
+}
+
+// 续期也失败（如微信侧登录不可用）：退回原行为，清登录态并提示
+function forceRelogin() {
+	Taro.removeStorageSync('token')
+	Taro.removeStorageSync('userInfo')
+	useAuthStore.setState({
+		token: null,
+		userInfo: null,
+		isLoggedIn: false,
+	})
+	Taro.showToast({ title: '请重新登录', icon: 'none' })
+}
+
+const requestInternal = <T = any>(
 	options: RequestOptions,
+	isRetry: boolean,
 ): Promise<ApiResponse<T>> => {
 	const { needToken = true, silent = false, ...restOptions } = options
-	// 直接从 storage 获取 token，确保是最新的
+	// 直接从 storage 获取 token，确保是最新的（续期成功后重放时能拿到新 token）
 	const token = Taro.getStorageSync('token')
 
 	const header: Record<string, string> = {
@@ -50,17 +102,24 @@ export const request = <T = any>(
 				if (res.statusCode === 200) {
 					resolve(res.data as ApiResponse<T>)
 				} else if (res.statusCode === 401) {
-					// token 过期，清除登录状态（静默请求不动全局登录态）
-					if (needToken && !silent) {
-						Taro.removeStorageSync('token')
-						Taro.removeStorageSync('userInfo')
-						useAuthStore.setState({
-							token: null,
-							userInfo: null,
-							isLoggedIn: false,
-						})
-						Taro.showToast({ title: '请重新登录', icon: 'none' })
+					// 静默请求与免登录请求不动全局登录态（维持原行为）
+					if (!needToken || silent) {
+						reject(new Error(res.data?.message || '未授权'))
+						return
 					}
+					if (!isRetry) {
+						refreshToken()
+							.then(() =>
+								requestInternal<T>(options, true).then(resolve, reject),
+							)
+							.catch(() => {
+								forceRelogin()
+								reject(new Error(res.data?.message || '未授权'))
+							})
+						return
+					}
+					// 续期后仍 401：说明确实不是过期问题，走清登录态
+					forceRelogin()
 					reject(new Error(res.data?.message || '未授权'))
 				} else {
 					if (!silent) {
@@ -81,6 +140,10 @@ export const request = <T = any>(
 		})
 	})
 }
+
+export const request = <T = any>(
+	options: RequestOptions,
+): Promise<ApiResponse<T>> => requestInternal<T>(options, false)
 
 // 用户相关 API
 export const userApi = {
@@ -253,7 +316,7 @@ export const trackEvent = (name: string, properties?: Record<string, any>) =>
 	request<any>({ url: '/user/events', method: 'POST', data: { name, properties } }).catch(() => undefined)
 
 // 文件上传
-export const uploadFile = (filePath: string): Promise<{ url: string }> => {
+const uploadInternal = (filePath: string, isRetry: boolean): Promise<{ url: string }> => {
 	const token = Taro.getStorageSync('token')
 	return new Promise((resolve, reject) => {
 		Taro.uploadFile({
@@ -274,6 +337,16 @@ export const uploadFile = (filePath: string): Promise<{ url: string }> => {
 						resolve(data.data || data)
 						return
 					}
+					if (res.statusCode === 401 && !isRetry) {
+						// token 过期：静默续期后重传一次
+						refreshToken()
+							.then(() => uploadInternal(filePath, true).then(resolve, reject))
+							.catch(() => reject(new Error('未授权')))
+						return
+					}
+					if (res.statusCode === 401) {
+						forceRelogin()
+					}
 					reject(new Error(data?.message || '上传失败'))
 				} catch (error) {
 					reject(new Error('上传响应解析失败'))
@@ -286,6 +359,9 @@ export const uploadFile = (filePath: string): Promise<{ url: string }> => {
 		})
 	})
 }
+
+export const uploadFile = (filePath: string): Promise<{ url: string }> =>
+	uploadInternal(filePath, false)
 
 // 家庭成员 API
 export const familyApi = {
