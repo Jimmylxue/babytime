@@ -31,26 +31,21 @@ export class UploadController {
 			)
 		}
 
-		let url: string
-
-		if (this.uploadService.isUpyun) {
-			url = await this.uploadService.uploadToUpyun(
-				file.buffer,
-				file.originalname,
-				file.mimetype,
-			)
-		} else {
-			const protocol = req.protocol
-			const host = req.get('host')
-			url = `${protocol}://${host}${this.uploadService.getFileUrl(file.filename)}`
-		}
+		// 安全命名与类型校验在 UploadService.storeImage 内完成（MIME 白名单 + 内容魔数）
+		const { filename, url } = await this.uploadService.storeImage(
+			file.buffer,
+			file.mimetype,
+		)
+		const finalUrl = url
+			? url
+			: `${req.protocol}://${req.get('host')}${this.uploadService.getFileUrl(filename)}`
 
 		return {
 			code: 0,
 			message: '上传成功',
 			data: {
-				url,
-				filename: file.filename,
+				url: finalUrl,
+				filename,
 				originalname: file.originalname,
 				size: file.size,
 			},

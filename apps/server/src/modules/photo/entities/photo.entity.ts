@@ -2,13 +2,16 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  Index,
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
 import { Baby } from '../../baby/entities/baby.entity';
 
+// 相册列表固定按 babyId 过滤 + photoDate 倒序分页，缺这个索引会随照片量增长变慢
 @Entity('photos')
+@Index('idx_photos_baby_photo_date', ['babyId', 'photoDate'])
 export class Photo {
   @PrimaryGeneratedColumn('uuid')
   id: string;

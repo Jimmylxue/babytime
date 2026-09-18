@@ -2,6 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  Index,
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
@@ -9,7 +10,9 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
+// 登录后拉宝宝列表固定按 user_id 查询
 @Entity('babies')
+@Index('idx_babies_user_id', ['userId'])
 export class Baby {
   @PrimaryGeneratedColumn('uuid')
   id: string;

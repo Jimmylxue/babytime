@@ -1,46 +1,30 @@
 import { Module } from '@nestjs/common'
 import { MulterModule } from '@nestjs/platform-express'
-import { ConfigModule, ConfigService } from '@nestjs/config'
+import { memoryStorage } from 'multer'
 import { UploadController } from './upload.controller'
-import { UploadService } from './upload.service'
-import { diskStorage, memoryStorage } from 'multer'
-import { v4 as uuidv4 } from 'uuid'
-import { extname, join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { UploadService, IMAGE_EXT_BY_MIME } from './upload.service'
 
-const uploadDir = join(process.cwd(), 'uploads')
-
-if (!existsSync(uploadDir)) {
-	mkdirSync(uploadDir, { recursive: true })
+// 类型准入：MIME 白名单；application/octet-stream 放行到服务层，
+// 由文件内容魔数复检 —— wx.uploadFile 在部分机型/版本不带正确的图片 MIME。
+const fileFilter = (
+	_req: unknown,
+	file: { mimetype: string },
+	cb: (err: Error | null, acceptFile: boolean) => void,
+) => {
+	const ok =
+		file.mimetype in IMAGE_EXT_BY_MIME ||
+		file.mimetype === 'application/octet-stream'
+	cb(ok ? null : new Error(`UNSUPPORTED_FILE_TYPE: ${file.mimetype}`), ok)
 }
 
 @Module({
 	imports: [
-		MulterModule.registerAsync({
-			imports: [ConfigModule],
-			inject: [ConfigService],
-			useFactory: (configService: ConfigService) => {
-				const driver = configService.get('UPLOAD_DRIVER', 'local')
-
-				if (driver === 'upyun') {
-					return {
-						storage: memoryStorage(),
-						limits: { fileSize: 10 * 1024 * 1024 },
-					}
-				}
-
-				return {
-					storage: diskStorage({
-						destination: uploadDir,
-						filename: (_req, file, cb) => {
-							const fileExt = extname(file.originalname || '').toLowerCase()
-							const uniqueName = `${uuidv4()}${fileExt || '.jpg'}`
-							cb(null, uniqueName)
-						},
-					}),
-					limits: { fileSize: 10 * 1024 * 1024 },
-				}
-			},
+		MulterModule.register({
+			// 统一内存存储：本地驱动也在通过内容校验后再落盘，
+			// 避免 diskStorage 在落盘前无法确定安全扩展名的问题
+			storage: memoryStorage(),
+			fileFilter,
+			limits: { fileSize: 10 * 1024 * 1024 },
 		}),
 	],
 	controllers: [UploadController],
