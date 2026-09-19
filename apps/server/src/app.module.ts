@@ -6,6 +6,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { WechatModule } from './common/wechat/wechat.module';
 import { UserModule } from './modules/user/user.module';
 import { BabyModule } from './modules/baby/baby.module';
 import { RecordModule } from './modules/record/record.module';
@@ -29,6 +30,7 @@ import { NotificationModule } from './modules/notification/notification.module';
       serveRoot: '/uploads',
     }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    WechatModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

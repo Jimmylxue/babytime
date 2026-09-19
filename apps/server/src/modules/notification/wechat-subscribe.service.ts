@@ -4,15 +4,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { SubscriptionGrant } from '../user/entities/subscription-grant.entity';
+import { WechatTokenService } from '../../common/wechat/wechat-token.service';
 
 /**
- * 微信订阅消息 API 层：access_token 缓存、消息发送、海报小程序码、43101 对账。
+ * 微信订阅消息 API 层：消息发送、海报小程序码、43101 对账。
+ * access_token 统一走 WechatTokenService（全项目单一取证书）。
  * 业务编排在 VaccinePlanService / VaccineReminderService，这里不放业务逻辑。
  */
 @Injectable()
 export class WechatSubscribeService {
-  private accessToken: { value: string; expiresAt: number } | null = null;
-
   /** 允许生成二维码的场景值；必须与 user.service 的来源白名单一一对应 */
   private static readonly POSTER_QR_SCENES = new Set(['album', 'daily', 'chart', 'family']);
   /** 码永久有效，同一「场景+版本」进程内只生成一次，省微信接口配额 */
@@ -20,18 +20,12 @@ export class WechatSubscribeService {
 
   constructor(
     private readonly http: HttpService,
+    private readonly tokenService: WechatTokenService,
     @InjectRepository(SubscriptionGrant) private readonly grants: Repository<SubscriptionGrant>,
   ) {}
 
-  async getAccessToken(): Promise<string | null> {
-    const appid = process.env.WECHAT_APP_ID;
-    const secret = process.env.WECHAT_APP_SECRET;
-    if (!appid || !secret) return null;
-    if (this.accessToken && this.accessToken.expiresAt > Date.now() + 60_000) return this.accessToken.value;
-    const response = await firstValueFrom(this.http.get('https://api.weixin.qq.com/cgi-bin/token', { params: { grant_type: 'client_credential', appid, secret } }));
-    if (!response.data?.access_token) throw new Error(`微信 access_token 获取失败: ${JSON.stringify(response.data)}`);
-    this.accessToken = { value: response.data.access_token, expiresAt: Date.now() + Number(response.data.expires_in || 7200) * 1000 };
-    return this.accessToken.value;
+  getAccessToken(): Promise<string | null> {
+    return this.tokenService.getAccessToken();
   }
 
   /** 发送订阅消息，原样返回微信响应体（errcode 处理留在业务层，两处语义不同） */

@@ -65,4 +65,5 @@ bash mini.sh <版本号> "<描述>"   # 自动 pnpm install + build:shared + 构
 - [ ] 记录统计链路抽查：统计页 7 天数据、完整明细间隔、今日总结（record.service 拆出 record-query.service）
 - [ ] 管理后台登录正常；连续 5 次输错密码会锁 15 分钟（防爆破，属预期行为，重启服务即解锁）
 - [ ] 后台订阅看板用户列表、手动测试推送正常（notification 拆成计划/发送/微信三个 service，入口门面不变）
+- [ ] 备注里输入明显违规词应被拦截保存（access_token 已统一为单一来源，敏感词检测与推送共用一张证）
 

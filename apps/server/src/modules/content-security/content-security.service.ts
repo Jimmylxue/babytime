@@ -4,17 +4,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { User } from '../user/entities/user.entity';
+import { WechatTokenService } from '../../common/wechat/wechat-token.service';
 
 const MSG_SEC_CHECK_URL = 'https://api.weixin.qq.com/wxa/msg_sec_check';
-const TOKEN_URL = 'https://api.weixin.qq.com/cgi-bin/token';
 
 @Injectable()
 export class ContentSecurityService {
   private readonly logger = new Logger(ContentSecurityService.name);
-  private accessToken: { value: string; expiresAt: number } | null = null;
 
   constructor(
     private readonly http: HttpService,
+    private readonly tokenService: WechatTokenService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) {}
 
@@ -40,7 +40,8 @@ export class ContentSecurityService {
 
   private async isRisky(content: string, openid: string, scene: 1 | 2): Promise<boolean> {
     try {
-      const token = await this.getAccessToken();
+      // 统一从 WechatTokenService 取凭证；领取失败抛错进本 catch，维持「检测故障不阻断记录」的放行语义
+      const token = await this.tokenService.getAccessToken();
       if (!token) return false;
       const response = await firstValueFrom(
         this.http.post(
@@ -62,24 +63,5 @@ export class ContentSecurityService {
       this.logger.warn(`msgSecCheck 调用失败：${error?.message}，本次按放行处理`);
       return false;
     }
-  }
-
-  private async getAccessToken() {
-    const appid = process.env.WECHAT_APP_ID;
-    const secret = process.env.WECHAT_APP_SECRET;
-    if (!appid || !secret) return null;
-    if (this.accessToken && this.accessToken.expiresAt > Date.now() + 60_000) return this.accessToken.value;
-    const response = await firstValueFrom(
-      this.http.get(TOKEN_URL, { params: { grant_type: 'client_credential', appid, secret } }),
-    );
-    if (!response.data?.access_token) {
-      this.logger.warn(`微信 access_token 获取失败: ${JSON.stringify(response.data)}，内容检测按放行处理`);
-      return null;
-    }
-    this.accessToken = {
-      value: response.data.access_token,
-      expiresAt: Date.now() + Number(response.data.expires_in || 7200) * 1000,
-    };
-    return this.accessToken.value;
   }
 }
