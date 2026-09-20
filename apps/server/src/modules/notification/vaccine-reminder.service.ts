@@ -1,17 +1,17 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { User } from '../user/entities/user.entity';
 import { Baby } from '../baby/entities/baby.entity';
-import { Record as BabyRecord } from '../record/entities/record.entity';
+import { Record as BabyRecord, RecordType } from '../record/entities/record.entity';
 import { SubscriptionGrant } from '../user/entities/subscription-grant.entity';
 import { NotificationDelivery } from './entities/notification-delivery.entity';
 import { FamilyMember, InviteStatus } from '../family/entities/family-member.entity';
 import { VaccinePlan } from './entities/vaccine-plan.entity';
 import { TIMELINE_VACCINE_SCHEDULE } from '@baby-time/shared';
 import { WechatSubscribeService } from './wechat-subscribe.service';
-import { getVaccineTemplateId, dueDate, parseLocalDate, formatLocalDate } from './notification.helpers';
+import { getVaccineTemplateId, getReviewTemplateId, dueDate, parseLocalDate, formatLocalDate } from './notification.helpers';
 
 /**
  * 订阅消息发送编排：定时疫苗提醒、每日回顾、admin 手动测试推送。
@@ -44,7 +44,7 @@ export class VaccineReminderService implements OnModuleInit {
   private async runScheduled() {
     const hour = new Date().getHours();
     if (hour === Number(process.env.VACCINE_REMINDER_HOUR || 9)) await this.sendDueVaccines();
-    if (hour === Number(process.env.DAILY_REVIEW_HOUR || 20)) await this.sendDailyReviews();
+    if (hour === Number(process.env.DAILY_REVIEW_HOUR || 21)) await this.sendDailyReviews();
   }
 
   async sendManualVaccine(userId: string, babyId: string | undefined, triggeredBy: string) {
@@ -198,6 +198,8 @@ export class VaccineReminderService implements OnModuleInit {
     const token = await this.wechat.getAccessToken();
     if (!token) return { sent: 0, skipped: true };
     const date = formatLocalDate(new Date());
+    const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    const tomorrow0 = new Date(today0); tomorrow0.setDate(tomorrow0.getDate() + 1);
     const grants = (await this.grants.find({ where: { templateId } })).filter((grant) => grant.availableCount > 0);
     let sent = 0;
     for (const grant of grants) {
@@ -208,17 +210,17 @@ export class VaccineReminderService implements OnModuleInit {
         baby = membership?.baby || null;
       }
       if (!user?.openId || !baby) continue;
-      const rows = await this.records.find({
-        where: { babyId: baby.id },
-        order: { startTime: 'DESC' },
-        take: 100,
+      // 计数交给数据库（走 baby_id+type+start_time 索引），不再拉 100 条进内存过滤
+      const totalToday = await this.records.count({
+        where: { babyId: baby.id, startTime: Between(today0, tomorrow0) },
       });
-      const todayRows = rows.filter((item) => formatLocalDate(new Date(item.startTime)) === date);
-      if (todayRows.length === 0) continue;
-      const feeding = todayRows.filter((item) => item.type === 'feeding').length;
-      const sleepMinutes = todayRows.filter((item) => item.type === 'sleep').reduce((sum, item) => sum + Number(item.duration || 0), 0);
-      const diaper = todayRows.filter((item) => item.type === 'diaper').length;
-      const summary = [`喂奶${feeding}次`, `睡眠${Math.round(sleepMinutes / 60)}小时`, `尿布${diaper}次`].join(' · ').slice(0, 20);
+      if (totalToday === 0) continue;
+      // 模板 77947（宝宝每日奶粉消耗提醒）只有「宝宝 / 喂养次数 / 日期」三个字段，
+      // 放不下睡眠、尿布的明细 —— 这不是问题：消息的作用是把人勾回来，
+      // 完整数据点「详情」进小程序看。消息越短，点开率越高。
+      const feeding = await this.records.count({
+        where: { babyId: baby.id, type: RecordType.FEEDING, startTime: Between(today0, tomorrow0) },
+      });
       const dedupeKey = `review:${baby.id}:${date}:${user.id}`;
       let delivery = await this.deliveries.findOne({ where: { dedupeKey } });
       if (delivery && delivery.status !== 'failed') continue;
@@ -227,16 +229,10 @@ export class VaccineReminderService implements OnModuleInit {
       delivery.error = null;
       await this.deliveries.save(delivery);
       try {
-        const body = {
-          touser: user.openId, template_id: templateId, page: '/pages/index/index?source=notification_review',
-          data: {
-            [process.env.WECHAT_REVIEW_FIELD_BABY || 'thing1']: { value: baby.name.slice(0, 20) },
-            [process.env.WECHAT_REVIEW_FIELD_SUMMARY || 'thing2']: { value: summary },
-            [process.env.WECHAT_REVIEW_FIELD_DATE || 'date3']: { value: date },
-          },
-          miniprogram_state: process.env.WECHAT_SUBSCRIBE_MINI_PROGRAM_STATE || 'formal',
-        };
-        const response = await this.wechat.postSubscribe(token, body);
+        const response = await this.wechat.postSubscribe(
+          token,
+          this.buildReviewBody(user.openId, baby.name, feeding, date, this.reviewTimeLabel()),
+        );
         if (response.errcode) throw new Error(`${response.errcode}: ${response.errmsg}`);
         delivery.status = 'sent';
         grant.availableCount = Math.max(0, grant.availableCount - 1);
@@ -256,5 +252,126 @@ export class VaccineReminderService implements OnModuleInit {
       await this.deliveries.save(delivery);
     }
     return { sent, skipped: false };
+  }
+
+  /**
+   * 「每日回顾」消息体：字段映射的**唯一来源**，定时任务与后台直推都用它。
+   *
+   * 对应模板 77947（宝宝每日奶粉消耗提醒），三个字段：
+   *   thing1  → 宝宝名（20 字以内）
+   *   number2 → 喂养次数：**数字类型，只能传纯数字**，带「次」会被判参数非法
+   *   time3   → 日期：**时间类型，要 24 小时制**（项目里疫苗模板的 time2 同样这么发，已验证可送达）
+   * 模板只有三个字段，装不下睡眠/尿布明细 —— 消息的职责是把人勾回来，
+   * 完整数据让用户点「详情」进小程序看。
+   */
+  private buildReviewBody(
+    openId: string,
+    babyName: string,
+    feeding: number,
+    date: string,
+    time: string,
+  ) {
+    return {
+      touser: openId,
+      template_id: getReviewTemplateId(),
+      page: '/pages/index/index?source=notification_review',
+      data: {
+        [process.env.WECHAT_REVIEW_FIELD_BABY || 'thing1']: { value: babyName.slice(0, 20) },
+        [process.env.WECHAT_REVIEW_FIELD_FEEDING || 'number2']: { value: String(feeding) },
+        [process.env.WECHAT_REVIEW_FIELD_DATE || 'time3']: { value: `${date} ${time}` },
+      },
+      miniprogram_state: process.env.WECHAT_SUBSCRIBE_MINI_PROGRAM_STATE || 'formal',
+    };
+  }
+
+  /** 当前配置的每日回顾推送时刻，如 `21:00`（默认 21 点：宝宝哄睡后、妈妈刷手机的黄金时段） */
+  private reviewTimeLabel() {
+    const raw = Number(process.env.DAILY_REVIEW_HOUR || 21);
+    return `${String(Number.isFinite(raw) ? raw : 21).padStart(2, '0')}:00`;
+  }
+
+  /**
+   * 后台直推一条「每日回顾」，用于验证模板字段格式是否被微信接受。
+   * 真实消耗用户 1 次订阅额度 —— 这是唯一能验证 number2/time3 格式的办法
+   * （微信先校验 openid 再校验 data，拿假 openid 探测是测不出格式问题的）。
+   */
+  async sendManualReview(userId: string, triggeredBy: string) {
+    const templateId = getReviewTemplateId();
+    if (!templateId) throw new BadRequestException('服务端未配置每日回顾模板（WECHAT_SUBSCRIBE_REVIEW_TEMPLATE_ID）');
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user?.openId) throw new NotFoundException('用户不存在或没有微信 OpenID');
+    let baby = await this.babies.findOne({ where: { userId }, order: { createdAt: 'ASC' } });
+    if (!baby) {
+      const membership = await this.familyMembers.findOne({ where: { userId, status: InviteStatus.ACCEPTED }, relations: ['baby'] });
+      baby = membership?.baby || null;
+    }
+    if (!baby) throw new BadRequestException('该用户没有可用的宝宝档案');
+
+    const grant = await this.grants.findOne({ where: { userId, templateId } });
+    if (!grant || grant.acceptedCount <= 0) throw new BadRequestException('该用户尚未授权每日回顾提醒');
+    if (grant.availableCount <= 0) throw new BadRequestException('该用户没有可用的订阅次数，请先在小程序里重新授权');
+
+    // 与手动疫苗推送同款原子预扣：并发（定时任务/另一管理员）时不会出现超发
+    const reserve = await this.grants.createQueryBuilder().update(SubscriptionGrant)
+      .set({ availableCount: () => 'available_count - 1' })
+      .where('id = :id AND available_count > 0', { id: grant.id }).execute();
+    if (!reserve.affected) throw new BadRequestException('订阅次数刚刚被其他发送消耗，请刷新列表');
+
+    const date = formatLocalDate(new Date());
+    const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    const tomorrow0 = new Date(today0); tomorrow0.setDate(tomorrow0.getDate() + 1);
+    const feeding = await this.records.count({
+      where: { babyId: baby.id, type: RecordType.FEEDING, startTime: Between(today0, tomorrow0) },
+    });
+
+    const delivery = this.deliveries.create({
+      dedupeKey: `manual:review:${randomUUID()}`,
+      userId,
+      templateId,
+      status: 'sending',
+      source: 'manual',
+      triggeredBy,
+      payload: JSON.stringify({ babyName: baby.name, feeding, date }),
+      error: null,
+      wechatCode: null,
+      wechatMessage: null,
+      sentAt: null,
+    });
+    await this.deliveries.save(delivery);
+
+    try {
+      const token = await this.wechat.getAccessToken();
+      if (!token) throw new Error('微信 access_token 获取失败');
+      const response = await this.wechat.postSubscribe(
+        token,
+        this.buildReviewBody(user.openId, baby.name, feeding, date, this.reviewTimeLabel()),
+      );
+      delivery.wechatCode = String(response.errcode ?? 0);
+      delivery.wechatMessage = response.errmsg || 'ok';
+      if (response.errcode) throw new Error(`${response.errcode}: ${response.errmsg}`);
+      delivery.status = 'sent';
+      delivery.sentAt = new Date();
+      // 额度已在 reserve 中原子扣减，这里只记发送统计（读 fresh，避免覆盖并发方的计数）
+      const freshGrant = await this.grants.findOneOrFail({ where: { id: grant.id } });
+      freshGrant.sentCount += 1;
+      freshGrant.lastSentAt = new Date();
+      freshGrant.status = freshGrant.availableCount > 0 ? 'accept' : 'consumed';
+      await this.grants.save(freshGrant);
+      await this.deliveries.save(delivery);
+      return { success: true, deliveryId: delivery.id, availableCount: freshGrant.availableCount, feeding };
+    } catch (error: any) {
+      delivery.status = 'failed';
+      delivery.error = String(error?.message || error);
+      await this.deliveries.save(delivery);
+      if (this.wechat.isWechatRefused(delivery.error)) {
+        await this.wechat.invalidateWechatGrant(grant.id);
+        throw new BadRequestException('该用户已在微信侧拒收或订阅次数作废，本地额度已清零，请让用户重新授权');
+      }
+      // 非拒收的失败（网络/模板参数错误等）：退还预扣的 1 次额度
+      await this.grants.createQueryBuilder().update(SubscriptionGrant)
+        .set({ availableCount: () => 'available_count + 1', status: 'accept' })
+        .where('id = :id', { id: grant.id }).execute();
+      throw new BadRequestException(`发送失败：${delivery.error}`);
+    }
   }
 }

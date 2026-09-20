@@ -8,7 +8,8 @@ import {
 	trackEvent,
 	VaccinePlanItem,
 } from '../../../utils/request'
-import vaccineSafety from '../../../assets/vaccine-safety.webp'
+import { CDN_ASSETS } from '../../../config/assets'
+const vaccineSafety = CDN_ASSETS.vaccineSafety
 
 function formatVaccineDate(date: string) {
 	const [, month, day] = date.split('-').map(Number)

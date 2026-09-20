@@ -181,16 +181,30 @@ export class AdminController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('keyword') keyword?: string,
+    @Query('template') template?: string,
   ) {
-    const data = await this.notificationService.listSubscribedUsers(Number(page) || 1, Number(pageSize) || 20, keyword?.trim() || undefined);
+    const kind = template === 'review' ? 'review' : 'vaccine';
+    const data = await this.notificationService.listSubscribedUsers(
+      Number(page) || 1,
+      Number(pageSize) || 20,
+      keyword?.trim() || undefined,
+      kind,
+    );
     return { code: 0, message: 'success', data };
   }
 
   @UseGuards(AdminJwtGuard)
   @Post('notifications/test')
-  async sendNotificationTest(@Request() req, @Body() body: { userId?: string; babyId?: string }) {
+  async sendNotificationTest(
+    @Request() req,
+    @Body() body: { userId?: string; babyId?: string; template?: 'vaccine' | 'review' },
+  ) {
     if (!body?.userId) return { code: 400, message: '请选择已订阅用户' };
-    const data = await this.notificationService.sendManualVaccine(body.userId, body.babyId, req.user?.username || 'admin');
+    const triggeredBy = req.user?.username || 'admin';
+    // template=review 走每日回顾模板（字段格式与疫苗不同，各自独立的额度）
+    const data = body.template === 'review'
+      ? await this.notificationService.sendManualReview(body.userId, triggeredBy)
+      : await this.notificationService.sendManualVaccine(body.userId, body.babyId, triggeredBy);
     return { code: 0, message: 'success', data };
   }
 }

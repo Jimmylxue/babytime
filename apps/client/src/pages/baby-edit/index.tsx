@@ -6,9 +6,11 @@ import { babyApi, recordApi, uploadFile, trackEvent } from '../../utils/request'
 import { chooseAndUploadImage } from '../../utils/upload';
 import { API_BASE } from '../../config/env';
 import { markAutoRedirectedToOnboarding } from '../../utils/onboarding';
-import editIllustration from '../../assets/edit-illustration.webp';
-import avatarBoy from '../../assets/avatar-boy.webp';
-import avatarGirl from '../../assets/avatar-girl.webp';
+import { CDN_ASSETS } from '../../config/assets';
+const editIllustration = CDN_ASSETS.editIllustration;
+const avatarBoy = CDN_ASSETS.avatarBoy;
+const avatarGirl = CDN_ASSETS.avatarGirl;
+
 import cameraPinkIcon from '../../assets/icons/camera-pink.svg';
 import calendarPinkIcon from '../../assets/icons/calendar-pink.svg';
 import scaleGrayIcon from '../../assets/icons/scale-gray.svg';

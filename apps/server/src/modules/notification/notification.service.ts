@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { WechatSubscribeService } from './wechat-subscribe.service';
 import { VaccinePlanService } from './vaccine-plan.service';
 import { VaccineReminderService } from './vaccine-reminder.service';
-import { getVaccineTemplateId } from './notification.helpers';
+import { getVaccineTemplateId, getReviewTemplateId } from './notification.helpers';
 
 /**
  * 对外门面：控制器/admin 的注入点保持稳定（行为与原单文件实现一致），
@@ -28,8 +28,8 @@ export class NotificationService {
     return this.planService.saveGrants(userId, statuses);
   }
 
-  getUserVaccineStatus(userId: string) {
-    return this.planService.getUserVaccineStatus(userId);
+  getUserVaccineStatus(userId: string, kind: 'vaccine' | 'review' = 'vaccine') {
+    return this.planService.getUserVaccineStatus(userId, kind);
   }
 
   getVaccinePlans(userId: string, babyId: string) {
@@ -48,6 +48,11 @@ export class NotificationService {
     return this.reminderService.sendManualVaccine(userId, babyId, triggeredBy);
   }
 
+  /** 后台直推一条「每日回顾」，用于验证模板字段格式（真实消耗 1 次额度） */
+  sendManualReview(userId: string, triggeredBy: string) {
+    return this.reminderService.sendManualReview(userId, triggeredBy);
+  }
+
   sendDueVaccines() { return this.reminderService.sendDueVaccines(); }
 
   sendDailyReviews() { return this.reminderService.sendDailyReviews(); }
@@ -57,8 +62,12 @@ export class NotificationService {
   }
 
   // admin「订阅与唤回」看板：跨表聚合查询，留在门面避免多一处注入接线
-  async listSubscribedUsers(page = 1, pageSize = 20, keyword?: string) {
-    const templateId = getVaccineTemplateId();
+  /**
+   * 订阅授权用户列表。`kind` 决定看哪个模板 —— 两类模板的额度各自独立，
+   * 混在一起显示会让「可发送次数」失去意义，所以按模板分开查。
+   */
+  async listSubscribedUsers(page = 1, pageSize = 20, keyword?: string, kind: 'vaccine' | 'review' = 'vaccine') {
+    const templateId = kind === 'review' ? getReviewTemplateId() : getVaccineTemplateId();
     if (!templateId) return { list: [], total: 0, page: 1, pageSize };
     const safePage = Math.max(Math.floor(page) || 1, 1);
     const safePageSize = Math.min(Math.max(Math.floor(pageSize) || 20, 1), 100);

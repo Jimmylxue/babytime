@@ -1,9 +1,11 @@
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Fragment } from 'react'
-import babyIllustration from '../../../assets/baby-illustration.webp'
-import babyIllustrationGirl from '../../../assets/baby-illustration-girl.webp'
-import emptyBabyIllustration from '../../../assets/empty-baby.webp'
+import { CDN_ASSETS } from '../../../config/assets'
+const babyIllustration = CDN_ASSETS.babyIllustration
+const babyIllustrationGirl = CDN_ASSETS.babyIllustrationGirl
+const emptyBabyIllustration = CDN_ASSETS.emptyBabyIllustration
+
 import plusCircleIcon from '../../../assets/icons/plus-circle-white.svg'
 import editIcon from '../../../assets/icons/edit.svg'
 import trendingUpIcon from '../../../assets/icons/trending-up.svg'

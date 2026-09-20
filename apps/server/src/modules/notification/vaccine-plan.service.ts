@@ -53,8 +53,8 @@ export class VaccinePlanService {
     return { success: true };
   }
 
-  async getUserVaccineStatus(userId: string) {
-    const templateId = getVaccineTemplateId();
+  async getUserVaccineStatus(userId: string, kind: 'vaccine' | 'review' = 'vaccine') {
+    const templateId = kind === 'review' ? getReviewTemplateId() : getVaccineTemplateId();
     if (!templateId) return { configured: false, state: 'never', availableCount: 0, acceptedCount: 0, sentCount: 0 };
     const grant = await this.grants.findOne({ where: { userId, templateId } });
     const acceptedCount = Number(grant?.acceptedCount || 0);

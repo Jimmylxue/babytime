@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Avatar, Button, Card, Input, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
+import { Alert, Avatar, Button, Card, Input, Popconfirm, Segmented, Space, Table, Tag, Typography, message } from 'antd';
 import { BellOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { apiGet, apiPost } from '../api/client';
 import type { NotificationSubscription, NotificationSubscriptionResult } from '../types';
+
+/** 两类订阅模板的额度各自独立，必须分开看 */
+type SubscribeTemplate = 'vaccine' | 'review';
+
+const TEMPLATE_LABELS: Record<SubscribeTemplate, string> = {
+	vaccine: '疫苗提醒',
+	review: '每日回顾',
+};
 
 export default function Subscriptions() {
 	const [list, setList] = useState<NotificationSubscription[]>([]);
@@ -12,6 +20,7 @@ export default function Subscriptions() {
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(20);
 	const [keyword, setKeyword] = useState('');
+	const [template, setTemplate] = useState<SubscribeTemplate>('vaccine');
 	const [loading, setLoading] = useState(false);
 	const [sendingUserId, setSendingUserId] = useState<string>();
 
@@ -22,13 +31,14 @@ export default function Subscriptions() {
 				page,
 				pageSize,
 				keyword: keyword || undefined,
+				template,
 			});
 			setList(data.list);
 			setTotal(data.total);
 		} finally {
 			setLoading(false);
 		}
-	}, [page, pageSize, keyword]);
+	}, [page, pageSize, keyword, template]);
 
 	useEffect(() => {
 		load();
@@ -40,6 +50,7 @@ export default function Subscriptions() {
 			const result = await apiPost<{ success: boolean; deliveryId: string; availableCount: number }>('/notifications/test', {
 				userId: record.userId,
 				babyId: record.babyId || undefined,
+				template,
 			});
 			message.success(`测试通知已发送，剩余 ${result.availableCount} 次`);
 			await load();
@@ -85,17 +96,17 @@ export default function Subscriptions() {
 			render: (_, record) => (
 				<Popconfirm
 					title="确认直推一次？"
-					description={`将消耗 ${record.nickname || '该用户'} 的 1 次疫苗订阅额度，发送一条测试提醒。`}
+					description={`将消耗 ${record.nickname || '该用户'} 的 1 次${TEMPLATE_LABELS[template]}订阅额度，真实发送一条消息。`}
 					okText="确认发送"
 					cancelText="取消"
-					disabled={record.availableCount <= 0 || !record.babyId}
+					disabled={record.availableCount <= 0 || (template === 'vaccine' && !record.babyId)}
 					onConfirm={() => sendOnce(record)}
 				>
 					<Button
 						type="primary"
 						size="small"
 						icon={<SendOutlined />}
-						disabled={record.availableCount <= 0 || !record.babyId}
+						disabled={record.availableCount <= 0 || (template === 'vaccine' && !record.babyId)}
 						loading={sendingUserId === record.userId}
 					>
 						直推一次
@@ -107,9 +118,20 @@ export default function Subscriptions() {
 
 	return (
 		<Card
-			title={<Space><BellOutlined />已订阅用户</Space>}
+			title={<Space><BellOutlined />订阅授权用户</Space>}
 			extra={
 				<Space>
+					<Segmented
+						value={template}
+						options={[
+							{ label: TEMPLATE_LABELS.vaccine, value: 'vaccine' },
+							{ label: TEMPLATE_LABELS.review, value: 'review' },
+						]}
+						onChange={(value) => {
+							setPage(1);
+							setTemplate(value as SubscribeTemplate);
+						}}
+					/>
 					<Input.Search
 						allowClear
 						placeholder="搜索用户或宝宝"
@@ -124,7 +146,7 @@ export default function Subscriptions() {
 				style={{ marginBottom: 16 }}
 				type="warning"
 				showIcon
-				message="直推一次会真实发送微信订阅消息，并消耗用户 1 次订阅额度。仅建议用于测试或明确需要的单次提醒。"
+				message={`当前查看「${TEMPLATE_LABELS[template]}」的授权用户。直推一次会真实发送微信订阅消息，并消耗用户 1 次该模板的订阅额度。`}
 			/>
 			<Table
 				rowKey="userId"

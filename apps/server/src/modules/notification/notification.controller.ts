@@ -20,8 +20,9 @@ export class NotificationController {
 
   @UseGuards(JwtAuthGuard)
   @Get('status')
-  async getStatus(@Request() req) {
-    const data = await this.service.getUserVaccineStatus(req.user.id);
+  async getStatus(@Request() req, @Query('template') template?: string) {
+    const kind = template === 'review' ? 'review' : 'vaccine';
+    const data = await this.service.getUserVaccineStatus(req.user.id, kind);
     return { code: 0, message: 'success', data };
   }
 

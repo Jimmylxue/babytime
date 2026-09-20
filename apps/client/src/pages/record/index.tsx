@@ -9,7 +9,15 @@ import clockCoralIcon from '../../assets/icons/clock-coral.svg'
 import noteEditDarkIcon from '../../assets/icons/note-edit-dark.svg'
 import saveWhiteIcon from '../../assets/icons/save-white.svg'
 import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
-import diaperBabyIllu from '../../assets/diaper-baby.webp'
+import { CDN_ASSETS } from '../../config/assets'
+import SubscriptionPromptSheet from '../../components/SubscriptionPromptSheet'
+import {
+	getSubscriptionPromptPlan,
+	markPromptShown,
+	runCombinedSubscribe,
+	type SubscriptionPromptPlan,
+} from '../../utils/subscriptionPrompt'
+const diaperBabyIllu = CDN_ASSETS.diaperBaby
 import { buildRecordDate, buildTimeOnDate } from './components/timeUtils'
 import type { RecordFormComponent, RecordFormHandle } from './components/types'
 import FeedingForm, {
@@ -96,6 +104,9 @@ export default function RecordPage() {
 	const { addRecord, updateRecord } = useRecordStore()
 
 	const [loading, setLoading] = useState(false)
+	// 订阅预告卡（保存成功后按频控判定展示）
+	const [promptPlan, setPromptPlan] = useState<SubscriptionPromptPlan | null>(null)
+	const [promptBusy, setPromptBusy] = useState(false)
 	// 同步锁，避免 state 异步更新导致连点漏拦截
 	const submittingRef = useRef(false)
 	// 「按上次来」预填只做一次
@@ -207,6 +218,13 @@ export default function RecordPage() {
 
 				// 保存成功后直接返回（与编辑态一致）：再次进入时「按上次来」会预填上次值
 				Taro.showToast({ title: '已记录', icon: 'success' })
+				// 价值时刻：满足频控则暂缓返回，盖出订阅预告卡（7 天/30 天冷却在工具内部判定）
+				const plan = await getSubscriptionPromptPlan()
+				if (plan) {
+					markPromptShown()
+					setPromptPlan(plan)
+					return
+				}
 				setTimeout(() => Taro.navigateBack(), 1500)
 			}
 		} catch (error) {
@@ -214,6 +232,26 @@ export default function RecordPage() {
 			setLoading(false)
 			// 失败原因（如内容安全拦截）由 request 全局拦截器统一 toast，这里只复位状态
 		}
+	}
+
+	// 预告卡「开启提醒」：tap 回调里直接调微信授权（不能提前 await 网络，否则不弹框）
+	const enableSubscribePrompt = async () => {
+		if (!promptPlan) return
+		setPromptBusy(true)
+		const outcome = await runCombinedSubscribe(promptPlan)
+		setPromptBusy(false)
+		setPromptPlan(null)
+		if (outcome === 'accept') {
+			Taro.showToast({ title: '提醒已开启', icon: 'success' })
+			setTimeout(() => Taro.navigateBack(), 1200)
+		} else {
+			Taro.navigateBack()
+		}
+	}
+
+	const dismissSubscribePrompt = () => {
+		setPromptPlan(null)
+		Taro.navigateBack()
 	}
 
 	return (
@@ -375,6 +413,15 @@ export default function RecordPage() {
 							: '保存记录'}
 				</Text>
 			</View>
+
+			{promptPlan && (
+				<SubscriptionPromptSheet
+					showVaccine={promptPlan.showVaccine}
+					busy={promptBusy}
+					onEnable={enableSubscribePrompt}
+					onLater={dismissSubscribePrompt}
+				/>
+			)}
 		</View>
 	)
 }

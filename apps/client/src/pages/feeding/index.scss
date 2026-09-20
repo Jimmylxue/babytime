@@ -95,6 +95,8 @@
   background: #FFFFFF;
   border-radius: 24rpx;
   box-shadow: 0 12rpx 36rpx rgba(246, 178, 170, 0.10);
+  position: relative;
+  z-index: 2;
 }
 
 /* 日期 / 时间 */

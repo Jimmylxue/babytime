@@ -4,7 +4,15 @@ import { useState, useRef, useEffect } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
 import { recordApi, trackEvent } from '../../utils/request'
 import { formatDate, formatHM } from '../../utils/date'
-import heroIllustration from '../../assets/feeding-baby.webp'
+import { CDN_ASSETS } from '../../config/assets'
+import SubscriptionPromptSheet from '../../components/SubscriptionPromptSheet'
+import {
+	getSubscriptionPromptPlan,
+	markPromptShown,
+	runCombinedSubscribe,
+	type SubscriptionPromptPlan,
+} from '../../utils/subscriptionPrompt'
+const heroIllustration = CDN_ASSETS.feedingBaby
 import breastIcon from '../../assets/icons/feed-breast.svg'
 import formulaIcon from '../../assets/icons/feed-formula.svg'
 import mixedIcon from '../../assets/icons/feed-mixed.svg'
@@ -232,6 +240,9 @@ export default function FeedingPage() {
 	const submittingRef = useRef(false)
 	const prefillRef = useRef(false)
 	const [feedingMethod, setFeedingMethod] = useState('breast')
+	// 订阅预告卡（保存成功后按频控判定展示）
+	const [promptPlan, setPromptPlan] = useState<SubscriptionPromptPlan | null>(null)
+	const [promptBusy, setPromptBusy] = useState(false)
 	const [amount, setAmount] = useState(140)
 	const [breastAmount, setBreastAmount] = useState(140)
 	const [formulaAmount, setFormulaAmount] = useState(100)
@@ -368,6 +379,13 @@ export default function FeedingPage() {
 				const cumulative = (Taro.getStorageSync('stats:cumulativeRecords') || 0) + 1
 				Taro.setStorageSync('stats:cumulativeRecords', cumulative)
 				Taro.showToast({ title: '已记录', icon: 'success' })
+				// 价值时刻：满足频控则暂缓返回，盖出订阅预告卡（7 天/30 天冷却在工具内部判定）
+				const plan = await getSubscriptionPromptPlan()
+				if (plan) {
+					markPromptShown()
+					setPromptPlan(plan)
+					return
+				}
 			}
 			setTimeout(() => Taro.navigateBack(), 1500)
 		} catch (error) {
@@ -375,6 +393,26 @@ export default function FeedingPage() {
 			setLoading(false)
 			// 失败原因（如内容安全拦截）由 request 全局拦截器统一 toast，这里只复位状态
 		}
+	}
+
+	// 预告卡「开启提醒」：tap 回调里直接调微信授权（不能提前 await 网络，否则不弹框）
+	const enableSubscribePrompt = async () => {
+		if (!promptPlan) return
+		setPromptBusy(true)
+		const outcome = await runCombinedSubscribe(promptPlan)
+		setPromptBusy(false)
+		setPromptPlan(null)
+		if (outcome === 'accept') {
+			Taro.showToast({ title: '提醒已开启', icon: 'success' })
+			setTimeout(() => Taro.navigateBack(), 1200)
+		} else {
+			Taro.navigateBack()
+		}
+	}
+
+	const dismissSubscribePrompt = () => {
+		setPromptPlan(null)
+		Taro.navigateBack()
 	}
 
 	return (
@@ -527,6 +565,15 @@ export default function FeedingPage() {
 					<Text className='stats-label'>喂养统计</Text>
 				</View>
 			</View>
+
+			{promptPlan && (
+				<SubscriptionPromptSheet
+					showVaccine={promptPlan.showVaccine}
+					busy={promptBusy}
+					onEnable={enableSubscribePrompt}
+					onLater={dismissSubscribePrompt}
+				/>
+			)}
 		</View>
 	)
 }

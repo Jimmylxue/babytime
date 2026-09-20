@@ -288,13 +288,13 @@ export const notificationApi = {
 		vaccineEnabled: boolean
 		reviewEnabled: boolean
 	}>({ url: '/notification/config', needToken: false }),
-	getStatus: () => request<{
+	getStatus: (kind?: 'vaccine' | 'review') => request<{
 		configured: boolean
 		state: 'never' | 'active' | 'exhausted'
 		availableCount: number
 		acceptedCount: number
 		sentCount: number
-	}>({ url: '/notification/status' }),
+	}>({ url: `/notification/status${kind === 'review' ? '?template=review' : ''}` }),
 	getVaccinePlans: (babyId: string) =>
 		request<VaccinePlanItem[]>({ url: `/notification/vaccine-plans/${babyId}` }),
 	setVaccinePlan: (babyId: string, scheduleItemId: string, scheduledDate: string) =>
