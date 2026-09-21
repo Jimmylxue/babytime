@@ -104,6 +104,9 @@ mysql -u<用户> -p baby_time -e "SHOW CREATE TABLE baby_milestones\G"
 
 ### 3. 部署顺序
 
+⓪ 已完成（2026-09-21）：commit `6d4ee21` 已推送，`origin/main` = 6d4ee21（30 文件 / +2504），
+服务器可以开始 ①→③。
+
 ```bash
 git add -A && git commit -m "feat: 新增成长里程碑；fix: 首页更多弹层被区块动画困住"  # ⓪ 本地
 git push origin main                                                                # ⓪ 必须先推送
