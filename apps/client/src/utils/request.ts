@@ -216,6 +216,38 @@ export const recordApi = {
 		request<any>({ url: `/record/${id}`, method: 'DELETE' }),
 }
 
+// 成长里程碑 API
+export interface Milestone {
+	id: string
+	babyId: string
+	/** 预置项的清单 code；自定义项为 null */
+	code: string | null
+	title: string
+	category: string
+	isCustom: boolean
+	date: string
+	note: string | null
+	photoUrl: string | null
+	createdAt: string
+}
+
+export const milestoneApi = {
+	getByBaby: (babyId: string) =>
+		request<Milestone[]>({ url: `/milestone/baby/${babyId}` }),
+	create: (data: {
+		babyId: string
+		code?: string
+		title?: string
+		date?: string
+		note?: string
+		photoUrl?: string
+	}) => request<Milestone>({ url: '/milestone', method: 'POST', data }),
+	update: (id: string, data: { title?: string; date?: string; note?: string; photoUrl?: string }) =>
+		request<Milestone>({ url: `/milestone/${id}`, method: 'PUT', data }),
+	delete: (id: string) =>
+		request<any>({ url: `/milestone/${id}`, method: 'DELETE' }),
+}
+
 // 照片相关 API
 export interface PhotoTimelineGroup {
 	date: string

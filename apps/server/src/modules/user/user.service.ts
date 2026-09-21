@@ -84,7 +84,7 @@ export class UserService {
    * 避免客户端随意传字符串污染统计口径。
    */
   private normalizeAcquisitionSource(source?: string): string | null {
-    const allowed = new Set(['album', 'daily', 'chart', 'family']);
+    const allowed = new Set(['album', 'daily', 'chart', 'family', 'milestone']);
     const value = (source || '').trim().toLowerCase();
     return allowed.has(value) ? value : null;
   }

@@ -10,7 +10,7 @@ import Taro from '@tarojs/taro'
 
 const STORAGE_KEY = 'acquisition_source'
 /** 与服务端白名单保持一致（user.service / notification.service） */
-const ALLOWED = new Set(['album', 'daily', 'chart', 'family'])
+const ALLOWED = new Set(['album', 'daily', 'chart', 'family', 'milestone'])
 
 /** 在 app 启动钩子里调用；也兜底读一次同步启动参数 */
 export function captureLaunchScene(options?: { query?: Record<string, unknown> }) {

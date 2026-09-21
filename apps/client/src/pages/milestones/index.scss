@@ -1,0 +1,725 @@
+// 成长里程碑 —— 时间轴 + 未打卡清单 + 打卡弹层
+.milestone-page {
+  min-height: 100vh;
+  // 底部留出悬浮打卡按钮的位置，别盖住最后一条卡片
+  padding: 24px 26px 150px;
+  background: #FFFAF9;
+  box-sizing: border-box;
+}
+
+.ms-loading {
+  padding: 160px 0;
+  text-align: center;
+}
+
+.ms-loading-text {
+  font-size: 26px;
+  color: #A8A1A8;
+}
+
+// ── 未建档 ──
+.ms-empty-page {
+  padding: 150px 40px 0;
+  text-align: center;
+}
+
+.ms-empty-emoji {
+  display: block;
+  font-size: 92px;
+}
+
+.ms-empty-title {
+  display: block;
+  margin-top: 22px;
+  font-size: 34px;
+  font-weight: 800;
+  color: #3A3134;
+}
+
+.ms-empty-desc {
+  display: block;
+  margin-top: 10px;
+  font-size: 25px;
+  line-height: 1.6;
+  color: #A8A1A8;
+}
+
+.ms-empty-btn {
+  margin: 40px auto 0;
+  width: 340px;
+  padding: 22px 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FFB3C5 0%, #F98AA6 100%);
+}
+
+.ms-empty-btn-text {
+  font-size: 27px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+// ── 顶部 ──
+.ms-hero {
+  padding: 34px 30px 30px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #FFF3F5 0%, #FFE7EE 100%);
+}
+
+.ms-hero-title {
+  display: block;
+  font-size: 38px;
+  font-weight: 800;
+  color: #3A3134;
+}
+
+.ms-hero-sub {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+  color: #A08A92;
+}
+
+.ms-hero-btn {
+  margin-top: 24px;
+  width: 290px;
+  padding: 18px 0;
+  text-align: center;
+  border-radius: 999px;
+  background: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(213, 146, 160, 0.18);
+}
+
+.ms-hero-btn-text {
+  font-size: 25px;
+  font-weight: 700;
+  color: #E5546E;
+}
+
+// ── 分区 ──
+.ms-section {
+  margin-top: 40px;
+}
+
+.ms-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ms-section-title {
+  display: block;
+  margin-bottom: 18px;
+  font-size: 29px;
+  font-weight: 800;
+  color: #3A3134;
+}
+
+.ms-section-head .ms-section-title {
+  margin-bottom: 0;
+}
+
+.ms-section-count {
+  font-size: 22px;
+  color: #C2AFB6;
+}
+
+// ── 已打卡时间轴 ──
+.ms-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding-bottom: 22px;
+}
+
+.ms-row-dot {
+  position: relative;
+  flex: none;
+  width: 62px;
+  height: 62px;
+  margin-top: 22px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 3px 10px rgba(213, 146, 160, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // 竖向连接线，把「第一次」串成一条时间轴
+  &::after {
+    content: '';
+    position: absolute;
+    top: 62px;
+    left: 30px;
+    width: 2px;
+    height: 60px;
+    background: rgba(233, 190, 203, 0.5);
+  }
+}
+
+.ms-row:last-child .ms-row-dot::after {
+  display: none;
+}
+
+.ms-row-dot-emoji {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.ms-row-card {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 24px;
+  border-radius: 22px;
+  background: #FFFFFF;
+}
+
+.ms-row-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ms-row-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #2D2A2E;
+}
+
+.ms-row-tag {
+  flex: none;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: #FFF0F4;
+  font-size: 20px;
+  color: #D4708A;
+}
+
+.ms-row-meta {
+  display: block;
+  margin-top: 8px;
+  font-size: 22px;
+  color: #A8A1A8;
+}
+
+.ms-row-note {
+  display: block;
+  margin-top: 10px;
+  font-size: 24px;
+  line-height: 1.5;
+  color: #6B6568;
+}
+
+// 照片不裁切：widthFix 按原图比例出高
+.ms-row-photo {
+  display: block;
+  margin-top: 14px;
+  width: 100%;
+  border-radius: 16px;
+  background: #FFF6F8;
+}
+
+// 竖图收窄并居中，否则一张 3:4 的照片会把卡片拉到一屏半高
+.ms-row-photo--portrait {
+  width: 62%;
+  margin: 14px auto 0;
+}
+
+// ── 未打卡建议 ──
+.ms-suggest {
+  border-radius: 22px;
+  background: #FFFFFF;
+  overflow: hidden;
+}
+
+.ms-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 24px;
+  border-bottom: 1px solid #FBF1F3;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.ms-suggest-emoji {
+  flex: none;
+  width: 56px;
+  text-align: center;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.ms-suggest-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.ms-suggest-title {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  color: #3A3134;
+}
+
+.ms-suggest-ref {
+  display: block;
+  margin-top: 6px;
+  font-size: 21px;
+  line-height: 1.5;
+  color: #A8A1A8;
+}
+
+.ms-suggest-btn {
+  flex: none;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: #FFEFF3;
+  font-size: 23px;
+  font-weight: 700;
+  color: #E5546E;
+}
+
+.ms-all-done {
+  padding: 34px 26px;
+  border-radius: 22px;
+  background: #FFFFFF;
+}
+
+.ms-all-done-text {
+  font-size: 24px;
+  line-height: 1.6;
+  color: #8E8890;
+}
+
+.ms-expand {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.ms-expand-text {
+  font-size: 23px;
+  color: #D4708A;
+}
+
+// ── 免责声明 ──
+.ms-disclaimer {
+  margin-top: 34px;
+  padding: 22px 26px;
+  border-radius: 16px;
+  background: #F7F5F4;
+}
+
+.ms-disclaimer-text {
+  font-size: 21px;
+  line-height: 1.7;
+  color: #98928F;
+}
+
+// ── 打卡弹层 ──
+.ms-sheet-mask {
+  position: fixed;
+  z-index: 99;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(43, 30, 34, 0.42);
+  display: flex;
+  align-items: flex-end;
+}
+
+.ms-sheet {
+  width: 100%;
+  padding: 30px 30px calc(38px + env(safe-area-inset-bottom));
+  border-radius: 28px 28px 0 0;
+  background: #FFFFFF;
+  box-sizing: border-box;
+}
+
+.ms-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ms-sheet-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #3A3134;
+}
+
+.ms-sheet-close {
+  padding: 0 10px;
+  font-size: 40px;
+  line-height: 1;
+  color: #C7BFC4;
+}
+
+.ms-sheet-hint {
+  display: block;
+  margin-top: 12px;
+  font-size: 23px;
+  line-height: 1.6;
+  color: #A08A92;
+}
+
+.ms-field {
+  margin-top: 26px;
+}
+
+.ms-field-label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 23px;
+  color: #8E8890;
+}
+
+.ms-input {
+  height: 78px;
+  padding: 0 22px;
+  border-radius: 16px;
+  background: #FBF6F7;
+  font-size: 26px;
+  color: #3A3134;
+}
+
+.ms-textarea {
+  width: 100%;
+  height: 130px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: #FBF6F7;
+  font-size: 25px;
+  line-height: 1.6;
+  color: #3A3134;
+  box-sizing: border-box;
+}
+
+.ms-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 78px;
+  padding: 0 22px;
+  border-radius: 16px;
+  background: #FBF6F7;
+}
+
+.ms-picker-text {
+  font-size: 26px;
+  color: #3A3134;
+}
+
+.ms-picker-arrow {
+  font-size: 30px;
+  color: #C7BFC4;
+}
+
+.ms-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.ms-photo-add {
+  width: 160px;
+  height: 160px;
+  border-radius: 18px;
+  border: 2px dashed #F0CBD6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-photo-add-text {
+  font-size: 23px;
+  color: #D4708A;
+}
+
+.ms-photo-preview {
+  width: 160px;
+  border-radius: 18px;
+  background: #FFF6F8;
+}
+
+.ms-photo-remove {
+  font-size: 23px;
+  color: #A8A1A8;
+}
+
+.ms-sheet-submit {
+  margin-top: 36px;
+  padding: 24px 0;
+  text-align: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FFB3C5 0%, #F98AA6 100%);
+
+  &.is-disabled {
+    opacity: 0.6;
+  }
+}
+
+.ms-sheet-submit-text {
+  font-size: 28px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+// ── 海报入口的一次性引导 ──
+.ms-guide {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: #FFF3F6;
+  border: 1px solid #FBDDE5;
+}
+
+.ms-guide-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 22px;
+  line-height: 1.5;
+  color: #B4657D;
+}
+
+.ms-guide-btn {
+  flex: none;
+  padding: 6px 20px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  font-size: 22px;
+  color: #D4708A;
+}
+
+// 长图会被裁的事先说清楚（只在真的超上限时出现）
+.ms-photo-warn {
+  display: block;
+  margin-top: 12px;
+  font-size: 21px;
+  line-height: 1.5;
+  color: #C08C99;
+}
+
+// ── 打卡清单选择器（FAB 拉起）──
+.ms-pick-mask {
+  position: fixed;
+  z-index: 100;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(43, 30, 34, 0.42);
+  display: flex;
+  align-items: flex-end;
+}
+
+.ms-pick-sheet {
+  width: 100%;
+  padding: 30px 30px calc(24px + env(safe-area-inset-bottom));
+  border-radius: 28px 28px 0 0;
+  background: #FFFFFF;
+  box-sizing: border-box;
+}
+
+.ms-pick-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ms-pick-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #3A3134;
+}
+
+.ms-pick-close {
+  padding: 0 10px;
+  font-size: 40px;
+  line-height: 1;
+  color: #C7BFC4;
+}
+
+.ms-pick-search {
+  margin-top: 20px;
+  height: 72px;
+  padding: 0 22px;
+  border-radius: 16px;
+  background: #FBF6F7;
+  font-size: 25px;
+  color: #3A3134;
+}
+
+// ScrollView 必须有确定高度才滚得动，用 vh 而不是 flex:1
+.ms-pick-list {
+  margin-top: 8px;
+  height: 52vh;
+}
+
+.ms-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 4px;
+  border-bottom: 1px solid #FBF1F3;
+
+  &.is-done {
+    opacity: 0.45;
+  }
+}
+
+.ms-pick-emoji {
+  flex: none;
+  width: 48px;
+  text-align: center;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.ms-pick-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.ms-pick-name {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  color: #3A3134;
+}
+
+.ms-pick-ref {
+  display: block;
+  margin-top: 4px;
+  font-size: 21px;
+  color: #A8A1A8;
+}
+
+.ms-pick-state {
+  flex: none;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #FFEFF3;
+  font-size: 22px;
+  color: #E5546E;
+}
+
+.ms-pick-empty {
+  display: block;
+  padding: 40px 0 10px;
+  text-align: center;
+  font-size: 23px;
+  color: #A8A1A8;
+}
+
+.ms-pick-custom {
+  margin: 22px 0 6px;
+  padding: 20px 0;
+  text-align: center;
+  border-radius: 999px;
+  background: #FFF3F6;
+  border: 1px dashed #F0CBD6;
+}
+
+.ms-pick-custom-text {
+  font-size: 25px;
+  font-weight: 700;
+  color: #E5546E;
+}
+
+// ── 悬浮打卡按钮 ──
+.ms-fab {
+  position: fixed;
+  z-index: 9;
+  right: 30px;
+  bottom: calc(44px + env(safe-area-inset-bottom));
+  padding: 22px 34px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FFB3C5 0%, #F98AA6 100%);
+  box-shadow: 0 8px 20px rgba(233, 120, 145, 0.35);
+}
+
+.ms-fab-text {
+  font-size: 27px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+// ── 打卡成功后的海报引导 ──
+.ms-done-mask {
+  position: fixed;
+  z-index: 120;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(43, 30, 34, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-done-card {
+  width: 520px;
+  padding: 40px 34px 30px;
+  border-radius: 28px;
+  background: #FFFFFF;
+  text-align: center;
+}
+
+.ms-done-emoji {
+  display: block;
+  font-size: 68px;
+  line-height: 1;
+}
+
+.ms-done-title {
+  display: block;
+  margin-top: 16px;
+  font-size: 32px;
+  font-weight: 800;
+  color: #3A3134;
+}
+
+.ms-done-sub {
+  display: block;
+  margin-top: 10px;
+  font-size: 23px;
+  line-height: 1.6;
+  color: #A08A92;
+}
+
+.ms-done-primary {
+  margin-top: 30px;
+  padding: 20px 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FFB3C5 0%, #F98AA6 100%);
+}
+
+.ms-done-primary-text {
+  font-size: 26px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.ms-done-ghost {
+  display: block;
+  margin-top: 20px;
+  font-size: 23px;
+  color: #A8A1A8;
+}
+
+// 海报离屏画布：移出屏幕，绘制与 CSS 布局完全解耦
+.poster-canvas-wrap {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+}

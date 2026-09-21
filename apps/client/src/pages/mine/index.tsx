@@ -23,6 +23,7 @@ import familyIcon from '../../assets/icons/family.svg'
 import bellIcon from '../../assets/icons/bell.svg'
 import parentIcon from '../../assets/icons/parent.svg'
 import albumPinkIcon from '../../assets/icons/album-pink.svg'
+import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
 import minePig from '../../assets/mine-pig.jpg'
 import { fetchPosterQrCode } from '../../utils/posterQr'
 import TabBar from '../../components/TabBar'
@@ -325,6 +326,21 @@ export default function MinePage() {
 						<Text className="mi-sub">
 							{albumBusy ? '正在生成…' : '把这一个月记成一张长图'}
 						</Text>
+					</View>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</View>
+				<View
+					className="mine-item"
+					onClick={() => Taro.navigateTo({ url: '/pages/milestones/index' })}
+				>
+					<View className="mi-icon mi-icon-4">
+						<Image className="mi-icon-img" src={sparkleGoldIcon} />
+					</View>
+					<View className="mi-copy">
+						<Text className="mi-title">成长里程碑</Text>
+						<Text className="mi-sub">第一次翻身、第一声妈妈，都留个底</Text>
 					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>

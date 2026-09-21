@@ -137,3 +137,26 @@ export const fitText = (
   }
   return { text: current, font: `${weight}${size}px${family}` }
 }
+
+/** 按标点把长文案折成多行（Canvas 不会自动换行） */
+export const wrapText = (
+  ctx: any,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] => {
+  const lines: string[] = []
+  let cur = ''
+  for (const ch of text) {
+    const next = cur + ch
+    if (ctx.measureText(next).width > maxWidth && cur) {
+      lines.push(cur)
+      cur = ch
+      if (lines.length === maxLines) break
+    } else {
+      cur = next
+    }
+  }
+  if (lines.length < maxLines && cur) lines.push(cur)
+  return lines
+}

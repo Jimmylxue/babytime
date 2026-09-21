@@ -14,7 +14,7 @@ import { WechatTokenService } from '../../common/wechat/wechat-token.service';
 @Injectable()
 export class WechatSubscribeService {
   /** 允许生成二维码的场景值；必须与 user.service 的来源白名单一一对应 */
-  private static readonly POSTER_QR_SCENES = new Set(['album', 'daily', 'chart', 'family']);
+  private static readonly POSTER_QR_SCENES = new Set(['album', 'daily', 'chart', 'family', 'milestone']);
   /** 码永久有效，同一「场景+版本」进程内只生成一次，省微信接口配额 */
   private posterQrCache = new Map<string, string>();
 

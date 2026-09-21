@@ -45,6 +45,13 @@ const tools: ToolItem[] = [
 		tint: 'cream',
 		path: '/pages/tool/milk-calc/index',
 	},
+	{
+		key: 'milestone',
+		icon: '🌟',
+		title: '成长里程碑',
+		tint: 'lilac',
+		path: '/pages/milestones/index',
+	},
 ]
 
 export default function ToolsPage() {

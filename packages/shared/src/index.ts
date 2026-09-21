@@ -1,4 +1,5 @@
 export * from './vaccineSchedule'
+export * from './milestoneCatalog'
 
 // 记录类型枚举
 export enum RecordType {

@@ -11,6 +11,11 @@ import {
   DAILY_POSTER_CANVAS_ID,
 } from './dailyPoster'
 import { renderAlbumPoster, ALBUM_CANVAS_ID } from './albumPoster'
+import {
+  renderMilestonePoster,
+  MilestonePosterOptions,
+  MILESTONE_CANVAS_ID,
+} from './milestonePoster'
 import type { AlbumData } from './albumData'
 
 export type { ChartPosterOptions }
@@ -151,5 +156,18 @@ export function deliverAlbumPoster(
     ALBUM_CANVAS_ID,
     action,
     '生成纪念册中',
+  )
+}
+
+/** 生成里程碑纪念海报，并执行保存或分享 */
+export function deliverMilestonePoster(
+  opts: MilestonePosterOptions,
+  action: 'save' | 'share',
+) {
+  return deliverPoster(
+    () => renderMilestonePoster(opts),
+    MILESTONE_CANVAS_ID,
+    action,
+    '生成纪念海报中',
   )
 }

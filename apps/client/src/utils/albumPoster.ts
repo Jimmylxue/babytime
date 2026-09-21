@@ -18,6 +18,7 @@ import {
   drawHeart,
   pathSmoothLine,
   fitText,
+  wrapText,
 } from './canvasDraw'
 import { loadCanvasImage, queryPosterNode, POSTER_RENDER_SCALE } from './posterHelpers'
 import type { AlbumData, AlbumPhoto } from './albumData'
@@ -107,28 +108,7 @@ async function loadAlbumPhoto(node: any, p: AlbumPhoto): Promise<any> {
   return null
 }
 
-/** 按标点把长文案折成多行（Canvas 不会自动换行） */
-function wrapText(
-  ctx: any,
-  text: string,
-  maxWidth: number,
-  maxLines: number,
-): string[] {
-  const lines: string[] = []
-  let cur = ''
-  for (const ch of text) {
-    const next = cur + ch
-    if (ctx.measureText(next).width > maxWidth && cur) {
-      lines.push(cur)
-      cur = ch
-      if (lines.length === maxLines) break
-    } else {
-      cur = next
-    }
-  }
-  if (lines.length < maxLines && cur) lines.push(cur)
-  return lines
-}
+/** 按标点把长文案折成多行 —— 见 canvasDraw.wrapText */
 
 function drawCard(
   ctx: any,

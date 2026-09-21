@@ -14,6 +14,7 @@ export default defineAppConfig({
 		'pages/feeding/index',
 		'pages/sleep/index',
 		'pages/vaccine-timeline/index',
+		'pages/milestones/index',
 		'pages/record-detail/index',
 		'pages/photo/index',
 		'pages/baby-edit/index',

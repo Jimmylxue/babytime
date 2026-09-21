@@ -1,9 +1,28 @@
 /**
- * 计算宝宝的月龄和天数
+ * 把 'YYYY-MM-DD' 或 Date 解析成本地时区的 Date。
+ * 字符串必须手工按位构造：`new Date('2026-09-21')` 按 UTC 零点解释，
+ * 东八区之外会整体错一天（里程碑的月龄就会差一个月）。
  */
-export function calculateAge(birthday: string): { months: number; days: number } {
-  const birthDate = new Date(birthday);
-  const today = new Date();
+function toLocalDate(value: string | Date): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * 计算宝宝在某一天的月龄和天数（里程碑按打卡当天算，不是按今天）
+ */
+export function calculateAgeAt(
+  birthday: string,
+  onDate: string | Date,
+): { months: number; days: number } {
+  const birthDate = toLocalDate(birthday);
+  const today = toLocalDate(onDate);
+  if (!birthDate || !today) return { months: 0, days: 0 };
 
   // 未来日期直接返回 0
   if (birthDate > today) {
@@ -27,6 +46,13 @@ export function calculateAge(birthday: string): { months: number; days: number }
     months: Math.max(0, months),
     days: Math.max(0, days),
   };
+}
+
+/**
+ * 计算宝宝的月龄和天数
+ */
+export function calculateAge(birthday: string): { months: number; days: number } {
+  return calculateAgeAt(birthday, new Date());
 }
 
 /**

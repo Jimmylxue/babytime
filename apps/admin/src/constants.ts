@@ -26,6 +26,7 @@ export const ACQUISITION_SOURCE_LABELS: Record<string, string> = {
 	daily: '日报',
 	chart: '图表',
 	family: '家庭邀请',
+	milestone: '里程碑',
 };
 
 /** 来源的中文名；null / 未知值一律显示为自然流入 */

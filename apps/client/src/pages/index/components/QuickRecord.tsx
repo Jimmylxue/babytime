@@ -38,47 +38,51 @@ export default function QuickRecord({
 }: QuickRecordProps) {
 	const [showMore, setShowMore] = useState(false)
 
+	// 弹层要与 .quick-section 平级：该区块的 fadeUp 动画结束仍保留 translateY(0) 的
+	// transform，会让它成为 fixed 后代的包含块，弹层被压在卡片盒子内（跑到页面中部且下方无蒙层）
 	return (
-		<View className="quick-section">
-			<View className="section-head">
-				<View className="section-accent" />
-				<Text className="section-label">快速记录</Text>
-			</View>
-			{/* 喂养/睡眠状态提示：标题下方、宫格卡片外 */}
-			{isLoggedIn && hasBaby && (feedingElapsed || sleepElapsed) && (
-				<View className="return-cue-row return-cue-row-outer">
-					{feedingElapsed && (
-						<Text className="return-cue">距上次喂奶 {feedingElapsed}</Text>
-					)}
-					{sleepElapsed && <Text className="return-cue">{sleepElapsed}</Text>}
+		<>
+			<View className="quick-section">
+				<View className="section-head">
+					<View className="section-accent" />
+					<Text className="section-label">快速记录</Text>
 				</View>
-			)}
-			<View className="quick-card">
-				<View className="action-grid">
-					{quickActions.map(action => (
-						<View
-							key={action.type}
-							className="action-item"
-							onClick={() =>
-								onNavigate(
-									action.type,
-									'metric' in action
-										? (action as { metric?: string }).metric
-										: undefined,
-								)
-							}
-						>
-							<View className={`action-icon ${action.type}`}>
-								<Text>{action.icon}</Text>
+				{/* 喂养/睡眠状态提示：标题下方、宫格卡片外 */}
+				{isLoggedIn && hasBaby && (feedingElapsed || sleepElapsed) && (
+					<View className="return-cue-row return-cue-row-outer">
+						{feedingElapsed && (
+							<Text className="return-cue">距上次喂奶 {feedingElapsed}</Text>
+						)}
+						{sleepElapsed && <Text className="return-cue">{sleepElapsed}</Text>}
+					</View>
+				)}
+				<View className="quick-card">
+					<View className="action-grid">
+						{quickActions.map(action => (
+							<View
+								key={action.type}
+								className="action-item"
+								onClick={() =>
+									onNavigate(
+										action.type,
+										'metric' in action
+											? (action as { metric?: string }).metric
+											: undefined,
+									)
+								}
+							>
+								<View className={`action-icon ${action.type}`}>
+									<Text>{action.icon}</Text>
+								</View>
+								<Text className="action-text">{action.label}</Text>
 							</View>
-							<Text className="action-text">{action.label}</Text>
+						))}
+						<View className="action-item" onClick={() => setShowMore(true)}>
+							<View className="action-icon more">
+								<Text>···</Text>
+							</View>
+							<Text className="action-text">更多</Text>
 						</View>
-					))}
-					<View className="action-item" onClick={() => setShowMore(true)}>
-						<View className="action-icon more">
-							<Text>···</Text>
-						</View>
-						<Text className="action-text">更多</Text>
 					</View>
 				</View>
 			</View>
@@ -113,6 +117,6 @@ export default function QuickRecord({
 					</View>
 				</View>
 			)}
-		</View>
+		</>
 	)
 }
