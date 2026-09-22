@@ -1,11 +1,11 @@
 # 运维手册：部署安全与数据保护
 
-> 更新日期：2026-09-05。背景：线上已有真实用户，数据安全优先级最高。
-> 本文是日常运维的速查手册；表结构变更的详细流程见 [db-backup-and-migration.md](db-backup-and-migration.md)。
+> 更新日期：2026-09-22。背景：线上已有真实用户，数据安全优先级最高。
+> 本文是日常运维的速查手册；表结构变更的详细流程见 [db-backup-and-migration.md](db-backup-and-migration.md)，证书与域名见第七节。
 
 ---
 
-## 一、现状总览（2026-09-05 基建完成）
+## 一、现状总览（2026-09-05 基建完成，2026-09-22 补充 HTTPS）
 
 | 风险点 | 之前的状态 | 现在的防线 |
 |---|---|---|
@@ -13,6 +13,8 @@
 | 数据库零备份 | 无任何备份机制 | 每日备份 + 部署前快照，各保留 30 份 |
 | 部署无检查点 | 直接拉代码重启 | 部署前自动打数据库快照，失败可拦截 |
 | 小程序发布即全量 | 提审过直接全量发布 | 微信「分阶段发布」+ 一键版本回退 |
+| HTTPS 证书 6 张三个月手工换，10 月内 5 张集中到期 | 腾讯云免费证书手工申请 + 复制私钥粘贴 | 全部自动续签（acme.sh 泛域名 + 又拍云 LE），详见第七节 |
+| 域名到期没人盯 | 无提醒机制 | 已续到 2027-10-17；自动续费开关状态待确认 |
 
 ## 二、脚本清单与执行规范
 
@@ -122,8 +124,83 @@ bash server.sh
 | 每周日（手动） | Mac 拉异地副本（scp 命令见上） |
 | 每月 | 恢复演练一次（临时库抽查）；`du -sh backups/` 看磁盘占用 |
 | 每个版本 | 管理端看疫苗漏斗 + 相册指标卡，确认埋点在涨 |
+| 每季度（全自动） | HTTPS 证书续签不需要动手，但要确认续签真的发生了，见第七节 |
 
-## 七、已知残留事项
+## 七、证书与域名（HTTPS）
+
+> 2026-09-22 起 6 个 HTTPS 端点全部自动续签，日常不需要人工换证。
+> 本节是**重装机器、排查访问故障时**的依据。自动化的对立面是静默失败，所以"不用动手"不等于"不用看"。
+
+### 台账
+
+| 域名 | 用途 | TLS 终止于 | 证书来源 | 当前到期 |
+|---|---|---|---|---|
+| `baby-cheese.jimmyxuexue.top` | 小程序 API + 管理后台 | 服务器 nginx | acme.sh 泛域名（Let's Encrypt） | 2026-12-20，下次自动续签 2026-11-19 |
+| `babybt` / `bt2` / `movie` / `qbdownload` | 同机其他站点 | 服务器 nginx | 同上，共用同一张泛域名证书 | 同上 |
+| `babyimg.jimmyxuexue.top` | 照片 + 装饰图 | 又拍云 | 又拍云 Let's Encrypt DV，自动续签 | 2026-12-20 |
+| `image.jimmyxuexue.top` | 历史图片域名 | 又拍云 | 又拍云 Let's Encrypt DV，自动续签 | 2026-10-27 |
+| `jimmyxuexue.top` | 主域，注册在腾讯云，DNS 在 DNSPod | — | — | **注册到期 2027-10-17** |
+
+⚠️ **判断 TLS 终止在哪一侧，要看响应头，别只看 CNAME。** `babyimg` 的 CNAME 指向 `baby-time.b0.aicdn.com`（看着像腾讯云 CDN），但实际响应头是 `server: marco/3.2` + `x-upyun-*` + `x-source: U/200`，服务方是**又拍云**——又拍云的融合 CDN 会把流量调度到第三方节点。腾讯云 CDN 控制台里域名数为 0 是正常的，不要在那里添加域名。
+
+```bash
+curl -sSI https://babyimg.jimmyxuexue.top/baby-time/assets/app-logo.png | grep -iE "^server|^x-upyun|^x-source"
+```
+
+### 服务器侧 acme.sh
+
+一张 `jimmyxuexue.top` + `*.jimmyxuexue.top` 泛域名证书覆盖全部 5 个 nginx 站点：
+
+- 安装位置 `/opt/acme.sh`，CA 固定 `letsencrypt`，RSA 2048（不用 ECDSA，CDN 与老设备兼容性最稳）
+- 签发用 `--dns dns_tencent`（DNSPod 新版 API），凭据是 `/opt/acme.sh/account.conf`（600 权限）里的 `Tencent_SecretId` / `Tencent_SecretKey`，对应一个只有 `QcloudDNSPodFullAccess` 的 CAM 子账号——**不要用主账号密钥**
+- 部署链路：`--install-cert` 写 `/etc/nginx/wildcard/{privkey.pem,fullchain.pem}` → `--reloadcmd` 调 `/usr/local/bin/deploy-wildcard-cert.sh` → 复制到 5 个站点的 `/www/server/nginx/cert/<sub>/<sub>.jimmyxuexue.top_bundle.crt` 与 `.key` → `nginx -t && nginx -s reload`
+- **nginx 配置一行都没改**，证书路径沿用宝塔原来的路径，所以宝塔里看到的站点配置依然是对的
+- 续签由 root crontab 驱动（`*/8 * * * *`），剩余不足 30 天时自动续
+
+三条铁律：
+
+1. **不要用 `sudo` 跑 acme.sh。** 它检测到 `SUDO_USER` 会直接退出（`It seems that you are using sudo…`），而 `--install` 不检查这一条，所以会出现"安装成功、后续命令全部静默不执行"的假象。正确姿势：`sudo -i` 进真正的 root shell。
+2. **宝塔面板的「网站 → SSL → Let's Encrypt」不要点。** 它写的是同一批路径，会和 acme.sh 抢文件，表现为证书时好时坏。
+3. **同一个域名只保留一份 `--install-cert` 配置**（后一次会覆盖前一次）。5 个站点的分发逻辑全在部署脚本的 `for sub in ...` 列表里，新增站点改那里，不要重复注册 install-cert。
+
+常用命令：
+
+```bash
+sudo -i
+/opt/acme.sh/acme.sh --list --home /opt/acme.sh                                # 证书清单与下次续签时间
+/opt/acme.sh/acme.sh --renew -d jimmyxuexue.top --home /opt/acme.sh --force     # 手动强制续签（会立刻重新部署 5 个站点）
+tail -50 /opt/acme.sh/acme.sh.log                                              # 续签日志
+```
+
+新增一个 https 子域时：在宝塔正常建站（它会生成引用 `cert/<新站>/..._bundle.crt` 的 vhost），然后把子域名加进 `/usr/local/bin/deploy-wildcard-cert.sh` 的 `for sub in ...`，跑一次脚本即可——泛域名本来就覆盖它，**不需要重新签发**。
+
+### 验证（每次动完证书必做）
+
+```bash
+for d in baby-cheese babybt bt2 movie qbdownload; do h="$d.jimmyxuexue.top"
+  echo | openssl s_client -servername $h -connect $h:443 2>/dev/null | openssl x509 -noout -issuer -enddate
+  echo | openssl s_client -servername $h -connect $h:443 -showcerts 2>/dev/null | grep -c "^ [0-9] s:"   # 必须是 3
+done
+```
+
+**证书链必须 3 张（fullchain，含中间证书）。** 链不完整时 Chrome 和 iOS 往往照常绿锁，**安卓微信直接报 SSL 错误**——这是换证书最典型的翻车方式。所以除了上面的探活，还要拿安卓真机在微信里把小程序过一遍（2026-09-22 已验证通过）。
+
+### 回退
+
+换证前的完整备份在 `/www/server/nginx/cert.bak-2026-09-21`：
+
+```bash
+sudo cp -a /www/server/nginx/cert.bak-2026-09-21/. /www/server/nginx/cert/ && sudo nginx -t && sudo nginx -s reload
+```
+
+### 本节待办
+
+- [ ] 确认腾讯云域名「自动续费」开关是否真的打开（当前到期 2027-10-17，靠手动续的一年）
+- [ ] 巡检告警：每天探这 6 个端点的**线上真实**剩余天数 + 域名到期日，异常推微信。其中又拍云侧的两张证书在服务器上完全看不到，是唯一没有任何可观测性的自动点
+- [ ] 把 5 个 vhost 配置（`/www/server/panel/vhost/nginx/*.conf`）拉一份进本仓库 `deploy/nginx/`，目前只存在于服务器
+- [ ] 又拍云证书管理里 4 张已失效证书可清理（`1d7d1e…` 11-10 到期那张已解绑，加三条 2025~2026-08 已过期的）
+
+## 八、已知残留事项
 
 - 异地副本目前靠手动 scp，未自动化
 - 服务端启动失败自动回滚上一版本（health check）暂未做，手动 `git checkout` 兜底

@@ -174,3 +174,50 @@ bash mini.sh <版本号> "新增成长里程碑"              # ③ 小程序
 - 里程碑选图仍走 `sizeType: ['compressed']`（微信压缩图）：比例已经不再裁，但画质有上限。
   要出更清晰的纪念海报需允许原图上传，代价是存储与流量 —— 与相册那条是同一个决定，待拍板
 - 主包体积：新页面产物 108 KB，与疫苗时间轴（100 KB）同量级，远小于统计页（344 KB）
+
+### 6. 追加（2026-09-21）：413 来源诊断日志 · 纯服务端
+
+生产 pm2 error 日志反复出现 `PayloadTooLargeError: request entity too large`（23:36:34 / 23:36:37 两条）。
+成因：`apps/server/src/main.ts` 从未配置 body-parser，走 Express 默认的 **JSON 请求体 100KB 上限**，
+超了就在进 controller 之前被拒成 HTTP 413，日志里只有一串 stack、没有路径，分不清是谁发的。
+本轮排查过客户端全部 JSON POST（record / milestone / photo / stool-analysis / subscriptions / user events / 后台公告），
+体积都在几 KB 内，照片走的是 multipart（不受该上限约束），所以最可能是外部流量。
+处置决定：**不放开 100KB**，先加一行日志看清楚来源再定。
+
+改动只有 `apps/server/src/main.ts` 一个中间件（挂在 `enableCors` 之后；Nest 要到 `listen()` 才注册
+body-parser，所以这个位置排在它前面）。无新增 SQL、无新增环境变量、不动小程序。
+
+```bash
+# ① 本地先提交推送（server.sh 靠 git pull 取代码，不推送会静默部署成旧版本）
+git add apps/server/src/main.ts
+git commit -m "chore: 记录被 body-parser 拒掉的超大 JSON 请求"
+git push origin main
+
+# ② 服务器部署（里程碑那一步若还没做，必须先做 ①建表 再跑这条）
+bash server.sh
+pm2 logs baby-time-server --lines 50    # 应看到 🚀 服务运行在，且无 JWT / 启动报错
+
+# ③ 观察：诊断行与 PayloadTooLargeError 在同一个 error 日志文件里
+grep '\[413\]' /home/ubuntu/.pm2/logs/baby-time-server-error.log | tail -20
+```
+
+本地验证方式（`node /tmp/verify-413-log.js`，需 `NODE_PATH` 指到 `apps/server/node_modules`）：
+200KB JSON 分别用 content-length 与分块传输（无 content-length）各发一次 → 两条 `[413]` 日志都出，
+小请求正常放行不受影响。
+
+**怎么读这行日志**：`ua` 是 `Mozilla/5.0 ... miniProgram/wx...` 且 `x-forwarded-for` 是真实用户 IP
+→ 说明有用户被误伤，要回去看是哪个功能发出了大 body；`ua` 为空 / `curl` / `python-requests`
+→ 外部扫描，维持 100KB 不动。
+
+两个前提说明（**待确认**）：
+
+- 前面有宝塔的 nginx，`client_max_body_size` 默认 1m —— 超过 1MB 的 JSON 会在 nginx 就被拒掉，
+  根本到不了 Node，所以 pm2 里这行日志只覆盖 100KB～1MB 这一段。要看得更全，交叉查一下访问日志：
+  ```bash
+  grep ' 413 ' /www/wwwlogs/*.log | tail -20     # 文件名按实际站点调整
+  ```
+- 服务未开 `trust proxy`，日志里的 `ip` 会是 nginx 的内网地址，真实来源看 `x-forwarded-for`（故意的，
+  开了 trust proxy 会同时允许客户端伪造该头，为一行诊断日志不值得）
+
+看清来源后这一行日志要么删掉、要么留着当常态告警源 —— 到那时再定，本轮不预设。
+
