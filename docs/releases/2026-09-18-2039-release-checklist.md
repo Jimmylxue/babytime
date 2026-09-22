@@ -221,3 +221,46 @@ grep '\[413\]' /home/ubuntu/.pm2/logs/baby-time-server-error.log | tail -20
 
 看清来源后这一行日志要么删掉、要么留着当常态告警源 —— 到那时再定，本轮不预设。
 
+### 7. 追加（2026-09-22）：后台「运维看板」· 服务端 + admin
+
+背景：本轮把 6 个 HTTPS 端点全部改成自动续签（详见 `docs/ops-runbook.md` 第七节）。自动化的对立面是静默失败，
+所以加一个后台页面，**由服务端当场与线上握手**读真实证书的剩余天数与可信状态，同时覆盖 acme.sh 与又拍云两套机制。
+
+改动文件：`apps/server/src/modules/admin/ops-health.service.ts`（新增）、`admin.controller.ts`、`admin.module.ts`；
+`apps/admin/src/pages/Ops.tsx`（新增）+ 路由 / 菜单 / types；`.env.example`。
+**无 SQL、无新增依赖、不动小程序。**
+
+#### 环境变量（新增，非阻塞）
+
+```bash
+# 生产 .env 补一行。不配也能跑，只是页面顶部显示「未配置」
+OPS_DOMAIN_EXPIRY=2027-10-17
+```
+
+#### 部署
+
+```bash
+git add -A && git commit -m "feat: 后台新增运维看板，探测线上证书与域名到期"   # ⓪ 本地
+git push origin main                                                            # ⓪ 硬前置，不推送会静默部署成旧版本
+bash server.sh                                                                  # 服务端 + admin 一起构建重启
+```
+
+#### 上线后必查：服务器能不能访问自己的公网域名
+
+探测是从 CVM 内部发起的，会经公网 DNS 绕回来（NAT hairpin）。腾讯云通常支持，
+但**若这台机器回环不通，5 个 nginx 站点会全部显示「握手失败」**——那是探测路径问题，不是证书故障，别慌。
+
+```bash
+# 服务器上执行：7 行都应为 true + 一个到期时间；出现 FAIL 即为回环不通
+node -e 'const t=require("node:tls");["baby-cheese","babybt","bt2","movie","qbdownload","babyimg","image"].forEach(t0=>{const h=t0+".jimmyxuexue.top";const s=t.connect({host:h,port:443,servername:h,timeout:5000,rejectUnauthorized:false});s.once("secureConnect",()=>{const c=s.getPeerX509Certificate();console.log(h,s.authorized,c&&c.validTo);s.destroy()});s.once("error",e=>console.log(h,"FAIL",e.message))})'
+```
+
+若这里 FAIL 而浏览器访问正常 → 需要把探测改成连 `127.0.0.1:443` 并保留 SNI，届时再改。
+
+#### 后台回归
+
+- [ ] 登录后左侧出现「运维看板」，7 个端点都有剩余天数（`image` 约 35 天，其余约 89 天）
+- [ ] 「重新探测」转圈后右上角时间戳更新（结果缓存 5 分钟）
+- [ ] 顶部三张卡：域名到期倒计时取到 2027-10-17、最早到期证书、需处理端点数
+- [ ] 未登录直接访问 `/ops` 应跳登录页（走 `AdminJwtGuard`，与其他后台接口一致）
+

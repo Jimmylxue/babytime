@@ -8,6 +8,7 @@ import { AdminAnnouncementService } from './admin-announcement.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminBabyService } from './admin-baby.service';
 import { AdminStatsService } from './admin-stats.service';
+import { OpsHealthService } from './ops-health.service';
 import { AdminController } from './admin.controller';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
@@ -31,6 +32,6 @@ import { NotificationModule } from '../notification/notification.module';
     NotificationModule,
   ],
   controllers: [AdminController],
-  providers: [AdminAuthService, AdminStatsService, AdminBabyService, AdminAnnouncementService, AdminJwtStrategy, AdminJwtGuard],
+  providers: [AdminAuthService, AdminStatsService, AdminBabyService, AdminAnnouncementService, AdminJwtStrategy, AdminJwtGuard, OpsHealthService],
 })
 export class AdminModule {}

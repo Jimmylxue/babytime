@@ -10,6 +10,7 @@ import Analytics from './pages/Analytics';
 import MiniApps from './pages/MiniApps';
 import Announcements from './pages/Announcements';
 import Subscriptions from './pages/Subscriptions';
+import Ops from './pages/Ops';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
 	if (!getToken()) {
@@ -38,6 +39,7 @@ export default function App() {
 				<Route path="mini-apps" element={<MiniApps />} />
 				<Route path="announcements" element={<Announcements />} />
 				<Route path="notifications" element={<Subscriptions />} />
+				<Route path="ops" element={<Ops />} />
 			</Route>
 			<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>

@@ -3,6 +3,7 @@ import { AdminAnnouncementService } from './admin-announcement.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminBabyService } from './admin-baby.service';
 import { AdminStatsService } from './admin-stats.service';
+import { OpsHealthService } from './ops-health.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
@@ -17,6 +18,7 @@ export class AdminController {
     private readonly adminAnnouncementService: AdminAnnouncementService,
     private readonly adminBabyService: AdminBabyService,
     private readonly notificationService: NotificationService,
+    private readonly opsHealthService: OpsHealthService,
   ) {}
 
   @Post('auth/login')
@@ -85,6 +87,13 @@ export class AdminController {
   @Get('stats/tools')
   async getToolsMetrics() {
     const data = await this.adminStatsService.getToolsMetrics();
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('ops/https')
+  async getHttpsHealth(@Query('refresh') refresh?: string) {
+    const data = await this.opsHealthService.getHttpsStatus(refresh === '1');
     return { code: 0, message: 'success', data };
   }
 

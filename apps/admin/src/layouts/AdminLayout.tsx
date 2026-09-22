@@ -7,6 +7,7 @@ import {
 	AppstoreOutlined,
 	NotificationOutlined,
 	BellOutlined,
+	SafetyCertificateOutlined,
 	LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ const MENU_ITEMS = [
 	{ key: '/mini-apps', icon: <AppstoreOutlined />, label: '小应用' },
 	{ key: '/announcements', icon: <NotificationOutlined />, label: '公告管理' },
 	{ key: '/notifications', icon: <BellOutlined />, label: '订阅消息' },
+	{ key: '/ops', icon: <SafetyCertificateOutlined />, label: '运维看板' },
 ];
 
 export default function AdminLayout() {

@@ -312,3 +312,28 @@ export interface NotificationSubscriptionResult {
 	page: number;
 	pageSize: number;
 }
+
+// 运维看板：HTTPS 证书与域名到期
+export interface OpsEndpointStatus {
+	host: string;
+	purpose: string;
+	managedBy: string;
+	reachable: boolean;
+	trusted: boolean;
+	issuer: string;
+	validTo: string;
+	daysLeft: number | null;
+	latencyMs: number | null;
+	error: string | null;
+}
+
+export interface OpsHttpsStatus {
+	checkedAt: string;
+	cached: boolean;
+	endpoints: OpsEndpointStatus[];
+	domain: {
+		name: string;
+		expiresAt: string | null;
+		daysLeft: number | null;
+	};
+}
