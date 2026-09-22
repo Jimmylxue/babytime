@@ -10,6 +10,7 @@ import { Milestone } from '../milestone/entities/milestone.entity';
 import { VaccinePlan } from '../notification/entities/vaccine-plan.entity';
 import { CreateBabyDto, UpdateBabyDto } from './dto/create-baby.dto';
 import { ContentSecurityService } from '../content-security/content-security.service';
+import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 
 @Injectable()
 export class BabyService {
@@ -20,6 +21,7 @@ export class BabyService {
     private familyRepository: Repository<FamilyMember>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private contentSecurity: ContentSecurityService,
+    private cleanup: CdnCleanupService,
   ) {}
 
   async create(userId: string, createBabyDto: CreateBabyDto) {
@@ -127,12 +129,22 @@ export class BabyService {
   async update(id: string, userId: string, updateBabyDto: UpdateBabyDto) {
     const baby = await this.findOne(id, userId);
     await this.contentSecurity.checkUserTexts(userId, [updateBabyDto.name], 1);
+    const previousAvatar = baby.avatar;
     Object.assign(baby, updateBabyDto);
-    return this.babyRepository.save(baby);
+    const saved = await this.babyRepository.save(baby);
+    if (saved.avatar !== previousAvatar) this.cleanup.scheduleDelete([previousAvatar]);
+    return saved;
   }
 
   async remove(id: string, userId: string) {
     const baby = await this.creatorOnlyFindOne(id, userId);
+
+    // 连带要删的图先取出来：事务提交后再交给清理任务，此时回查引用才判得准
+    const [photos, milestones, diaperRecords] = await Promise.all([
+      this.dataSource.getRepository(Photo).find({ where: { babyId: id }, select: ['url', 'thumbnail'] }),
+      this.dataSource.getRepository(Milestone).find({ where: { babyId: id }, select: ['photoUrl'] }),
+      this.dataSource.getRepository(Record).find({ where: { babyId: id }, select: ['diaperImage'] }),
+    ]);
 
     // records/photos/family_* 的外键是 RESTRICT，须在同一事务内先清子表再删宝宝；
     // vaccine_plans 虽有 DB 级 CASCADE，也一并显式删除保证幂等
@@ -145,6 +157,12 @@ export class BabyService {
       await manager.delete(FamilyMember, { babyId: id });
       await manager.delete(Baby, { id });
     });
+    this.cleanup.scheduleDelete([
+      baby.avatar,
+      ...photos.flatMap((photo) => [photo.url, photo.thumbnail]),
+      ...milestones.map((milestone) => milestone.photoUrl),
+      ...diaperRecords.map((record) => record.diaperImage),
+    ]);
     return { success: true };
   }
 }

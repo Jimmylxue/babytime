@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { existsSync, mkdirSync, writeFileSync } from 'fs'
-import { join } from 'path'
+import { unlink } from 'fs/promises'
+import { basename, join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import * as Upyun from 'upyun'
 
@@ -46,6 +47,11 @@ function detectImageExt(buffer: Buffer): string | null {
 	return null
 }
 
+// 我们自己生成的对象文件名：<uuid>.<ext>。
+// 删图不可逆，所以清理只认这个形状 —— 同桶的装饰图（/baby-time/assets/*.png）、
+// 历史遗留文件、任何带路径分隔符的输入，全都对不上这条正则，天然删不到。
+const STORED_IMAGE_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/i
+
 @Injectable()
 export class UploadService implements OnModuleInit {
 	private readonly uploadDir = join(process.cwd(), 'uploads')
@@ -73,8 +79,44 @@ export class UploadService implements OnModuleInit {
 		return this.driver === 'upyun'
 	}
 
+	/** 图片对象的存放位置；storeImage 与 deleteStoredImage 必须用同一个值 */
+	private readonly remotePrefix = '/baby-time/'
+
 	getFileUrl(filename: string): string {
 		return `/uploads/${filename}`
+	}
+
+	/**
+	 * 从任意形态的 URL（完整地址 / 相对路径 / 带查询串）里取出我们自己生成的文件名。
+	 * 形状不对就返回 null，调用方据此跳过 —— 删图不可逆，认不准就不动。
+	 */
+	storedImageName(rawUrl: string | null | undefined): string | null {
+		if (!rawUrl) return null
+		const tail = basename(rawUrl.split('?')[0].split('#')[0]).toLowerCase()
+		return STORED_IMAGE_NAME.test(tail) ? tail : null
+	}
+
+	/**
+	 * 删除一个已确认无人引用的图片对象。本地驱动也支持，便于开发环境验证整条链路。
+	 * SDK 对 404 不抛错、只返回 false，所以 false 一律按"对象本来就不在"处理。
+	 */
+	async deleteStoredImage(name: string): Promise<'deleted' | 'missing' | 'skipped'> {
+		if (!STORED_IMAGE_NAME.test(name)) return 'skipped'
+
+		if (this.isUpyun) {
+			if (!this.upyunService) return 'skipped'
+			const client = new Upyun.Client(this.upyunService)
+			const ok = await client.deleteFile(`${this.remotePrefix}${name}`)
+			return ok ? 'deleted' : 'missing'
+		}
+
+		try {
+			await unlink(join(this.uploadDir, name))
+			return 'deleted'
+		} catch (error: any) {
+			if (error?.code === 'ENOENT') return 'missing'
+			throw error
+		}
 	}
 
 	/**
@@ -98,7 +140,7 @@ export class UploadService implements OnModuleInit {
 				throw new Error('又拍云未配置')
 			}
 			const client = new Upyun.Client(this.upyunService)
-			const remotePath = `/baby-time/${filename}`
+			const remotePath = `${this.remotePrefix}${filename}`
 			await client.putFile(remotePath, buffer, {
 				'Content-Type': MIME_BY_EXT[ext],
 			})

@@ -5,12 +5,14 @@ import { MilestoneService } from './milestone.service';
 import { MilestoneController } from './milestone.controller';
 import { BabyModule } from '../baby/baby.module';
 import { ContentSecurityModule } from '../content-security/content-security.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Milestone]),
     BabyModule,
     ContentSecurityModule,
+    UploadModule,
   ],
   controllers: [MilestoneController],
   providers: [MilestoneService],

@@ -5,6 +5,7 @@ import { Photo } from './entities/photo.entity';
 import { CreatePhotoDto } from './dto/create-photo.dto';
 import { BabyService } from '../baby/baby.service';
 import { ContentSecurityService } from '../content-security/content-security.service';
+import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 
 @Injectable()
 export class PhotoService {
@@ -13,6 +14,7 @@ export class PhotoService {
     private photoRepository: Repository<Photo>,
     private babyService: BabyService,
     private contentSecurity: ContentSecurityService,
+    private cleanup: CdnCleanupService,
   ) {}
 
   async create(userId: string, createPhotoDto: CreatePhotoDto) {
@@ -60,6 +62,8 @@ export class PhotoService {
   async remove(id: string, userId: string) {
     const photo = await this.findOne(id, userId);
     await this.photoRepository.remove(photo);
+    // 先删行、后清图：引用回查要等这条记录消失才判得准
+    this.cleanup.scheduleDelete([photo.url, photo.thumbnail]);
     return { success: true };
   }
 
@@ -82,6 +86,7 @@ export class PhotoService {
 
     // 单条 DELETE ... WHERE id IN，不存在的照片视为已删除，直接忽略
     const result = await this.photoRepository.delete({ id: In(photos.map((p) => p.id)) });
+    this.cleanup.scheduleDelete(photos.flatMap((p) => [p.url, p.thumbnail]));
     return { deleted: result.affected ?? 0 };
   }
 

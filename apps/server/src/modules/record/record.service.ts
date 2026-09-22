@@ -6,6 +6,7 @@ import { CreateRecordDto } from './dto/create-record.dto';
 import { UpdateRecordDto } from './dto/update-record.dto';
 import { BabyService } from '../baby/baby.service';
 import { ContentSecurityService } from '../content-security/content-security.service';
+import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 import { RecordQueryService } from './record-query.service';
 
 /**
@@ -20,6 +21,7 @@ export class RecordService {
     private babyService: BabyService,
     private contentSecurity: ContentSecurityService,
     private queryService: RecordQueryService,
+    private cleanup: CdnCleanupService,
   ) {}
 
   // 记录里允许用户自由填写的文本字段，创建/更新时统一过内容安全检测
@@ -107,6 +109,8 @@ export class RecordService {
   async remove(id: string, userId: string) {
     const record = await this.findOne(id, userId);
     await this.recordRepository.remove(record);
+    // 换尿布记录可以配图，删记录时图也要一起走
+    this.cleanup.scheduleDelete([record.diaperImage]);
     return { success: true };
   }
 
@@ -134,9 +138,15 @@ export class RecordService {
       updateRecordDto.amount = breast + formula;
     }
 
+    // Object.assign 之后拿不到旧图，先存一份用于清理
+    const previousDiaperImage = record.diaperImage;
     Object.assign(record, updateRecordDto);
     await this.contentSecurity.checkUserTexts(userId, this.recordTextFields(updateRecordDto));
-    return this.recordRepository.save(record);
+    const saved = await this.recordRepository.save(record);
+    if (saved.diaperImage !== previousDiaperImage) {
+      this.cleanup.scheduleDelete([previousDiaperImage]);
+    }
+    return saved;
   }
 
   private validateHeightWeightDate(type: RecordType, startTime: string) {

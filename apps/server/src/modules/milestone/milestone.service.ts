@@ -13,6 +13,7 @@ import {
 import { findMilestone } from '@baby-time/shared';
 import { BabyService } from '../baby/baby.service';
 import { ContentSecurityService } from '../content-security/content-security.service';
+import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 
 const CUSTOM_CATEGORY = 'custom';
 
@@ -23,6 +24,7 @@ export class MilestoneService {
     private milestoneRepository: Repository<Milestone>,
     private babyService: BabyService,
     private contentSecurity: ContentSecurityService,
+    private cleanup: CdnCleanupService,
   ) {}
 
   async create(userId: string, dto: CreateMilestoneDto) {
@@ -82,15 +84,19 @@ export class MilestoneService {
     if (nextTitle) milestone.title = nextTitle;
     if (dto.date) milestone.date = dto.date;
     if (dto.note !== undefined) milestone.note = dto.note.trim() || null;
+    const previousPhotoUrl = milestone.photoUrl;
     if (dto.photoUrl !== undefined) milestone.photoUrl = dto.photoUrl || null;
 
     await this.contentSecurity.checkUserTexts(userId, [nextTitle, milestone.note], 2);
-    return this.milestoneRepository.save(milestone);
+    const saved = await this.milestoneRepository.save(milestone);
+    if (saved.photoUrl !== previousPhotoUrl) this.cleanup.scheduleDelete([previousPhotoUrl]);
+    return saved;
   }
 
   async remove(id: string, userId: string) {
     const milestone = await this.findOne(id, userId);
     await this.milestoneRepository.remove(milestone);
+    this.cleanup.scheduleDelete([milestone.photoUrl]);
     return { success: true };
   }
 

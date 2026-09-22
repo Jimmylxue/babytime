@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { randomInt } from 'crypto';
 import { FamilyMember, InviteStatus, MemberRole } from './entities/family-member.entity';
 import {
   FamilyInvite,
@@ -10,13 +11,18 @@ import { FamilyMemberAlias } from './entities/family-member-alias.entity';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { BabyService } from '../baby/baby.service';
 import { ContentSecurityService } from '../content-security/content-security.service';
-import { v4 as uuidv4 } from 'uuid';
+import { RateLimitService } from '../../common/rate-limit.service';
 
 // 家庭成员人数上限
 const FAMILY_MEMBER_LIMIT = 8;
 
 // 成员备注名（家庭内昵称）长度上限，与 DTO 校验保持一致
 const MEMBER_NICKNAME_MAX = 20;
+
+// 邀请码字母表：去掉了易混淆的 I L O 0 1，全大写 —— 库表是 utf8mb4_unicode_ci
+// （大小写不敏感），混用大小写既没熵又容易两码撞同一个唯一索引
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const INVITE_CODE_LENGTH = 8;
 
 @Injectable()
 export class FamilyService {
@@ -35,11 +41,20 @@ export class FamilyService {
     private aliasRepository: Repository<FamilyMemberAlias>,
     private babyService: BabyService,
     private contentSecurity: ContentSecurityService,
+    private rateLimit: RateLimitService,
   ) {}
 
-  // 生成邀请码
+  /**
+   * 邀请码 = 别人宝宝全部数据的入场券，所以必须不可猜。
+   * 旧实现取 uuidv4 前 8 位十六进制，只有 32 bit，配合无限频探测可被爆破；
+   * 这里改成 CSPRNG + 32 字母表 × 8 位 ≈ 40 bit，并且只接受随机源（不掺时间）。
+   */
   private generateInviteCode(): string {
-    return uuidv4().substring(0, 8).toUpperCase();
+    let code = '';
+    for (let i = 0; i < INVITE_CODE_LENGTH; i += 1) {
+      code += INVITE_ALPHABET[randomInt(INVITE_ALPHABET.length)];
+    }
+    return code;
   }
 
   // 创建（或复用）邀请卡：一张卡在有效期内可让多位家人加入
@@ -93,25 +108,39 @@ export class FamilyService {
     return { inviteCode, expiresAt };
   }
 
+  /**
+   * 邀请落地页要显示「谁邀请你加入 · 宝宝叫什么」来让人确认，这是正当用途；
+   * 但卡号无效/已过期时绝不能回这些 —— 那样它就成了爆破的验证器：
+   * 命中即白拿陌生宝宝的名字、性别和家人昵称。这类情况一律回占位文案。
+   */
+  private static readonly HIDDEN_PARTY = {
+    inviterNickname: '家人',
+    babyName: '宝宝',
+    babyGender: undefined,
+  };
+
   // 查询邀请卡信息（供落地页展示与状态判断）
   async getInviteInfo(userId: string, inviteCode: string) {
+    this.rateLimit.assert('family-invite-lookup', userId);
+
     const invite = await this.inviteRepository.findOne({
       where: { inviteCode },
       relations: ['baby', 'inviter'],
     });
 
-    const base = {
-      inviterNickname: invite?.inviter?.nickname || '家人',
-      babyName: invite?.baby?.name || '宝宝',
-      babyGender: invite?.baby?.gender,
-    };
-
     if (!invite || invite.status === FamilyInviteStatus.DISABLED) {
-      return { valid: false, reason: 'invalid', ...base };
+      return { valid: false, reason: 'invalid', ...FamilyService.HIDDEN_PARTY };
     }
     if (invite.expiresAt <= new Date()) {
-      return { valid: false, reason: 'expired', ...base };
+      return { valid: false, reason: 'expired', ...FamilyService.HIDDEN_PARTY };
     }
+
+    const base = {
+      inviterNickname: invite.inviter?.nickname || '家人',
+      babyName: invite.baby?.name || '宝宝',
+      babyGender: invite.baby?.gender,
+    };
+
     if (invite.inviterId === userId) {
       return { valid: false, reason: 'own', ...base };
     }
@@ -174,6 +203,9 @@ export class FamilyService {
 
   // 接受邀请（新：邀请卡模型，一卡多人；兼容旧版一次性邀请码）
   async acceptInvite(userId: string, inviteCode: string, role?: MemberRole) {
+    // 命中即获得该宝宝的全部记录与照片，是爆破真正想拿的东西，所以比查询卡面限得更紧
+    this.rateLimit.assert('family-invite-accept', userId);
+
     const invite = await this.inviteRepository.findOne({
       where: { inviteCode },
     });

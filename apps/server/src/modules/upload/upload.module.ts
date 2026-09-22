@@ -3,6 +3,8 @@ import { MulterModule } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import { UploadController } from './upload.controller'
 import { UploadService, IMAGE_EXT_BY_MIME } from './upload.service'
+import { CdnCleanupService } from './cdn-cleanup.service'
+import { ContentSecurityModule } from '../content-security/content-security.module'
 
 // 类型准入：MIME 白名单；application/octet-stream 放行到服务层，
 // 由文件内容魔数复检 —— wx.uploadFile 在部分机型/版本不带正确的图片 MIME。
@@ -26,9 +28,10 @@ const fileFilter = (
 			fileFilter,
 			limits: { fileSize: 10 * 1024 * 1024 },
 		}),
+		ContentSecurityModule,
 	],
 	controllers: [UploadController],
-	providers: [UploadService],
-	exports: [UploadService],
+	providers: [UploadService, CdnCleanupService],
+	exports: [UploadService, CdnCleanupService],
 })
 export class UploadModule {}

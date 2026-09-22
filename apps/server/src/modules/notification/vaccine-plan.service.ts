@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { RateLimitService } from '../../common/rate-limit.service';
 import { Baby } from '../baby/entities/baby.entity';
 import { Record as BabyRecord, RecordType } from '../record/entities/record.entity';
 import { SubscriptionGrant } from '../user/entities/subscription-grant.entity';
@@ -22,6 +23,7 @@ export class VaccinePlanService {
     @InjectRepository(SubscriptionGrant) private readonly grants: Repository<SubscriptionGrant>,
     @InjectRepository(FamilyMember) private readonly familyMembers: Repository<FamilyMember>,
     @InjectRepository(VaccinePlan) private readonly vaccinePlans: Repository<VaccinePlan>,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   getConfig() {
@@ -34,6 +36,10 @@ export class VaccinePlanService {
   }
 
   async saveGrants(userId: string, statuses: Record<string, string>) {
+    // 授权结果只有客户端知道（微信没有服务端回调），所以这里是"客户端自报"的信任边界。
+    // 刷出来的次数在真发送时会被微信 43101 打回并清零，伤不到用户，
+    // 但会把后台订阅漏斗的口径灌脏 —— 所以按人按天给一个正常用不到的上限。
+    this.rateLimit.assert('subscription-grant', userId);
     const allowed = new Set([getVaccineTemplateId(), process.env.WECHAT_SUBSCRIBE_REVIEW_TEMPLATE_ID || ''].filter(Boolean));
     for (const [templateId, status] of Object.entries(statuses || {})) {
       if (!allowed.has(templateId) || !['accept', 'reject'].includes(status)) continue;

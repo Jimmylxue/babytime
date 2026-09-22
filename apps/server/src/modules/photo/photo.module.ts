@@ -5,12 +5,14 @@ import { PhotoService } from './photo.service';
 import { PhotoController } from './photo.controller';
 import { BabyModule } from '../baby/baby.module';
 import { ContentSecurityModule } from '../content-security/content-security.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Photo]),
     BabyModule,
     ContentSecurityModule,
+    UploadModule,
   ],
   controllers: [PhotoController],
   providers: [PhotoService],

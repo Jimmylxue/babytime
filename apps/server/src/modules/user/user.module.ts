@@ -11,12 +11,14 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { JwtStrategy } from '../../common/strategies/jwt.strategy';
 import { ContentSecurityModule } from '../content-security/content-security.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserEvent, SubscriptionGrant]),
     HttpModule,
     ContentSecurityModule,
+    UploadModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

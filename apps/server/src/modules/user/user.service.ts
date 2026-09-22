@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -8,6 +8,7 @@ import { User } from './entities/user.entity';
 import { UserEvent } from './entities/user-event.entity';
 import { LoginDto, UpdateUserDto } from './dto/login.dto';
 import { ContentSecurityService } from '../content-security/content-security.service';
+import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 
 @Injectable()
 export class UserService {
@@ -21,6 +22,7 @@ export class UserService {
     @InjectRepository(UserEvent)
     private eventRepository: Repository<UserEvent>,
     private contentSecurity: ContentSecurityService,
+    private cleanup: CdnCleanupService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -28,24 +30,19 @@ export class UserService {
     const appId = process.env.WECHAT_APP_ID;
     const appSecret = process.env.WECHAT_APP_SECRET;
 
-    let openid: string;
-    let unionid: string;
-
-    // 开发环境：如果没有配置微信 appId，使用模拟登录
+    // 缺凭据时以前会退回「任意 code 都能登成一个新用户」的模拟登录：生产 .env 少配一行，
+    // 就从"功能坏掉"升级成"大门敞开"。现在一律拒绝，与 JWT_SECRET 的 fail-fast 同一口径。
     if (!appId || !appSecret) {
-      this.logger.warn('微信 appId/secret 未配置，使用模拟登录');
-      // 用 code 生成一个固定的 openId（开发环境）
-      openid = `dev_openid_${code}`;
-      unionid = `dev_unionid_${code}`;
-    } else {
-      // 生产环境：调用微信接口获取 openId
-      const wxResult = await this.getWxOpenId(code);
-      openid = wxResult.openid;
-      unionid = wxResult.unionid;
+      this.logger.error('WECHAT_APP_ID / WECHAT_APP_SECRET 未配置，已拒绝登录请求');
+      throw new ServiceUnavailableException('登录暂不可用：服务端缺少微信小程序配置');
+    }
 
-      if (!openid) {
-        throw new UnauthorizedException('微信登录失败');
-      }
+    const wxResult = await this.getWxOpenId(code);
+    const openid: string = wxResult.openid;
+    const unionid: string = wxResult.unionid;
+
+    if (!openid) {
+      throw new UnauthorizedException('微信登录失败');
     }
 
     // 查找或创建用户
@@ -89,15 +86,23 @@ export class UserService {
     return allowed.has(value) ? value : null;
   }
 
-  private async getWxOpenId(code: string) {    const appId = process.env.WECHAT_APP_ID;
-    const appSecret = process.env.WECHAT_APP_SECRET;
-    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appId}&secret=${appSecret}&js_code=${code}&grant_type=authorization_code`;
-
+  private async getWxOpenId(code: string) {
+    // secret 走 params 而不是拼进 URL：axios 的错误对象带 error.config.url，
+    // 一旦网络抖动，把整个 error 记进日志就等于把 appsecret 写进 pm2 日志。
     try {
-      const response = await firstValueFrom(this.httpService.get(url));
+      const response = await firstValueFrom(
+        this.httpService.get('https://api.weixin.qq.com/sns/jscode2session', {
+          params: {
+            appid: process.env.WECHAT_APP_ID,
+            secret: process.env.WECHAT_APP_SECRET,
+            js_code: code,
+            grant_type: 'authorization_code',
+          },
+        }),
+      );
       return response.data;
-    } catch (error) {
-      this.logger.error('调用微信接口失败', error);
+    } catch (error: any) {
+      this.logger.error(`调用微信接口失败：${error?.message ?? '未知错误'}`);
       throw new UnauthorizedException('调用微信接口失败');
     }
   }
@@ -111,8 +116,14 @@ export class UserService {
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     await this.contentSecurity.checkUserTexts(id, [updateUserDto.nickname, updateUserDto.role], 1);
+    // 换掉之后旧头像就没人引用了，先存下来供清理
+    const previousAvatar = (
+      await this.userRepository.findOne({ where: { id }, select: ['avatar'] })
+    )?.avatar;
     await this.userRepository.update(id, updateUserDto);
-    return this.findById(id);
+    const user = await this.findById(id);
+    if (user?.avatar !== previousAvatar) this.cleanup.scheduleDelete([previousAvatar]);
+    return user;
   }
 
   async trackEvent(userId: string, name: string, properties?: Record<string, any>) {
