@@ -1,4 +1,16 @@
-import { Controller, Body, Get, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Body,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Request,
+  ServiceUnavailableException,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminAnnouncementService } from './admin-announcement.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminBabyService } from './admin-baby.service';
@@ -94,6 +106,20 @@ export class AdminController {
   @Get('ops/https')
   async getHttpsHealth(@Query('refresh') refresh?: string) {
     const data = await this.opsHealthService.getHttpsStatus(refresh === '1');
+    return { code: 0, message: 'success', data };
+  }
+
+  /**
+   * 供服务器 crontab 每天调用，没有登录态所以不走 AdminJwtGuard，
+   * 用 .env 里的 OPS_ALERT_TOKEN 做单一凭据；未配置时直接禁用（宁可漏报，不敞开一个公网写接口）。
+   */
+  @Post('ops/alert-check')
+  async alertCheck(@Body() body: { token?: string }) {
+    const expected = process.env.OPS_ALERT_TOKEN;
+    if (!expected) throw new ServiceUnavailableException('OPS_ALERT_TOKEN 未配置，告警接口已禁用');
+    if (body?.token !== expected) throw new UnauthorizedException('token 不正确');
+
+    const data = await this.opsHealthService.runAlertCheck();
     return { code: 0, message: 'success', data };
   }
 

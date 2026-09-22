@@ -264,3 +264,71 @@ node -e 'const t=require("node:tls");["baby-cheese","babybt","bt2","movie","qbdo
 - [ ] 顶部三张卡：域名到期倒计时取到 2027-10-17、最早到期证书、需处理端点数
 - [ ] 未登录直接访问 `/ops` 应跳登录页（走 `AdminJwtGuard`，与其他后台接口一致）
 
+### 8. 追加（2026-09-22）：运维告警接 PushPlus 微信推送
+
+第 7 节的看板要人主动打开才看得见。这一节补上"出事它来找你"：每天探一次线上真实证书，**只在异常时推微信，正常静默**。
+复用同一个 `OpsHealthService`，阈值与看板一致。
+
+触发条件（命中即推）：
+
+| 情况 | 重复提醒间隔 |
+|---|---|
+| 某端点握手失败 / 证书链不被信任 | 每 24 小时 |
+| 某端点证书剩 < 14 天 | 每 6 天 |
+| 主域注册到期 < 45 天 | 每 6 天 |
+
+去重记录在进程内存里，`pm2 restart` 后重置，最坏结果是重启当天多推一条。
+
+#### 环境变量（新增两个，都要配）
+
+```bash
+# 服务器上，仓库根目录执行
+# 1) PUSHPLUS_TOKEN：手机微信访问 www.pushplus.plus 登录后，「用户token」那一串
+# 2) OPS_ALERT_TOKEN：自己生成，只用于本机 cron 调接口
+openssl rand -hex 32
+```
+
+两个值手工写进 `.env`（**值不要贴进对话、不要提交**）：
+
+```
+PUSHPLUS_TOKEN=<扫码拿到的>
+OPS_ALERT_TOKEN=<上面生成的>
+```
+
+⚠️ `OPS_ALERT_TOKEN` 留空时 `POST admin/ops/alert-check` 直接返回 503 自我禁用。这个接口**不走** `AdminJwtGuard`
+（cron 没有登录态），所以宁可禁用也不能敞开一个无凭据的公网写接口。
+
+#### 部署与验证
+
+```bash
+bash server.sh                                   # ① 部署（前提：已 git push）
+pm2 logs baby-time-server --lines 20             # ② 确认无启动报错
+
+# ③ 手动打一次。端口以 .env 的 PORT 为准，默认 3000
+T=$(grep -m1 '^OPS_ALERT_TOKEN=' .env | cut -d= -f2)
+curl -sS -m 30 -X POST http://127.0.0.1:3000/admin/ops/alert-check \
+  -H 'Content-Type: application/json' -d "{\"token\":\"$T\"}"; echo
+# 一切正常时应返回：{"code":0,...,"data":{"pushed":false,"findings":[],"attempted":0}}
+```
+
+**想确认推送真能到手机**：把 `.env` 的 `OPS_DOMAIN_EXPIRY` 临时改成一周内的日期，再跑一次 ③，
+手机应收到「域名 jimmyxuexue.top … 注册到期，只剩 N 天」；**验完务必改回 2027-10-17**。
+
+本地验证方式（`node -e` 直连 `dist`，不用起服务）四场景全过：健康时不推；域名临期且无 token → 报"未配置"不推；
+配假 token → PushPlus 回 `903 用户令牌不正确`（证明请求格式与地址正确）；同一原因再跑 → 被去重抑制（`attempted:0`）。
+
+#### 挂 cron
+
+```bash
+crontab -e
+```
+
+加一行（与备份 cron 同一个表，注意保持 `bash` 环境）：
+
+```
+30 9 * * * cd /home/ubuntu/babytime && T=$(grep -m1 '^OPS_ALERT_TOKEN=' .env | cut -d= -f2) && curl -sS -m 30 -X POST http://127.0.0.1:3000/admin/ops/alert-check -H 'Content-Type: application/json' -d "{\"token\":\"$T\"}" >> /home/ubuntu/ops-alert.log 2>&1
+```
+
+`crontab -l` 确认在位。token 用 `grep` 现取、不写死在 crontab 里，因此不会出现在 `ps` 输出；
+日志落在仓库外的 `/home/ubuntu/ops-alert.log`，内容是接口返回的 JSON，不含 token。
+
