@@ -105,31 +105,39 @@ export class OpsHealthService {
     );
     if (!due.length) return { checkedAt, findings, pushed: false, attempted: 0 };
 
-    const token = process.env.PUSHPLUS_TOKEN;
-    if (!token) {
-      this.logger.warn(`有 ${due.length} 项运维告警待推送，但 PUSHPLUS_TOKEN 未配置`);
-      return { checkedAt, findings, pushed: false, attempted: due.length, error: 'PUSHPLUS_TOKEN 未配置' };
+    const sendKey = process.env.SERVERCHAN_KEY;
+    if (!sendKey) {
+      this.logger.warn(`有 ${due.length} 项运维告警待推送，但 SERVERCHAN_KEY 未配置`);
+      return { checkedAt, findings, pushed: false, attempted: due.length, error: 'SERVERCHAN_KEY 未配置' };
     }
 
-    const content = [
-      ...due.map((finding) => `· ${finding.text}`),
+    const desp = [
+      ...due.map((finding) => `- ${finding.text}`),
       '',
       `探测时间：${new Date(checkedAt).toLocaleString('zh-CN')}`,
     ].join('\n');
 
     try {
+      // Server酱 Turbo：SendKey 在 URL 里，表单编码提交，成功时 code 是 0（不是 200）；免费档每天 5 条
       const res = await axios.post(
-        'https://www.pushplus.plus/send',
-        { token, title: `育娃手记运维告警 · ${due.length} 项`, content, template: 'txt' },
+        `https://sctapi.ftqq.com/${sendKey}.send`,
+        new URLSearchParams({ title: `育娃手记运维告警 · ${due.length} 项`, desp }),
         { timeout: 8000 },
       );
-      const ok = res.data?.code === 200;
+      const ok = res.data?.code === 0;
       if (ok) due.forEach((finding) => this.lastAlertAt.set(finding.key, now));
-      else this.logger.warn(`PushPlus 返回异常：${JSON.stringify(res.data)}`);
+      else this.logger.warn(`Server酱 返回异常：${JSON.stringify(res.data)}`);
       return { checkedAt, findings, attempted: due.length, pushed: ok, response: res.data };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`PushPlus 推送失败：${message}`);
+      // Server酱 对错误 SendKey / 超日额度返回 4xx，axios 直接抛错；
+      // 响应体里写着具体原因，丢掉的话"key 不对"和"今天发完了"在日志里就分不出来了
+      const res = (err as { response?: { status: number; data: unknown } }).response;
+      const message = res
+        ? `HTTP ${res.status} ${JSON.stringify(res.data)}`
+        : err instanceof Error
+          ? err.message
+          : String(err);
+      this.logger.error(`Server酱 推送失败：${message}`);
       return { checkedAt, findings, attempted: due.length, pushed: false, error: message };
     }
   }

@@ -264,7 +264,7 @@ node -e 'const t=require("node:tls");["baby-cheese","babybt","bt2","movie","qbdo
 - [ ] 顶部三张卡：域名到期倒计时取到 2027-10-17、最早到期证书、需处理端点数
 - [ ] 未登录直接访问 `/ops` 应跳登录页（走 `AdminJwtGuard`，与其他后台接口一致）
 
-### 8. 追加（2026-09-22）：运维告警接 PushPlus 微信推送
+### 8. 追加（2026-09-22）：运维告警接 Server酱 微信推送
 
 第 7 节的看板要人主动打开才看得见。这一节补上"出事它来找你"：每天探一次线上真实证书，**只在异常时推微信，正常静默**。
 复用同一个 `OpsHealthService`，阈值与看板一致。
@@ -283,7 +283,9 @@ node -e 'const t=require("node:tls");["baby-cheese","babybt","bt2","movie","qbdo
 
 ```bash
 # 服务器上，仓库根目录执行
-# 1) PUSHPLUS_TOKEN：手机微信访问 www.pushplus.plus 登录后，「用户token」那一串
+# 1) SERVERCHAN_KEY：手机微信访问 sct.ftqq.com 扫码登录，首页「SendKey」那一串（形如 SCTxxxxx），
+#    关注「Server酱服务号」后消息直接进微信。免费档每天 5 条——本告警正常一天最多 1 条，用不完。
+#    （换掉最初的 PushPlus：它实名认证要收费 10 元，为一个每天最多一条的告警不值当）
 # 2) OPS_ALERT_TOKEN：自己生成，只用于本机 cron 调接口
 openssl rand -hex 32
 ```
@@ -291,11 +293,11 @@ openssl rand -hex 32
 两个值手工写进 `.env`（**值不要贴进对话、不要提交**）：
 
 ```
-PUSHPLUS_TOKEN=<扫码拿到的>
+SERVERCHAN_KEY=<扫码拿到的 SendKey>
 OPS_ALERT_TOKEN=<上面生成的>
 ```
 
-⚠️ `OPS_ALERT_TOKEN` 留空时 `POST admin/ops/alert-check` 直接返回 503 自我禁用。这个接口**不走** `AdminJwtGuard`
+⚠️ `OPS_ALERT_TOKEN` 留空时 `POST /api/admin/ops/alert-check` 直接返回 503 自我禁用。这个接口**不走** `AdminJwtGuard`
 （cron 没有登录态），所以宁可禁用也不能敞开一个无凭据的公网写接口。
 
 #### 部署与验证
@@ -304,18 +306,22 @@ OPS_ALERT_TOKEN=<上面生成的>
 bash server.sh                                   # ① 部署（前提：已 git push）
 pm2 logs baby-time-server --lines 20             # ② 确认无启动报错
 
-# ③ 手动打一次。端口以 .env 的 PORT 为准，默认 3000
+# ③ 手动打一次。⚠️ 路径前缀是 /api（main.ts 有 setGlobalPrefix('api')），端口取 .env 的 PORT，生产为 3006
 T=$(grep -m1 '^OPS_ALERT_TOKEN=' .env | cut -d= -f2)
-curl -sS -m 30 -X POST http://127.0.0.1:3000/admin/ops/alert-check \
+curl -sS -m 30 -X POST http://127.0.0.1:3006/api/admin/ops/alert-check \
   -H 'Content-Type: application/json' -d "{\"token\":\"$T\"}"; echo
 # 一切正常时应返回：{"code":0,...,"data":{"pushed":false,"findings":[],"attempted":0}}
+# token 写错时应返回 401（证明鉴权生效）；返回 404 说明代码没部署上
 ```
 
 **想确认推送真能到手机**：把 `.env` 的 `OPS_DOMAIN_EXPIRY` 临时改成一周内的日期，再跑一次 ③，
 手机应收到「域名 jimmyxuexue.top … 注册到期，只剩 N 天」；**验完务必改回 2027-10-17**。
 
-本地验证方式（`node -e` 直连 `dist`，不用起服务）四场景全过：健康时不推；域名临期且无 token → 报"未配置"不推；
-配假 token → PushPlus 回 `903 用户令牌不正确`（证明请求格式与地址正确）；同一原因再跑 → 被去重抑制（`attempted:0`）。
+本地验证方式（`node -e` 直连 `dist`，不用起服务）四场景全过：健康时不推（`findings:[]`）；域名临期且无 key →
+报"SERVERCHAN_KEY 未配置"不推；配假 SendKey → 返回 `HTTP 400 {"code":40001,"message":"[AUTH]错误的Key"}`
+（证明地址与表单格式都对，且 4xx 的响应体能落进返回值而不是被 axios 吞掉）；同一原因再跑 → 被去重抑制（`attempted:0`）。
+
+⚠️ 改这个文件时注意：Server酱 **成功时 `code` 是 `0`**，不是 200——和常见 HTTP 库的习惯相反，别顺手"修"成 200。
 
 #### 挂 cron
 
@@ -326,7 +332,7 @@ crontab -e
 加一行（与备份 cron 同一个表，注意保持 `bash` 环境）：
 
 ```
-30 9 * * * cd /home/ubuntu/babytime && T=$(grep -m1 '^OPS_ALERT_TOKEN=' .env | cut -d= -f2) && curl -sS -m 30 -X POST http://127.0.0.1:3000/admin/ops/alert-check -H 'Content-Type: application/json' -d "{\"token\":\"$T\"}" >> /home/ubuntu/ops-alert.log 2>&1
+30 9 * * * cd /home/ubuntu/babytime && T=$(grep -m1 '^OPS_ALERT_TOKEN=' .env | cut -d= -f2) && curl -sS -m 30 -X POST http://127.0.0.1:3006/api/admin/ops/alert-check -H 'Content-Type: application/json' -d "{\"token\":\"$T\"}" >> /home/ubuntu/ops-alert.log 2>&1
 ```
 
 `crontab -l` 确认在位。token 用 `grep` 现取、不写死在 crontab 里，因此不会出现在 `ps` 输出；
