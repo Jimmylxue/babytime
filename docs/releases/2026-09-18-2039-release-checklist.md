@@ -462,3 +462,93 @@ pm2 logs baby-time-server | grep -i imgSecCheck
 - 限流计数在内存里，`pm2 restart` 后清零 —— 目的是挡脚本刷，不是绝对配额
 - 单图 >1MB 跳过检测（接口硬限制），wx 端 `compressed` 出图通常 <1MB；放开原图上传后这条覆盖不到大图
 - 429/400 都走客户端 `request.ts` 的通用分支，会直接把服务端文案弹给用户，无需改客户端
+
+---
+
+### 11. 追加（2026-09-22）：修订阅消息配置漂移 · 服务端 + `.env.example`
+
+来自 `docs/2026-09-22-optimization-backlog.md` 第一节（1.1 / 1.2 / 1.3）。
+
+#### 为什么要单独确认生产
+
+`.env.example` 里这几个字段名一直是错的（`date2` / `phrase3` / `date3`，还多一个代码从不读的
+`WECHAT_REVIEW_FIELD_SUMMARY`，少一个 `WECHAT_REVIEW_FIELD_FEEDING`）。
+**代码里的 fallback 只在变量「不存在」时生效** —— 如果生产 `.env` 是照着旧 example 配的，
+那么 `WECHAT_VACCINE_FIELD_DATE=date2` 这个错值会**盖掉**正确的默认 `time2`，
+微信校验模板字段不过就返回 47003，消息发不出去、`notification_deliveries` 记 failed、用户侧毫无感知。
+所以这一条不是纯文档修改，**必须到服务器上确认一次现网值**。
+
+#### ① 确认生产 `.env` 的字段名（在服务器上、仓库根目录执行）
+
+```bash
+grep -nE '^(WECHAT_VACCINE_FIELD_|WECHAT_REVIEW_FIELD_|DAILY_REVIEW_HOUR)' .env
+```
+
+期望看到（与 `apps/server/src/modules/notification/vaccine-reminder.service.ts:91-93, 279-281` 一致）：
+
+```
+WECHAT_VACCINE_FIELD_NAME=thing1
+WECHAT_VACCINE_FIELD_DATE=time2
+WECHAT_VACCINE_FIELD_NOTE=thing6
+WECHAT_REVIEW_FIELD_BABY=thing1
+WECHAT_REVIEW_FIELD_FEEDING=number2
+WECHAT_REVIEW_FIELD_DATE=time3
+DAILY_REVIEW_HOUR=21
+```
+
+再确认没有残留漂移值：
+
+```bash
+grep -nE 'date2|date3|phrase3|REVIEW_FIELD_SUMMARY' .env \
+  && echo '⚠️ 命中即生产 .env 带着错值，改成上面那一组后 pm2 restart' \
+  || echo '✓ 无漂移值'
+```
+
+- [ ] 待确认：生产 `.env` 字段名（本地 `.env` 已实测为正确的一组）
+
+#### ② 发送侧回归（改完 `.env` 或不确定时跑一次）
+
+后台「订阅与唤回」→ 选一个有额度的用户 → 手动直推。这会**真实消耗 1 次订阅额度**，
+但它是唯一能验证 `number2` / `time3` 字段格式被微信接受的办法（微信先校验 openid 再校验 data）。
+
+```bash
+pm2 logs baby-time-server --lines 50 | grep -iE '47003|errcode|subscribe'
+```
+
+- 看到 `errcode=0` / 后台显示 sent → 字段名对
+- 看到 `47003` → 字段名仍是错的，回到 ① 改 `.env`
+
+#### ③ 本轮服务端代码改动（需部署，无 SQL、无新增环境变量）
+
+`ops-health.service.ts` 与 `stool-analysis.service.ts` 原先直接 `import axios`，
+项目其余 4 处 HTTP 调用走的是 `@nestjs/axios` 的 `HttpService`。已统一收敛到 `HttpService`
+（`AdminModule` / `StoolAnalysisModule` 各补 `HttpModule` 接线）。纯重构，行为不变。
+
+已验证：
+
+```
+$ pnpm run build:server          → nest build 通过
+$ node dist/main.js              → Nest application successfully started，零 DI 报错
+$ GET  /api/admin/ops/https      → 200，7 个端点全部 reachable/trusted
+$ POST /api/admin/ops/alert-check → 503（OPS_ALERT_TOKEN 未配即禁用，短路在打 Server酱 之前）
+$ POST /api/stool-analysis        → 401（未登录）
+语义打桩 /tmp/verify-httpclient-semantics.js → 12 通过 / 0 失败
+  （2xx 解析 .data；非 2xx 的 error.response.status/.data 形状不变；
+    URLSearchParams 仍按 x-www-form-urlencoded 发出；timeout 生效）
+配置漂移打桩 /tmp/verify-env-drift.js → ✅ example 与代码完全对齐
+  （DRIFT / MISSING / DEAD / REAL_VALUE 四项判据全绿）
+```
+
+部署：`bash server.sh`（无顺序要求，可与其它改动同批）
+
+`.env.example` 另改动两处，**不涉及生产操作**：
+- 订阅消息段的字段名对齐代码默认值 + 删死 key + 补 `WECHAT_REVIEW_FIELD_FEEDING`，`DAILY_REVIEW_HOUR` 20→21
+- 生产真模板 ID 换成空值占位符（模板 ID 留空即该类提醒关闭，符合代码语义）
+- 顺带登记了 `DB_SYNCHRONIZE`（注释形式，不改变任何环境的现有行为）——
+  它是生产防自动 ALTER 丢列的安全开关，此前只散落在三份文档里、example 从没提过
+
+#### 顺手发现（不在本轮处理，仅记录）
+
+- 探测显示 `image.jimmyxuexue.top` 证书剩 **34 天**（其余 6 个端点 89 天）。
+  未触发 14 天告警线，但它是「历史图片域名」、由又拍云自动续签，
+  与其他 5 个 acme.sh 泛域名不同源，下次巡检值得单独看一眼它是否真的在续

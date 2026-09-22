@@ -1,6 +1,7 @@
 import { BadGatewayException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 import { Baby } from '../baby/entities/baby.entity';
 import { AnalyzeStoolDto } from './dto/analyze-stool.dto';
 import { StoolAnalysisResult, StoolRiskLevel } from './stool-analysis.types';
@@ -10,7 +11,10 @@ const DISCLAIMER = '图片观察结果仅供健康记录和就医参考，不能
 
 @Injectable()
 export class StoolAnalysisService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly http: HttpService,
+  ) {}
 
   async analyze(baby: Baby, dto: AnalyzeStoolDto): Promise<StoolAnalysisResult> {
     const apiKey = this.configService.get<string>('ZHIPU_API_KEY');
@@ -22,23 +26,25 @@ export class StoolAnalysisService {
     const model = this.configService.get<string>('ZHIPU_VISION_MODEL', 'glm-4v-flash');
 
     try {
-      const response = await axios.post(
-        ZHIPU_CHAT_URL,
-        {
-          model,
-          temperature: 0.1,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image_url', image_url: { url: dto.imageUrl } },
-              { type: 'text', text: this.buildPrompt(age, dto.symptoms) },
-            ],
-          }],
-        },
-        {
-          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          timeout: 20000,
-        },
+      const response = await firstValueFrom(
+        this.http.post(
+          ZHIPU_CHAT_URL,
+          {
+            model,
+            temperature: 0.1,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: dto.imageUrl } },
+                { type: 'text', text: this.buildPrompt(age, dto.symptoms) },
+              ],
+            }],
+          },
+          {
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            timeout: 20000,
+          },
+        ),
       );
 
       const content = response.data?.choices?.[0]?.message?.content;

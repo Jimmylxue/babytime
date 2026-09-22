@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 import { connect, TLSSocket } from 'node:tls';
-import axios from 'axios';
 
 interface Endpoint {
   host: string;
@@ -59,6 +60,8 @@ export class OpsHealthService {
   private readonly logger = new Logger(OpsHealthService.name);
   private cache: { checkedAt: string; endpoints: EndpointStatus[] } | null = null;
   private readonly lastAlertAt = new Map<string, number>();
+
+  constructor(private readonly http: HttpService) {}
 
   async getHttpsStatus(forceRefresh = false) {
     if (!forceRefresh && this.cache && Date.now() - new Date(this.cache.checkedAt).getTime() < CACHE_TTL_MS) {
@@ -119,10 +122,12 @@ export class OpsHealthService {
 
     try {
       // Server酱 Turbo：SendKey 在 URL 里，表单编码提交，成功时 code 是 0（不是 200）；免费档每天 5 条
-      const res = await axios.post(
-        `https://sctapi.ftqq.com/${sendKey}.send`,
-        new URLSearchParams({ title: `育娃手记运维告警 · ${due.length} 项`, desp }),
-        { timeout: 8000 },
+      const res = await firstValueFrom(
+        this.http.post(
+          `https://sctapi.ftqq.com/${sendKey}.send`,
+          new URLSearchParams({ title: `育娃手记运维告警 · ${due.length} 项`, desp }),
+          { timeout: 8000 },
+        ),
       );
       const ok = res.data?.code === 0;
       if (ok) due.forEach((finding) => this.lastAlertAt.set(finding.key, now));
