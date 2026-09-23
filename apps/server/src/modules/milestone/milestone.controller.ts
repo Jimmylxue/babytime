@@ -26,13 +26,13 @@ export class MilestoneController {
   @HttpCode(200)
   async create(@Request() req, @Body() dto: CreateMilestoneDto) {
     const milestone = await this.milestoneService.create(req.user.id, dto);
-    return { code: 0, message: '打卡成功', data: milestone };
+    return milestone;
   }
 
   @Get('baby/:babyId')
   async findByBaby(@Param('babyId') babyId: string, @Request() req) {
     const list = await this.milestoneService.findAllByBaby(req.user.id, babyId);
-    return { code: 0, message: 'success', data: list };
+    return list;
   }
 
   @Put(':id')
@@ -43,13 +43,12 @@ export class MilestoneController {
     @Body() dto: UpdateMilestoneDto,
   ) {
     const milestone = await this.milestoneService.update(id, req.user.id, dto);
-    return { code: 0, message: '更新成功', data: milestone };
+    return milestone;
   }
 
   @Delete(':id')
   @HttpCode(200)
   async remove(@Param('id') id: string, @Request() req) {
     await this.milestoneService.remove(id, req.user.id);
-    return { code: 0, message: '删除成功' };
   }
 }

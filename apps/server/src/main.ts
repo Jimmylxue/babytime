@@ -9,11 +9,27 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 启用 CORS
+  // CORS 白名单。原来的 `origin: '*'` + `credentials: true` 是浏览器直接判死的组合
+  // （规范不允许通配凭据），等于没配：跨域拿不到数据，同源请求又不看这些头。
+  // 管理后台由本进程挂在同源的 /admin 下、走 Authorization 头而非 Cookie，
+  // 所以默认不放行任何跨域来源；将来真要跨源，往 CORS_ALLOWED_ORIGINS 里加精确 origin。
+  // 注意 ConfigModule 在 create() 时才加载 .env，所以这里必须读 process.env。
+  const corsAllowList = new Set(
+    (process.env.CORS_ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
   app.enableCors({
-    origin: '*',
+    origin: (origin, callback) => {
+      // 不带 Origin 头 = 同源请求、小程序、服务器脚本，本来就不受 CORS 约束
+      if (!origin || corsAllowList.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
+    credentials: false,
   });
 
   // 413 诊断：JSON 请求体超过 body-parser 默认的 100KB 会被拒成 413，

@@ -23,31 +23,19 @@ export class BabyController {
   @HttpCode(200)
   async create(@Request() req, @Body() createBabyDto: CreateBabyDto) {
     const baby = await this.babyService.create(req.user.id, createBabyDto);
-    return {
-      code: 0,
-      message: '创建成功',
-      data: baby,
-    };
+    return baby;
   }
 
   @Get()
   async findAll(@Request() req) {
     const babies = await this.babyService.findAllByUser(req.user.id);
-    return {
-      code: 0,
-      message: 'success',
-      data: babies,
-    };
+    return babies;
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req) {
     const baby = await this.babyService.findOne(id, req.user.id);
-    return {
-      code: 0,
-      message: 'success',
-      data: baby,
-    };
+    return baby;
   }
 
   @Put(':id')
@@ -58,20 +46,12 @@ export class BabyController {
     @Body() updateBabyDto: UpdateBabyDto,
   ) {
     const baby = await this.babyService.update(id, req.user.id, updateBabyDto);
-    return {
-      code: 0,
-      message: '更新成功',
-      data: baby,
-    };
+    return baby;
   }
 
   @Delete(':id')
   @HttpCode(200)
   async remove(@Param('id') id: string, @Request() req) {
     await this.babyService.remove(id, req.user.id);
-    return {
-      code: 0,
-      message: '删除成功',
-    };
   }
 }

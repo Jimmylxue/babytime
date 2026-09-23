@@ -12,9 +12,12 @@ import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
 import { CDN_ASSETS } from '../../config/assets'
 import SubscriptionPromptSheet from '../../components/SubscriptionPromptSheet'
 import {
+	getSilentRenewPlan,
 	getSubscriptionPromptPlan,
 	markPromptShown,
 	runCombinedSubscribe,
+	startSilentRenew,
+	type SilentRenewPlan,
 	type SubscriptionPromptPlan,
 } from '../../utils/subscriptionPrompt'
 const diaperBabyIllu = CDN_ASSETS.diaperBaby
@@ -107,6 +110,9 @@ export default function RecordPage() {
 	// 订阅预告卡（保存成功后按频控判定展示）
 	const [promptPlan, setPromptPlan] = useState<SubscriptionPromptPlan | null>(null)
 	const [promptBusy, setPromptBusy] = useState(false)
+	// 「静默续期」资格要在进页面时预取好，保存按钮的 tap 回调里只能同步读结果
+	const silentPlanRef = useRef<SilentRenewPlan | null>(null)
+	const silentPrefetchedRef = useRef(false)
 	// 同步锁，避免 state 异步更新导致连点漏拦截
 	const submittingRef = useRef(false)
 	// 「按上次来」预填只做一次
@@ -144,6 +150,13 @@ export default function RecordPage() {
 		if (isEdit && id) {
 			fetchRecord()
 			return
+		}
+		// 静默续期资格：只在新增态预取一次（判定要读 config/status，不能留到 tap 里做）
+		if (!silentPrefetchedRef.current) {
+			silentPrefetchedRef.current = true
+			void getSilentRenewPlan().then(plan => {
+				silentPlanRef.current = plan
+			})
 		}
 		// 「按上次来」：新增时用本类型最近一条记录预填高频字段（时间/照片/备注不预填）
 		if (!prefillRef.current && babyId) {
@@ -185,6 +198,11 @@ export default function RecordPage() {
 		}
 		submittingRef.current = true
 		setLoading(true)
+		// 静默续期：必须在任何 await 之前同步发起，微信只认用户手势上下文里的调用
+		const settleSilentRenew = isEdit
+			? null
+			: startSilentRenew(silentPlanRef.current)
+		silentPlanRef.current = null
 		try {
 			const data: any = {
 				babyId,
@@ -218,6 +236,8 @@ export default function RecordPage() {
 
 				// 保存成功后直接返回（与编辑态一致）：再次进入时「按上次来」会预填上次值
 				Taro.showToast({ title: '已记录', icon: 'success' })
+				// 先收掉静默续期：额度落库后再判预告卡，已续上的用户不会再被问一次
+				await settleSilentRenew?.()
 				// 价值时刻：满足频控则暂缓返回，盖出订阅预告卡（7 天/30 天冷却在工具内部判定）
 				const plan = await getSubscriptionPromptPlan()
 				if (plan) {

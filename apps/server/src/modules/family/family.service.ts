@@ -10,8 +10,36 @@ import {
 import { FamilyMemberAlias } from './entities/family-member-alias.entity';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { BabyService } from '../baby/baby.service';
+import { User } from '../user/entities/user.entity';
 import { ContentSecurityService } from '../content-security/content-security.service';
 import { RateLimitService } from '../../common/rate-limit.service';
+
+// 成员卡片对外只露这几个字段。整 User 实体一旦随成员列表发出去，同家庭的每个账号
+// 就拿到了彼此的 openId / unionId / acquisitionSource / lastSeenAt —— unionId 是
+// 微信开放平台的账号级标识，泄漏出去能把同一个人在我们各处的记录对上。
+// family_members.inviteCode（旧版一次性码 = 该宝宝全部数据的入场券）也一并挡在门外。
+function toPublicUser(user: Partial<User> | null | undefined, fallbackId: string) {
+  return {
+    id: user?.id ?? fallbackId,
+    nickname: user?.nickname ?? null,
+    avatar: user?.avatar ?? null,
+    role: user?.role ?? null,
+  };
+}
+
+function toMemberEntry(member: {
+  id: string;
+  userId: string;
+  role: string;
+  user?: Partial<User> | null;
+}) {
+  return {
+    id: member.id,
+    userId: member.userId,
+    role: member.role,
+    user: toPublicUser(member.user, member.userId),
+  };
+}
 
 // 家庭成员人数上限
 const FAMILY_MEMBER_LIMIT = 8;
@@ -306,13 +334,13 @@ export class FamilyService {
     if (asOwner.length > 0) {
       // 创建者视角：返回成员列表 + 自己
       const ownerUser = await this.babyService.findOwnerUser(userId);
-      const ownerEntry = {
+      const ownerEntry = toMemberEntry({
         id: `owner-${userId}`,
         userId,
         role: 'owner',
         user: ownerUser,
-      };
-      return this.attachAliases(userId, [ownerEntry, ...asOwner]);
+      });
+      return this.attachAliases(userId, [ownerEntry, ...asOwner.map(toMemberEntry)]);
     }
 
     // 是成员，找到自己加入的那条记录，获取同一家庭的所有成员
@@ -332,14 +360,17 @@ export class FamilyService {
 
     // 获取家庭创建者的信息，补充到列表中
     const ownerUser = await this.babyService.findOwnerUser(myRecord.inviterId);
-    const ownerEntry = {
+    const ownerEntry = toMemberEntry({
       id: `owner-${myRecord.inviterId}`,
       userId: myRecord.inviterId,
       role: 'owner',
       user: ownerUser,
-    };
+    });
 
-    return this.attachAliases(myRecord.inviterId, [ownerEntry, ...members]);
+    return this.attachAliases(myRecord.inviterId, [
+      ownerEntry,
+      ...members.map(toMemberEntry),
+    ]);
   }
 
   // 给成员列表挂上本家庭的备注名：nickname 为 null 表示没设过，前端回落到微信昵称
@@ -453,10 +484,11 @@ export class FamilyService {
 
   // 获取用户的家庭（所有关联的宝宝）
   async getUserFamilies(userId: string) {
-    // 作为成员的宝宝
+    // 作为成员的宝宝。只 load baby：下面用 ...record.baby 摊平成响应，
+    // 再多带一个 baby.user 就等于把创建者的 openId/unionId 发出去
     const memberRecords = await this.familyRepository.find({
       where: { userId, status: InviteStatus.ACCEPTED },
-      relations: ['baby', 'baby.user'],
+      relations: ['baby'],
     });
 
     const memberBabyIds = new Set(memberRecords.map(r => r.babyId));

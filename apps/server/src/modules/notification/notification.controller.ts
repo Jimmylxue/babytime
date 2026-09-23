@@ -8,14 +8,16 @@ export class NotificationController {
   constructor(private readonly service: NotificationService) {}
 
   @Get('config')
-  getConfig() { return { code: 0, message: 'success', data: this.service.getConfig() }; }
+  getConfig() {
+    return this.service.getConfig();
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('subscriptions')
   @HttpCode(200)
   async saveSubscriptions(@Request() req, @Body() body: { statuses: Record<string, string> }) {
     const data = await this.service.saveGrants(req.user.id, body?.statuses || {});
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -23,7 +25,7 @@ export class NotificationController {
   async getStatus(@Request() req, @Query('template') template?: string) {
     const kind = template === 'review' ? 'review' : 'vaccine';
     const data = await this.service.getUserVaccineStatus(req.user.id, kind);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   /**
@@ -41,14 +43,14 @@ export class NotificationController {
       (scene || '').trim(),
       (env || 'release').trim(),
     );
-    return { code: 0, message: 'success', data: { base64 } };
+    return { base64 };
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('vaccine-plans/:babyId')
   async getVaccinePlans(@Param('babyId') babyId: string, @Request() req) {
     const data = await this.service.getVaccinePlans(req.user.id, babyId);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -61,7 +63,7 @@ export class NotificationController {
     @Body() body: SetVaccinePlanDto,
   ) {
     const data = await this.service.setVaccinePlan(req.user.id, babyId, scheduleItemId, body.scheduledDate);
-    return { code: 0, message: '设置成功', data };
+    return data;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -73,6 +75,6 @@ export class NotificationController {
     @Request() req,
   ) {
     const data = await this.service.removeVaccinePlan(req.user.id, babyId, scheduleItemId);
-    return { code: 0, message: '已恢复参考日期', data };
+    return data;
   }
 }

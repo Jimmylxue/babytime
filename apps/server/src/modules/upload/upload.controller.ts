@@ -56,14 +56,10 @@ export class UploadController {
 			: `${req.protocol}://${req.get('host')}${this.uploadService.getFileUrl(filename)}`
 
 		return {
-			code: 0,
-			message: '上传成功',
-			data: {
-				url: finalUrl,
-				filename,
-				originalname: file.originalname,
-				size: file.size,
-			},
+			url: finalUrl,
+			filename,
+			originalname: file.originalname,
+			size: file.size,
 		}
 	}
 }

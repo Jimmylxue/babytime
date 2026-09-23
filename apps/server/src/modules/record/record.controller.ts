@@ -26,11 +26,7 @@ export class RecordController {
   @HttpCode(200)
   async create(@Request() req, @Body() createRecordDto: CreateRecordDto) {
     const record = await this.recordService.create(req.user.id, createRecordDto);
-    return {
-      code: 0,
-      message: '记录成功',
-      data: record,
-    };
+    return record;
   }
 
   @Get('baby/:babyId')
@@ -40,21 +36,13 @@ export class RecordController {
     @Request() req,
   ) {
     const records = await this.recordService.findAllByBaby(req.user.id, babyId, date);
-    return {
-      code: 0,
-      message: 'success',
-      data: records,
-    };
+    return records;
   }
 
   @Get('summary/:babyId')
   async getSummary(@Param('babyId') babyId: string, @Request() req) {
     const summary = await this.recordService.getTodaySummary(req.user.id, babyId);
-    return {
-      code: 0,
-      message: 'success',
-      data: summary,
-    };
+    return summary;
   }
 
   @Get('stats/:babyId')
@@ -68,21 +56,13 @@ export class RecordController {
       babyId,
       days ? parseInt(days) : 7,
     );
-    return {
-      code: 0,
-      message: 'success',
-      data: stats,
-    };
+    return stats;
   }
 
   @Get('vaccines/:babyId')
   async getVaccines(@Param('babyId') babyId: string, @Request() req) {
     const records = await this.recordService.findVaccinesByBaby(req.user.id, babyId);
-    return {
-      code: 0,
-      message: 'success',
-      data: records,
-    };
+    return records;
   }
 
   @Get('detail/:babyId')
@@ -103,11 +83,7 @@ export class RecordController {
       pageSize: pageSize ? parseInt(pageSize) : undefined,
       metric,
     });
-    return {
-      code: 0,
-      message: 'success',
-      data: detail,
-    };
+    return detail;
   }
 
   @Get('detail-summary/:babyId')
@@ -124,31 +100,19 @@ export class RecordController {
       days: days ? parseInt(days) : undefined,
       metric,
     });
-    return {
-      code: 0,
-      message: 'success',
-      data: summary,
-    };
+    return summary;
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req) {
     const record = await this.recordService.findOne(id, req.user.id);
-    return {
-      code: 0,
-      message: 'success',
-      data: record,
-    };
+    return record;
   }
 
   @Delete(':id')
   @HttpCode(200)
   async remove(@Param('id') id: string, @Request() req) {
     await this.recordService.remove(id, req.user.id);
-    return {
-      code: 0,
-      message: '删除成功',
-    };
   }
 
   @Put(':id')
@@ -159,10 +123,6 @@ export class RecordController {
     @Body() updateRecordDto: UpdateRecordDto,
   ) {
     const record = await this.recordService.update(id, req.user.id, updateRecordDto);
-    return {
-      code: 0,
-      message: '更新成功',
-      data: record,
-    };
+    return record;
   }
 }

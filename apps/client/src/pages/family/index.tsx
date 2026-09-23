@@ -15,19 +15,18 @@ definePageConfig({
   backgroundColor: '#FEF8F7',
 })
 
+/** /family/members 的返回形状：服务端只投影展示字段，不再外发 openId/unionId 等 */
 interface Member {
   id: string
   userId: string
-  babyId: string
   role: string
-  status: string
   /** 本家庭内的备注名（家庭昵称），未设置时为 null，前端回落到微信昵称 */
   nickname?: string | null
   user?: {
     id: string
-    nickname?: string
-    avatar?: string
-    role?: string
+    nickname?: string | null
+    avatar?: string | null
+    role?: string | null
   }
 }
 

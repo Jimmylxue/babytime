@@ -21,6 +21,6 @@ export class StoolAnalysisController {
     this.rateLimit.assert('stool-analysis', req.user.id);
     const baby = await this.babyService.findOne(dto.babyId, req.user.id);
     const result = await this.stoolAnalysisService.analyze(baby, dto);
-    return { code: 0, message: '分析完成', data: result };
+    return result;
   }
 }

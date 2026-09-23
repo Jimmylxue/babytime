@@ -23,11 +23,7 @@ export class PhotoController {
   @HttpCode(200)
   async create(@Request() req, @Body() createPhotoDto: CreatePhotoDto) {
     const photo = await this.photoService.create(req.user.id, createPhotoDto);
-    return {
-      code: 0,
-      message: '上传成功',
-      data: photo,
-    };
+    return photo;
   }
 
   @Get('baby/:babyId')
@@ -43,11 +39,7 @@ export class PhotoController {
       page ? parseInt(page) : 1,
       pageSize ? parseInt(pageSize) : 20,
     );
-    return {
-      code: 0,
-      message: 'success',
-      data: result,
-    };
+    return result;
   }
 
   @Get('timeline/:babyId')
@@ -63,31 +55,19 @@ export class PhotoController {
       page ? Math.max(1, parseInt(page)) : 1,
       pageSize ? Math.min(100, Math.max(1, parseInt(pageSize))) : 30,
     );
-    return {
-      code: 0,
-      message: 'success',
-      data: result,
-    };
+    return result;
   }
 
   @Delete(':id')
   @HttpCode(200)
   async remove(@Param('id') id: string, @Request() req) {
     await this.photoService.remove(id, req.user.id);
-    return {
-      code: 0,
-      message: '删除成功',
-    };
   }
 
   @Post('batch-delete')
   @HttpCode(200)
   async batchRemove(@Request() req, @Body() body: { ids?: string[] }) {
     const result = await this.photoService.batchRemove(body?.ids ?? [], req.user.id);
-    return {
-      code: 0,
-      message: '删除成功',
-      data: result,
-    };
+    return result;
   }
 }

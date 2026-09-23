@@ -755,3 +755,273 @@ $ pnpm run build（apps/client, taro weapp）    → Compiled successfully
 14/30 天的喂奶次数 / 奶量 / 尿布次数海报走同一套折线绘制，但**没有传新的格式化函数**，
 气泡沿用旧口径 `12.0次` / `500.0ml`。这些是整数计数，不是本次的精度问题，看着别扭可下一轮统一收拾。
 
+---
+
+### 14. 追加（2026-09-23）：安全与隐私批次（backlog 二 全部 6 项）· 服务端为主
+
+对应 `docs/2026-09-22-optimization-backlog.md` 的 2.1 ~ 2.6，本轮全部改完并在本地实测。
+
+#### 改了什么
+
+| 项 | 改动 | 出网形状变化 |
+|---|---|---|
+| 2.1 成员列表泄露 openId/unionId | `family.service.ts` 加 `toPublicUser/toMemberEntry` 白名单投影；`/family/my-families` 不再 load `baby.user` | `GET /family/members` 每条成员只剩 `{id, userId, role, nickname, user:{id,nickname,avatar,role}}`，`inviteCode`（旧版一次性码）也不再外发 |
+| 2.2 CORS `origin:'*'` + `credentials:true` | `main.ts` 改成精确 origin 白名单，默认**空表**（等于不放行任何跨域）；`credentials` 关掉 | 后台与本服务同源（挂在 `/admin`），无影响 |
+| 2.3 便便 AI `imageUrl` 未限域 | DTO 加 `@IsOwnCdnImageUrl()`：仅 https + `babyimg.jimmyxuexue.top` / `image.jimmyxuexue.top` | 非白名单图片地址现在 400「只能分析本站图床上的图片」 |
+| 2.4 埋点接口 body 不是 DTO | 新增 `TrackEventDto`：`name` 走 `@Matches`，`properties` 限 16 键 / 键名 32 字 / 字符串值 120 字 / 只收一层原始值 | 非法埋点从「静默入库」变 400；客户端 fire-and-forget，用户无感 |
+| 2.5 告警 token 非常量时间比较 | 新增 `common/secrets.ts` 的 `secretsEqual()`：两边各过一次 SHA-256 再 `timingSafeEqual` | 无（crontab 的请求体不变） |
+| 2.6 ~100 处手写信封 | 新增全局 `TransformInterceptor` + `AllExceptionsFilter`，删掉 11 个 controller 里 68 处 `return {code,message,data}` | **成功响应形状完全不变**；错误响应从 `{statusCode,message,error}` 变 `{code,message,data:null}`，且 `message` 一律是字符串（校验错误的数组被拼成一句） |
+
+#### 部署
+
+**无 SQL、无必须的环境变量变更**，服务端直接发：
+
+```bash
+bash server.sh
+```
+
+小程序端本轮只改了 `pages/family/index.tsx` 的 `Member` 类型声明（跟着服务端字段收窄，运行时零变化），
+**不必为这轮单独重发**，随下一次小程序发版带上即可。
+
+`CORS_ALLOWED_ORIGINS` 是本轮新增的**可选**变量：不配 = 不接受任何跨域来源（当前所有消费者都不需要），
+生产 `.env` 无需改动。将来后台挪到独立域名时再补：
+
+```bash
+# 逗号分隔、精确 origin（协议+域名+端口，不能带路径与通配）
+# CORS_ALLOWED_ORIGINS=https://baby-cheese.jimmyxuexue.top
+```
+
+> 说明为什么这不算「收敛后反而更严」：原配置 `origin:'*'` + `credentials:true` 是浏览器规范直接判死的组合，
+> 跨域请求本来就会失败 —— 从「白写」变成「显式白名单」不会关掉任何现在能用的东西。
+
+#### 需要留意的行为变化（发布后自测点）
+
+1. **成功文案统一成 `success`**：原先各接口自带「创建成功 / 打卡成功 / 上传成功」等 message。
+   已核对过：小程序与后台都只在**失败**时读 `message`（`request.ts` 的 toast、admin 拦截器），成功路径不读，无 UI 变化。
+2. **后台「测试推送」未选用户**：从 `HTTP 200 + code:400` 变成真 `HTTP 400`，
+   admin 的 `message.error` 走的仍是 `error.response.data.message`，文案不变（「请选择已订阅用户」）。
+3. **`/api/health` 特意没套信封**（`@SkipTransform()`）：`server.sh` 与 `deploy-preflight.js`
+   都是 `grep '"status":"ok"'`，形状保持 `{status, timestamp}`。
+4. HTTP 状态码语义一律没动：401 仍是 401（小程序的 token 静默续期靠它），5xx 仍 5xx。
+
+#### 真机回归检查项（信封与成员投影是全局改动，覆盖面大）
+
+- [ ] 家人页：成员列表头像/昵称/备注名/角色正常；改备注名 → 列表刷新；移除成员 → 列表刷新
+- [ ] 记录页：喂奶/尿布/睡眠各记一笔并删除；趋势页签与明细页能出数
+- [ ] 相册：上传一张 → 时间轴出现；长按删除 / 批量删除
+- [ ] 里程碑：打卡、改日期、删除；海报生成
+- [ ] 首页公告弹窗、疫苗计划（设置日期 / 恢复参考日期）、订阅状态角标
+- [ ] 便便 AI：选一张自家照片能出结果；（可选）把 imageUrl 改成外网域名应 400 且提示「只能分析本站图床上的图片」
+- [ ] 任意失败路径的 toast 文案是中文句子（例如邀请卡号填错、家庭人数已满）
+- [ ] 后台：登录、总览/趋势/漏斗/留存、宝宝列表与详情、相册审计、公告增改、订阅管理与测试推送、运维看板
+
+#### 本地已验证
+
+```
+$ npx tsc --noEmit -p apps/server/tsconfig.json                 → 0 报错
+$ pnpm run build:server                                          → nest build 通过
+$ node dist/main.js（127.0.0.1:3999，OPS_DISABLE_SCHEDULER=1）  → 启动无 DI 报错（Reflector 注入可用）
+$ node verify-security-tmp.js                                    → 28/28 通过（脚本用完已删）
+  关键项：成员列表两个视角均无 openId/unionId/邀请码/lastSeen 命中；展示字段与备注名仍在；
+  /family/my-families 不再带出创建者 User 实体；
+  埋点 7 个用例（合规通过 / 非法名 / 嵌套 / >16 键 / 超长 / 数组值 / 多余字段被 whitelist 拦）；
+  图片白名单 4 个用例（外网拒 / http 拒 / `babyimg...evil.example` 后缀伪装拒 / 自家域名放行到下一步）；
+  secretsEqual 4 种输入语义 + 告警接口错误 token 401（带 code）；
+  未登录仍 401 且 message「请先登录」；/api/health 未被套信封；
+  CORS：非白名单来源无 ACAO 头，白名单来源放行
+  （临时造的 2 个用户 / 1 个宝宝 / 1 条成员关系 / 1 条备注名与埋点行，验证后已按 id 精确删除，库已回到 1 user / 5 babies / 0 members）
+```
+
+#### 本轮没动（避免误会）
+
+- `GET /user/profile` 与登录响应仍返回**自己**的 `openId`（`unionId` 也在 User 实体里）：属于「本人看本人」，
+  不是跨用户泄露，本轮按 backlog 范围没动。要收的话和 2.1 同一个投影就能解决。
+- `findOwnerUser()` 仍按 `relations:['user']` 查库（openId 会进内存），但出口已被投影挡住 —— 想连查询一起收窄，
+  得改 TypeORM 的 relation `select`，语义风险大于收益，没做。
+- 埋点 `properties` 的口径是「一层原始值」：将来真要传嵌套结构，应改成显式声明字段的子 DTO，而不是放宽上限。
+
+---
+
+### 15. 追加（2026-09-23）：修「我的」页晚间回顾角标永远显示未开启 · 纯小程序端
+
+#### 问题（用户报的）
+
+两件事，一件是真 bug，一件不是：
+
+1. 手机上记录喂奶**不弹**订阅预告卡 —— 不是 bug，是频控/版本，结论见「手机不弹」小节，本轮**没改代码**
+2. 模拟器清缓存后弹了、微信弹窗点了同意，「我的」页提醒那一栏还是「开启提醒」 —— **真 bug，本轮修**
+
+#### 根因（第 2 条）
+
+`apps/client/src/pages/mine/index.tsx` 的 `reviewSubscribed` 是一个纯本地 `useState(false)`：
+只有**在这一页上**点「开启提醒」且微信返回 `accept` 时才置 true，`useDidShow` 里只拉了
+`/notification/config`（为了拿模板 ID），**从来没拉过订阅状态**。
+
+而喂奶页/记录页的授权走的是 `runCombinedSubscribe` → `POST /notification/subscriptions`，
+服务端 `subscription_grants.available_count` +1 与这个 state 毫无关联；小程序冷启动后 state 又回到 false。
+
+所以这个角标显示的真实语义是「本次会话里我有没有在这一页点过同意」，而不是订阅状态。
+两处取值本来就不是同一个来源：
+
+| 位置 | 取什么 |
+|---|---|
+| 该不该弹预告卡 | 服务端 `GET /notification/status?template=review` 的 `availableCount` |
+| 「我的」页角标（改前） | 组件本地 state |
+
+#### 改动（1 个文件：`apps/client/src/pages/mine/index.tsx`）
+
+角标改由服务端状态驱动，`useDidShow` 补拉 `getStatus('review')`，用返回的 `state` 三分：
+
+| 服务端 `state` | 含义 | 角标 | 标题下小灰字 |
+|---|---|---|---|
+| `never` | 从没授权过 | 开启提醒 | 无 |
+| `active` | 有可用额度 | 已开启 | 无 |
+| `exhausted` | 授权过、额度已用完（今晚 21 点这条发不出） | 已开启 | 今晚的回顾还没有额度，点一下续期 |
+
+- 整行本来就可点（`handleReviewSubscribe`），所以 `exhausted` 时点一下就是续期：一次授权 `available_count` +1
+- 选 `acceptedCount > 0` 判「已开启」而不是 `availableCount > 0`：后者会让角标每晚推送后跳回「开启提醒」，
+  把「你授权过」这件事实显示成「没开」，是假故障；额度用完这件事交给那行小字说清楚
+- 本页授权 `accept` 后本地直接置 `active`，不再多发一次请求
+- 状态拉取失败时保持上一次显示、不跳回「开启提醒」，与 `subscriptionPrompt.ts` 的 fail-closed 口径一致
+- 不需要额外的事件同步：`components/TabBar` 用的是 `switchTab`，切到「我的」必触发 `useDidShow`，
+  在喂奶页/记录页授权完再回到「我的」就能看到「已开启」
+
+#### 追加（同日）：静默续期 —— 把「每周 1 晚」变成「每晚都发」
+
+**动机**：一次性订阅每次授权只给 1 条下发，而回顾是每天 21:00 发一条 → 7 天引导冷却等于每人每周最多收到
+1 晚、中间 6 晚空着。这是产品口径上的真实缺陷，不是频控写错了。
+
+**机制**（微信官方行为，已核对）：用户在授权弹窗里勾过「**总是保持以上选择，不再询问**」并允许之后，
+后续 `wx.requestSubscribeMessage` **不再弹窗**，直接返回 `accept`。所以对这批用户，在「保存记录」的
+tap 回调里同步调一次 = 记一笔攒一晚推送，全程无感。一次性订阅没有"一次授权攒多条"的口子
+（同一 tmplId 一次调用传多份会去重），静默续期是唯一合法的提频路径。
+
+**改动**：`utils/subscriptionPrompt.ts` 新增两个导出 + 两个记录页各接 3 处
+
+| 函数 | 何时调 | 做什么 |
+|---|---|---|
+| `getSilentRenewPlan()` | 进页面时（`useDidShow` 新增态，一次） | 预取资格。全部命中才返回计划：不在 30 天拒绝冷却 / 今天还没试过 / 回顾模板可用 / 服务端 `availableCount===0` / `getSetting({withSubscriptions:true})` 里这张模板是"总是保持+允许" |
+| `startSilentRenew(plan)` | 「保存」按钮 tap 回调**最开头**（早于任何 await） | 同步发起授权请求，返回收尾函数 |
+| 收尾函数 | `addRecord` 成功之后 | `await` 微信结果 → `accept/reject` 才上报入账 → 埋点 `subscription_silent_renew` |
+
+**为什么必须这个时序**：微信只认用户手势上下文里的 `requestSubscribeMessage`，前面一旦 `await` 网络就失效
+（`subscriptionPrompt.ts` 原注释里同一条约束）。所以判定全部提前做完，tap 里只做同步发起。
+
+**接入点**：`pages/feeding/index.tsx`、`pages/record/index.tsx` 各加 `silentPlanRef` + `silentPrefetchedRef`，
+编辑态不参与（`isEdit` 直接跳过），静默收尾排在 `getSubscriptionPromptPlan()` **之前** —— 额度已 +1 后
+预告卡自然不出。另外 `getSubscriptionPromptPlan()` 里也补了一次"总是保持"判定：**这批用户不再看见预告卡**
+（他们已经永久表过态，再弹只是白打扰）。
+
+**频率**：每天最多试 1 次（`subscribe:silent:lastDate` 存本地日号，一晚只需一条，攒多了也只是库存）。
+当天无论成败都写标记，避免失败后每次保存都撞一遍。
+
+**服务端零改动**：`POST /notification/subscriptions` 的每人每天 20 次配额，对"每天 1 次"绰绰有余。
+无 SQL、无环境变量。
+
+**边界（都是"判不出就不做"）**：
+
+- `itemSettings` 两种历史形状（数组 / 以模板 ID 为键的对象）都认；认不出、`mainSwitch` 关、
+  `getSetting` 不支持 → 一律判否，最坏是少补一次额度，绝不会骚扰用户
+- 用户事后在「设置 → 订阅消息」里关掉 → `pushEnabled` 变 0，判定自动不成立
+- 微信侧调用失败（含手势丢失）→ 静默 catch：不 toast、不改 UI、只留一条 `status:'error'` 埋点
+- 桥接层同步抛异常 → 收尾函数直接返回 null，**不影响记录保存**
+- 静默请求已发起但随后保存失败（如内容安全拦截）→ 当天标记已写、额度也已 +1；无害（额度是库存）
+
+#### 手机不弹预告卡：排查结论（未改代码）
+
+
+后端配置已实测无误，模拟器的构建打的也是生产 API（`apps/client/.env` 的 `API_BASE_URL`），
+所以两端后端完全一致，差异只可能在客户端：
+
+```bash
+$ curl -s https://baby-cheese.jimmyxuexue.top/api/notification/config
+{"code":0,"message":"success","data":{"vaccineTemplateId":"qX2lCy…","reviewTemplateId":"UZXDcP…","vaccineEnabled":true,"reviewEnabled":true}}
+```
+
+按可能性排序（判定顺序在 `apps/client/src/utils/subscriptionPrompt.ts:36-53`）：
+
+1. **手机跑的是旧版本**（最可能）。这套引导是 `2d91b69`（2026-09-20 23:07）才进 main 的，本轮还在待发布
+   —— 正式版里根本没有这段代码，怎么记都不会弹。**先在手机上确认版本号**（小程序「…」→ 关于）
+2. **7 天本地冷却** `subscribe:prompt:lastAt`：`markPromptShown()` 在预告卡**出现那一刻**就写时间戳，
+   跟用户点没点、微信弹窗结果如何都无关
+3. **30 天拒绝冷却** `subscribe:prompt:rejectAt`：微信弹窗里点过一次拒绝就锁 30 天
+4. **服务端还有额度**（`availableCount > 0`）→ 设计上就不弹（有额度不贪要）
+5. config / status 任一请求失败 → `catch` 返回 null，静默不弹（弱网、token 续期失败）
+
+清缓存之所以在模拟器里立刻弹：它抹掉了第 2、3 条的 storage 时间戳（模拟器与手机的 storage 本来就是两套，互不影响）。
+
+看额度账本，判断是第 1 还是第 4 条（服务器上、仓库根目录执行；只读查询）：
+
+```bash
+set -a; source .env; set +a
+MYSQL_PWD="$DB_PASSWORD" mysql -h"${DB_HOST:-localhost}" -u"$DB_USERNAME" "$DB_DATABASE" -e "
+  SELECT u.nickname, sg.available_count, sg.accepted_count, sg.sent_count, sg.granted_at, sg.last_sent_at
+  FROM subscription_grants sg JOIN users u ON u.id = sg.user_id
+  WHERE sg.template_id = 'UZXDcPXHdsV1BM8qmnmSxMq_7UKf9GrH0VGvpE2W6_E'
+  ORDER BY sg.granted_at DESC LIMIT 20;"
+```
+
+- `available_count > 0` → 第 4 条，正常不弹
+- `accepted_count = 0` 且本地冷却也没锁 → 才需要怀疑第 1 条（版本）或第 5 条（请求失败）
+
+#### 部署
+
+**只发小程序，不用跑 `server.sh`**：无 SQL、无环境变量、服务端零改动。
+
+```bash
+bash mini.sh <版本号> "修晚间回顾订阅状态角标 + 已授权用户记录时静默续额度"
+```
+
+#### 真机回归检查项
+
+**⚠️ 阻塞级（模拟器复现不了，必须真机）**：
+
+- [ ] **静默续期不打扰**：手机上先授权一次并在微信弹窗里勾「总是保持以上选择」→ 第二天（或清掉
+      `subscribe:silent:lastDate` 后）记一笔喂奶 → **界面上不许出现任何弹窗/授权框**，
+      同时后台「订阅与唤回」里该用户的 `available_count` 应 +1、`granted_at` 应刷新。
+      模拟器上 `getSetting({withSubscriptions:true})` 的行为与真机不一致，这条只能真机认定
+- [ ] **没勾"总是保持"的用户不受影响**：首次授权时不勾选 → 之后记喂奶不应有任何弹窗，
+      也不该有静默 +1；预告卡仍按 7 天冷却的节奏出现
+
+其余常规项：
+
+- [ ] 「我的」→ 提醒 → 晚间回顾：从没授权过的账号显示「开启提醒」，整行点一下能出微信授权框
+- [ ] 在**喂奶页**记一笔 → 出预告卡 → 开启提醒 → 微信弹窗点同意 → 切到「我的」：角标应是**已开启**（这条就是本轮修的 bug）
+- [ ] 在**记录页**（九宫格任意类型）走一遍同样的路径 → 「我的」角标同样应是已开启
+- [ ] 在「我的」页直接点这一行授权 → toast「晚间回顾已开启」+ 角标立刻变已开启
+- [ ] 杀掉小程序冷启动 → 角标仍是**已开启**（改前会掉回「开启提醒」）
+- [ ] 后台把该用户的 `available_count` 手动清零（或等它自然用完后）→ 「我的」这一行标题下应出现
+      「今晚的回顾还没有额度，点一下续期」，角标仍是已开启；点一下再授权 → 小字消失
+- [ ] 未登录状态：这一栏本就被 `isLoggedIn` 挡住，不应有任何请求发出
+- [ ] 预告卡只对"没勾总是保持"的用户出现：已勾的用户记完喂奶后**不该再看到那张卡**（`getSubscriptionPromptPlan`
+      里多了一次 `getSetting` 判定，这一条与上面第一条是同一件事的两面）
+- [ ] 编辑一条已有记录（改时间/改奶量）→ 保存时不该有任何订阅行为：不弹卡、不静默 +1
+
+#### 本地已验证
+
+```
+$ node /tmp/verify-silent-renew.cjs   → 35/35 通过（对 subscriptionPrompt.ts 真源码转译后打桩跑判定）
+  静默资格 12 个用例：拒绝冷却 / 当天已试 / 昨天可再试 / 有额度不贪 / 模板未配 / config 失败 /
+    status 失败 / getSetting 不支持 / itemSettings 空 / pushEnabled=0 / mainSwitch=0 / 只勾了疫苗模板；
+    itemSettings 的数组与映射两种形状都能认
+  发起与收尾 8 个用例：requestSubscribeMessage 在 startSilentRenew 返回前已同步调用（手势上下文）、
+    只传回顾一个模板、当天标记已写、accept 才入账、reject 记 30 天冷却、
+    微信侧失败不抛不上报只留 error 埋点、桥接层同步异常不影响保存流程、无计划时完全不动作
+  互斥 6 个用例：静默续上后预告卡不出、已勾"总是保持"者预告卡永不出、判不出时预告卡照旧、
+    7 天冷却与组合 tmplIds 老路径不变
+$ pnpm -C apps/client build:weapp                                 → Compiled successfully
+$ npx tsc --noEmit -p apps/client/tsconfig.json | grep 本批文件   → 无新报错
+  （src/pages/feeding/index.tsx 那 2 条是仓库既有噪音：id 可能 undefined、Textarea 的 maxLength 命名）
+$ curl -s https://baby-cheese.jimmyxuexue.top/api/notification/config         → reviewEnabled:true（见上）
+```
+
+服务端 `state` 三分的口径直接读自 `vaccine-plan.service.ts:62-75`（`getUserVaccineStatus`）：
+`availableCount > 0 → active`、`acceptedCount > 0 → exhausted`、否则 `never`，前端只做映射、不再自己判断次数。
+
+#### 本轮没动（避免误会）
+
+- 频控规则本身（7 天 / 30 天 / 有额度不弹）没改，只是把「为什么没弹」的排查路径写清楚
+- 没在小程序里加「为什么不弹」的调试文案 —— 线上要看的是上面那条 SQL 和后台订阅看板，不是给用户看的日志
+
+
+

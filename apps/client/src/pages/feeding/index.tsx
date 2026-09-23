@@ -7,9 +7,12 @@ import { formatDate, formatHM } from '../../utils/date'
 import { CDN_ASSETS } from '../../config/assets'
 import SubscriptionPromptSheet from '../../components/SubscriptionPromptSheet'
 import {
+	getSilentRenewPlan,
 	getSubscriptionPromptPlan,
 	markPromptShown,
 	runCombinedSubscribe,
+	startSilentRenew,
+	type SilentRenewPlan,
 	type SubscriptionPromptPlan,
 } from '../../utils/subscriptionPrompt'
 const heroIllustration = CDN_ASSETS.feedingBaby
@@ -243,6 +246,9 @@ export default function FeedingPage() {
 	// 订阅预告卡（保存成功后按频控判定展示）
 	const [promptPlan, setPromptPlan] = useState<SubscriptionPromptPlan | null>(null)
 	const [promptBusy, setPromptBusy] = useState(false)
+	// 「静默续期」资格要在进页面时预取好，保存按钮的 tap 回调里只能同步读结果
+	const silentPlanRef = useRef<SilentRenewPlan | null>(null)
+	const silentPrefetchedRef = useRef(false)
 	const [amount, setAmount] = useState(140)
 	const [breastAmount, setBreastAmount] = useState(140)
 	const [formulaAmount, setFormulaAmount] = useState(100)
@@ -276,6 +282,13 @@ export default function FeedingPage() {
 		if (isEdit && id) {
 			fetchRecord()
 			return
+		}
+		// 静默续期资格：只在新增态预取一次（判定要读 config/status，不能留到 tap 里做）
+		if (!silentPrefetchedRef.current) {
+			silentPrefetchedRef.current = true
+			void getSilentRenewPlan().then(plan => {
+				silentPlanRef.current = plan
+			})
 		}
 		// 新增时用最近一条喂奶记录预填（时间/备注不预填），并生成「上次」提示。
 		// days 传 1100 拉全量：窗口太短（如 60 天）会静默取不到上次记录，预填落空。
@@ -351,6 +364,11 @@ export default function FeedingPage() {
 		}
 		submittingRef.current = true
 		setLoading(true)
+		// 静默续期：必须在任何 await 之前同步发起，微信只认用户手势上下文里的调用
+		const settleSilentRenew = isEdit
+			? null
+			: startSilentRenew(silentPlanRef.current)
+		silentPlanRef.current = null
 		try {
 			const data: any = {
 				babyId,
@@ -379,6 +397,8 @@ export default function FeedingPage() {
 				const cumulative = (Taro.getStorageSync('stats:cumulativeRecords') || 0) + 1
 				Taro.setStorageSync('stats:cumulativeRecords', cumulative)
 				Taro.showToast({ title: '已记录', icon: 'success' })
+				// 先收掉静默续期：额度落库后再判预告卡，已续上的用户不会再被问一次
+				await settleSilentRenew?.()
 				// 价值时刻：满足频控则暂缓返回，盖出订阅预告卡（7 天/30 天冷却在工具内部判定）
 				const plan = await getSubscriptionPromptPlan()
 				if (plan) {

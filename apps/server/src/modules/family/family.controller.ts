@@ -24,11 +24,7 @@ export class FamilyController {
   @HttpCode(200)
   async createInvite(@Request() req, @Body() createInviteDto: CreateInviteDto) {
     const result = await this.familyService.createInvite(req.user.id, createInviteDto);
-    return {
-      code: 0,
-      message: '邀请码已生成',
-      data: result,
-    };
+    return result;
   }
 
   @Get('invite/info/:inviteCode')
@@ -40,11 +36,7 @@ export class FamilyController {
       req.user.id,
       inviteCode,
     );
-    return {
-      code: 0,
-      message: 'success',
-      data: result,
-    };
+    return result;
   }
 
   @Post('accept/:inviteCode')
@@ -59,41 +51,25 @@ export class FamilyController {
       inviteCode,
       acceptInviteDto.role,
     );
-    return {
-      code: 0,
-      message: '已成功加入家庭',
-      data: result,
-    };
+    return result;
   }
 
   @Get('members')
   async getFamilyMembers(@Request() req) {
     const members = await this.familyService.getFamilyMembers(req.user.id);
-    return {
-      code: 0,
-      message: 'success',
-      data: members,
-    };
+    return members;
   }
 
   @Get('my-families')
   async getUserFamilies(@Request() req) {
     const families = await this.familyService.getUserFamilies(req.user.id);
-    return {
-      code: 0,
-      message: 'success',
-      data: families,
-    };
+    return families;
   }
 
   @Get('binding-status')
   async getBindingStatus(@Request() req) {
     const status = await this.familyService.checkFamilyBinding(req.user.id);
-    return {
-      code: 0,
-      message: 'success',
-      data: status,
-    };
+    return status;
   }
 
   @Patch('member/nickname')
@@ -106,30 +82,18 @@ export class FamilyController {
       updateMemberNicknameDto.targetUserId,
       updateMemberNicknameDto.nickname,
     );
-    return {
-      code: 0,
-      message: result.nickname ? '昵称已更新' : '已恢复默认昵称',
-      data: result,
-    };
+    return result;
   }
 
   @Delete('member/:memberId')
   @HttpCode(200)
   async removeMember(@Request() req, @Param('memberId') memberId: string) {
     await this.familyService.removeMember(req.user.id, memberId);
-    return {
-      code: 0,
-      message: '已移除成员',
-    };
   }
 
   @Post('leave')
   @HttpCode(200)
   async leaveFamily(@Request() req) {
     await this.familyService.leaveFamily(req.user.id);
-    return {
-      code: 0,
-      message: '已退出家庭',
-    };
   }
 }

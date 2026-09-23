@@ -37,7 +37,8 @@ export default function MinePage() {
 	const [editAvatar, setEditAvatar] = useState('')
 	const [editRole, setEditRole] = useState('')
 	const [reviewTemplateId, setReviewTemplateId] = useState('')
-	const [reviewSubscribed, setReviewSubscribed] = useState(false)
+	// 徽章取服务端的真实额度账本：never 从未授权 / active 有额度 / exhausted 授权过但额度已用完
+	const [reviewState, setReviewState] = useState<'never' | 'active' | 'exhausted'>('never')
 	// 生成纪念册期间置忙，避免连点造成重复绘制同一个画布
 	const [albumBusy, setAlbumBusy] = useState(false)
 
@@ -51,6 +52,12 @@ export default function MinePage() {
 					setReviewTemplateId(
 						res.data?.reviewEnabled ? res.data.reviewTemplateId : '',
 					)
+				})
+				.catch(() => {})
+			notificationApi
+				.getStatus('review')
+				.then(res => {
+					if (res.data) setReviewState(res.data.state)
 				})
 				.catch(() => {})
 		}
@@ -99,7 +106,7 @@ export default function MinePage() {
 				status,
 			})
 			if (status === 'accept') {
-				setReviewSubscribed(true)
+				setReviewState('active')
 				Taro.showToast({ title: '晚间回顾已开启', icon: 'success' })
 			}
 		} catch {
@@ -362,10 +369,13 @@ export default function MinePage() {
 							</View>
 							<View className="mi-copy">
 								<Text className="mi-title">晚间回顾提醒</Text>
+								{reviewState === 'exhausted' ? (
+									<Text className="mi-sub">今晚的回顾还没有额度，点一下续期</Text>
+								) : null}
 							</View>
 							<View className="mi-right">
 								<Text className="mi-badge">
-									{reviewSubscribed ? '已开启' : '开启提醒'}
+									{reviewState === 'never' ? '开启提醒' : '已开启'}
 								</Text>
 							</View>
 						</View>

@@ -8,6 +8,6 @@ export class AnnouncementController {
   @Get('current')
   async findCurrent() {
     const announcement = await this.announcementService.findCurrent();
-    return { code: 0, message: 'success', data: announcement };
+    return announcement;
   }
 }

@@ -64,34 +64,66 @@
 - 项目**没有全局 ClassSerializerInterceptor，实体上也没有 `@Exclude`** → `GET /family/members` 响应里每个成员都带 `openId`、`unionId`、`acquisitionSource`、`lastSeenAt`、`createdAt`
 - `unionId` 是微信开放平台账号级跨应用标识符，比 openId 敏感
 - 前端只用 `nickname` / `avatar` / `role`
-- [ ] 修：`attachAliases` 之前把 user 投影成 `{id, nickname, avatar}`
+- [x] 修：`attachAliases` 之前把 user 投影成 `{id, nickname, avatar}` —— ✅ 2026-09-23
+  - `family.service.ts` 新增 `toPublicUser()` / `toMemberEntry()` 白名单投影，成员条目只剩
+    `{id, userId, role, nickname, user:{id, nickname, avatar, role}}`（`role` 保留是因为页面
+    `getRoleText(member.user?.role || member.role)` 在读它）
+  - 顺带堵了两个同源口子：成员条目不再带 `family_members.invite_code`（旧版一次性码＝该宝宝全部数据的入场券）；
+    `getUserFamilies()` 去掉 `baby.user` relation，`/family/my-families` 不再把创建者整个 User 实体摊平进响应
+  - 小程序 `pages/family/index.tsx` 的 `Member` 接口跟着收窄（去掉 `babyId`/`status`，运行时零变化）
+  - 验证：本地真库造 2 用户 / 1 宝宝 / 1 成员关系 / 1 备注名，两个视角打 `GET /family/members`，
+    响应文本里 `TMPSEC21_open`、`TMPSEC21_union`、`TEMPINV1`、`lastSeen`、`acquisition` 全部零命中，
+    同时微信昵称 / 头像 / 角色 / 家庭备注名仍正常返回；临时行验证完按 id 精确删除
 
 ### 2.2 CORS `origin: '*'` 配 `credentials: true`
 
 - `main.ts:13-17`。这组合浏览器本来就拒绝（等于白写）；小程序不走 CORS，但管理后台走
-- [ ] 收敛成后台域名白名单
+- [x] 收敛成后台域名白名单 —— ✅ 2026-09-23：改成 `CORS_ALLOWED_ORIGINS` 精确 origin 白名单，
+  **默认空表**（不放行任何跨域）。管理后台实际由本进程挂在同源的 `/admin` 下、用 Authorization 头而非 Cookie，
+  所以 `credentials` 一并关掉；无 Origin 头（同源 / 小程序 / 服务器脚本）照常放行。
+  从「白写」变成「显式白名单」不会关掉任何现在能用的东西 —— 已实测非白名单来源不发 ACAO 头、白名单来源放行
 
 ### 2.3 便便 AI 的 `imageUrl` 未限域
 
 - `stool-analysis/dto/analyze-stool.dto.ts:8` 只校验 `@IsUrl({require_tld: false})`
 - 后果：可拿任意外网图烧智谱额度（限流 30 次/天/人，但内容我们既不审也不存）
-- [ ] 修：限死 `babyimg.jimmyxuexue.top` 前缀
+- [x] 修：限死 `babyimg.jimmyxuexue.top` 前缀 —— ✅ 2026-09-23：DTO 加 `@IsOwnCdnImageUrl()`，
+  要求 https + hostname 精确等于 `babyimg.jimmyxuexue.top`（历史图片域 `image.jimmyxuexue.top` 同桶，一并放行）。
+  用 `new URL()` 解析而非字符串前缀匹配，所以 `babyimg.jimmyxuexue.top.evil.example` 这种后缀伪装也被拒（已实测）
 
 ### 2.4 埋点接口 body 不是 DTO，全局校验对它完全无效
 
 - `user.controller.ts:47` `@Body() body: { name: string; properties?: Record<string, any> }` 是内联类型，无 metatype → `ValidationPipe({forbidNonWhitelisted:true})` 不生效
 - `properties` 无大小上限，直接进 JSON 列
-- [ ] 修：建 `TrackEventDto`，`properties` 加长度/深度上限
+- [x] 修：建 `TrackEventDto`，`properties` 加长度/深度上限 —— ✅ 2026-09-23：`name` 走 `@Matches`（沿用原来的
+  `/^[a-z0-9_.-]{1,64}$/i`，错误文案仍是「事件名称无效」），`properties` 用自定义约束限到
+  **16 个键 / 键名 32 字 / 字符串值 120 字 / 只收一层原始值**（对象、数组一律 400）。
+  先核过小程序现有 30+ 处 `trackEvent()` 全是扁平的 string/number/boolean，收紧不影响真实埋点；
+  客户端本来就是 fire-and-forget（`.catch(() => undefined)`），被拒也不影响主流程
 
 ### 2.5 告警接口 token 用非常量时间比较
 
 - `admin.controller.ts:120` `body?.token !== expected`
-- [ ] 修：`crypto.timingSafeEqual`
+- [x] 修：`crypto.timingSafeEqual` —— ✅ 2026-09-23：新增 `common/secrets.ts` 的 `secretsEqual()`，
+  两边各过一次 SHA-256 再比 —— `timingSafeEqual` 对不等长输入直接抛错，而「抛不抛、何时抛」本身就是时序泄露，
+  定长摘要顺带把这个问题消掉了。crontab 的请求体不变，实测错误 token 仍 401、缺 token 401 而不是 500
 
 ### 2.6 ~100 处 controller 手写 `{code, message, data}` 信封
 
 - 无全局 interceptor / exception filter；错误响应是 Nest 默认的 `{statusCode, message, error}`，**不带 `code`**，客户端只能靠 `res.data?.message` 兜
-- [ ] 修：全局 TransformInterceptor + AllExceptionsFilter，删掉所有手写信封
+- [x] 修：全局 TransformInterceptor + AllExceptionsFilter，删掉所有手写信封 —— ✅ 2026-09-23
+  - `common/interceptors/transform.interceptor.ts`：成功统一 `{code:0, message:'success', data: 返回值 ?? null}`；
+    `common/filters/all-exceptions.filter.ts`：错误统一 `{code: <HTTP 状态码>, message:'<一句中文>', data:null}`，
+    校验失败的英文句子数组被拼成一句，5xx 才打 error 日志（不外泄堆栈）
+  - 删掉 11 个 controller 里 68 处手写信封；两处 `return { code: 400, message }`（埋点非法名、后台测试推送未选用户）
+    改成 `throw BadRequestException`
+  - **HTTP 状态码语义全部保持**：401 仍 401（小程序 token 静默续期靠它）、部署脚本的 `curl -sf` 仍成立
+  - `/api/health` 用 `@SkipTransform()` 排除：`server.sh` 与 `deploy-preflight.js` 都 grep `"status":"ok"`，
+    不能被信封改成 `.data.status`
+  - 副作用（已核对无消费者）：各接口自带的成功文案（「创建成功」「打卡成功」…）统一成 `success` ——
+    小程序与后台都只在失败路径读 `message`
+  - 验证：`tsc --noEmit` 0 报错、`build:server` 通过、真实例跑 28 项打桩全过；详见
+    `docs/releases/2026-09-18-2039-release-checklist.md` 第 14 节
 
 ---
 

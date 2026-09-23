@@ -1,6 +1,7 @@
 import {
-  Controller,
+  BadRequestException,
   Body,
+  Controller,
   Get,
   Param,
   Post,
@@ -21,6 +22,7 @@ import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import { NotificationService } from '../notification/notification.service';
+import { secretsEqual } from '../../common/secrets';
 
 @Controller('admin')
 export class AdminController {
@@ -36,77 +38,77 @@ export class AdminController {
   @Post('auth/login')
   async login(@Body() dto: AdminLoginDto) {
     const data = await this.adminAuthService.login(dto.username, dto.password);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/overview')
   async getOverview() {
     const data = await this.adminStatsService.getOverview();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/trends')
   async getTrends(@Query('days') days?: string) {
     const data = await this.adminStatsService.getTrends(Number(days) || 30);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/distribution')
   async getDistribution() {
     const data = await this.adminStatsService.getDistribution();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/funnel')
   async getFunnel() {
     const data = await this.adminStatsService.getFunnel();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/retention')
   async getRetention(@Query('days') days?: string) {
     const data = await this.adminStatsService.getRetention(Number(days) || 90);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/engagement')
   async getEngagement() {
     const data = await this.adminStatsService.getEngagement();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/vaccine-funnel')
   async getVaccineFunnel() {
     const data = await this.adminStatsService.getVaccineFunnel();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/album')
   async getAlbumMetrics() {
     const data = await this.adminStatsService.getAlbumMetrics();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('stats/tools')
   async getToolsMetrics() {
     const data = await this.adminStatsService.getToolsMetrics();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('ops/https')
   async getHttpsHealth(@Query('refresh') refresh?: string) {
     const data = await this.opsHealthService.getHttpsStatus(refresh === '1');
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   /**
@@ -117,10 +119,10 @@ export class AdminController {
   async alertCheck(@Body() body: { token?: string }) {
     const expected = process.env.OPS_ALERT_TOKEN;
     if (!expected) throw new ServiceUnavailableException('OPS_ALERT_TOKEN 未配置，告警接口已禁用');
-    if (body?.token !== expected) throw new UnauthorizedException('token 不正确');
+    if (!secretsEqual(body?.token, expected)) throw new UnauthorizedException('token 不正确');
 
     const data = await this.opsHealthService.runAlertCheck();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
@@ -137,14 +139,14 @@ export class AdminController {
       keyword?.trim() || undefined,
       sort || 'active',
     );
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('babies/:id')
   async getBabyDetail(@Param('id') id: string) {
     const data = await this.adminBabyService.getBabyDetail(id);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
@@ -164,7 +166,7 @@ export class AdminController {
       req.user?.username || 'admin',
       forwarded || req.ip || null,
     );
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
@@ -179,35 +181,35 @@ export class AdminController {
       Number(pageSize) || 20,
       keyword?.trim() || undefined,
     );
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('users/:userId/babies')
   async getUserBabies(@Param('userId') userId: string) {
     const data = await this.adminStatsService.getUserBabies(userId);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Get('announcements')
   async listAnnouncements() {
     const data = await this.adminAnnouncementService.list();
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Post('announcements')
   async createAnnouncement(@Body() dto: CreateAnnouncementDto) {
     const data = await this.adminAnnouncementService.create(dto);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
   @Put('announcements/:id')
   async updateAnnouncement(@Param('id') id: string, @Body() dto: UpdateAnnouncementDto) {
     const data = await this.adminAnnouncementService.update(id, dto);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
@@ -225,7 +227,7 @@ export class AdminController {
       keyword?.trim() || undefined,
       kind,
     );
-    return { code: 0, message: 'success', data };
+    return data;
   }
 
   @UseGuards(AdminJwtGuard)
@@ -234,12 +236,12 @@ export class AdminController {
     @Request() req,
     @Body() body: { userId?: string; babyId?: string; template?: 'vaccine' | 'review' },
   ) {
-    if (!body?.userId) return { code: 400, message: '请选择已订阅用户' };
+    if (!body?.userId) throw new BadRequestException('请选择已订阅用户');
     const triggeredBy = req.user?.username || 'admin';
     // template=review 走每日回顾模板（字段格式与疫苗不同，各自独立的额度）
     const data = body.template === 'review'
       ? await this.notificationService.sendManualReview(body.userId, triggeredBy)
       : await this.notificationService.sendManualVaccine(body.userId, body.babyId, triggeredBy);
-    return { code: 0, message: 'success', data };
+    return data;
   }
 }
