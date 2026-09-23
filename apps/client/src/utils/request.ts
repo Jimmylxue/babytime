@@ -193,6 +193,12 @@ export const recordApi = {
 		request<any>({
 			url: `/record/stats/${babyId}${days ? `?days=${days}` : ''}`,
 		}),
+	// 身高体重全量历史（统计页的 WHO 成长曲线 + 英雄卡）。
+	// 替代原先为拿一个字段而跑的 getStats(babyId, 1100)。
+	getGrowth: (babyId: string) =>
+		request<{ date: string; height: number | null; weight: number | null }[]>({
+			url: `/record/growth/${babyId}`,
+		}),
 	// 明细查询：传 date 取当天明细，传 days 取最近 N 天明细，均含与上一条的间隔
 	getDetail: (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number; metric?: 'height' | 'weight' }) => {
 		const query = new URLSearchParams({ type })

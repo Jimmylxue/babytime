@@ -59,6 +59,13 @@ export class RecordController {
     return stats;
   }
 
+  // 身高体重全量历史：统计页的 WHO 曲线/英雄卡专用，替代原先的 getStats(days=1100)
+  @Get('growth/:babyId')
+  async getGrowthTrend(@Param('babyId') babyId: string, @Request() req) {
+    const trend = await this.recordService.getGrowthTrend(req.user.id, babyId);
+    return trend;
+  }
+
   @Get('vaccines/:babyId')
   async getVaccines(@Param('babyId') babyId: string, @Request() req) {
     const records = await this.recordService.findVaccinesByBaby(req.user.id, babyId);

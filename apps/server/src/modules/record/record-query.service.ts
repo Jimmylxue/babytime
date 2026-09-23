@@ -95,10 +95,26 @@ export class RecordQueryService {
       }
     });
 
-    const [lastFeeding, lastSleep] = await Promise.all([
-      this.recordRepository.findOne({ where: { babyId, type: RecordType.FEEDING }, order: { startTime: 'DESC' } }),
-      this.recordRepository.findOne({ where: { babyId, type: RecordType.SLEEP }, order: { startTime: 'DESC' } }),
-    ]);
+    // 最后一条喂奶/睡眠 + 最近一次身高/体重/体温：全是 (babyId,type,start_time) 索引上的
+    // ORDER BY start_time DESC LIMIT 1，七条并成一个 Promise.all，不多一次往返。
+    // 后三条原本由首页单独打 /record/stats 才拿到（见 getStats 注释），并进这里后首页只需两个请求。
+    const [lastFeeding, lastSleep, latestHeightRecord, latestWeightRecord, latestTempRecord] =
+      await Promise.all([
+        this.recordRepository.findOne({ where: { babyId, type: RecordType.FEEDING }, order: { startTime: 'DESC' } }),
+        this.recordRepository.findOne({ where: { babyId, type: RecordType.SLEEP }, order: { startTime: 'DESC' } }),
+        this.recordRepository.findOne({
+          where: { babyId, type: RecordType.HEIGHT_WEIGHT, height: Not(IsNull()) },
+          order: { startTime: 'DESC' },
+        }),
+        this.recordRepository.findOne({
+          where: { babyId, type: RecordType.HEIGHT_WEIGHT, weight: Not(IsNull()) },
+          order: { startTime: 'DESC' },
+        }),
+        this.recordRepository.findOne({
+          where: { babyId, type: RecordType.TEMPERATURE },
+          order: { startTime: 'DESC' },
+        }),
+      ]);
 
     return {
       records,
@@ -108,6 +124,57 @@ export class RecordQueryService {
         lastSleepAt: lastSleep?.startTime || null,
         lastSleepEndAt: lastSleep?.endTime || null,
       },
+      // 与 getStats 的同名字段同一形状、同一算法，两处共用 toLatestHeightWeight
+      latestHeightWeight: this.toLatestHeightWeight(latestHeightRecord, latestWeightRecord),
+      latestTemperature: latestTempRecord
+        ? { temperature: latestTempRecord.temperature, date: latestTempRecord.startTime }
+        : null,
+    };
+  }
+
+  /**
+   * 身高体重全量历史（统计页的 WHO 成长曲线与英雄卡用）。
+   * 这里原本打的是 `getStats(babyId, 1100)`：为了 `heightWeightTrend` 一个字段，
+   * 服务端把三年内**所有类型**的记录捞进内存、构造 1100 个 dailyStats 对象（绝大多数全 0）再序列化回去。
+   * 现在只查 height/weight 一种、只取三个列。
+   */
+  async getGrowthTrend(userId: string, babyId: string) {
+    await this.babyService.findOne(babyId, userId);
+
+    const records = await this.recordRepository.find({
+      where: { babyId, type: RecordType.HEIGHT_WEIGHT },
+      select: ['startTime', 'height', 'weight'],
+      order: { startTime: 'ASC' },
+    });
+
+    // 身高体重允许只填一项，两项都空的脏行没有可画的点
+    return records
+      .filter((record) => record.height != null || record.weight != null)
+      .map((record) => ({
+        date: record.startTime,
+        height: record.height == null ? null : Number(record.height),
+        weight: record.weight == null ? null : Number(record.weight),
+      }));
+  }
+
+  /**
+   * 最新一次身高/体重：两项各自回看最近一次非空测量（支持只记身高或只记体重），
+   * 日期取两者中较新的那次。`getStats` 与 `getTodaySummary` 共用 ——
+   * 前端只有一份读取逻辑，两处形状必须完全一致。
+   */
+  private toLatestHeightWeight(heightRecord: Record | null, weightRecord: Record | null) {
+    if (!heightRecord && !weightRecord) return null;
+    // 只测了一项时取那一项的时间（上面的早退保证了两边至少一个非空）
+    const latest =
+      heightRecord && weightRecord
+        ? heightRecord.startTime >= weightRecord.startTime
+          ? heightRecord
+          : weightRecord
+        : heightRecord || weightRecord;
+    return {
+      height: heightRecord?.height ?? null,
+      weight: weightRecord?.weight ?? null,
+      date: latest!.startTime,
     };
   }
 
@@ -226,20 +293,7 @@ export class RecordQueryService {
       dailyStats: Object.values(dailyStats),
       heightWeightTrend,
       temperatureTrend,
-      latestHeightWeight:
-        latestHeightRecord || latestWeightRecord
-          ? {
-              height: latestHeightRecord?.height ?? null,
-              weight: latestWeightRecord?.weight ?? null,
-              // 日期取身高/体重中较新那次测量的时间
-              date:
-                !latestWeightRecord ||
-                (latestHeightRecord &&
-                  latestHeightRecord.startTime >= latestWeightRecord.startTime)
-                  ? latestHeightRecord!.startTime
-                  : latestWeightRecord.startTime,
-            }
-          : null,
+      latestHeightWeight: this.toLatestHeightWeight(latestHeightRecord, latestWeightRecord),
       latestTemperature: latestTemperature
         ? { temperature: latestTemperature.temperature, date: latestTemperature.startTime }
         : null,

@@ -37,7 +37,6 @@ export default function Index() {
 	const {
 		summary,
 		fetchSummary,
-		fetchStats,
 		latestHeightWeight,
 		latestTemperature,
 	} = useRecordStore()
@@ -180,8 +179,9 @@ export default function Index() {
 				setBabyReady(true)
 				const baby = useBabyStore.getState().currentBaby
 				if (baby) {
+					// 本页只要「今日汇总 + 最近一次身高体重/体温」，summary 一个请求就都带了；
+					// 原来另开的 fetchStats 会扫全区间记录并生成 dailyStats，只为其中两个数
 					fetchSummary(baby.id)
-					fetchStats(baby.id)
 					fetchRecentPhotos(baby.id)
 					maybeShowAddGuide()
 				} else if (!hasAutoRedirectedToOnboarding()) {

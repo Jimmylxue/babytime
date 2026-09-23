@@ -182,33 +182,66 @@
 
 - `stats/index.tsx:107`：为了拿 `heightWeightTrend`，让服务端把 3 年记录全捞进内存、构造 **1100 个 dailyStats 对象**（绝大多数全 0）再序列化回来
 - 服务端侧 `record-query.service.ts:130-180`
-- [ ] 修：新增 `/record/growth/:babyId`，只返回身高体重记录
+- [x] 修：新增 `/record/growth/:babyId`，只返回身高体重记录 —— ✅ 2026-09-23
+  - 服务端 `RecordQueryService.getGrowthTrend()`：只查 `type=height_weight`、只 `select` 三个列、
+    按 `startTime ASC` 返回 `[{date, height, weight}]`；路由 `GET /record/growth/:babyId`
+    （声明在 `@Get(':id')` 之前，与 `stats`/`vaccines` 同区）
+  - 两端都空的身高体重行直接滤掉（画不出点）；`Number()` 转换照旧，别动 —— 之前小数精度就是栽在这
+  - 客户端 `recordApi.getGrowth()`，`stats/index.tsx` 的 WHO 曲线与英雄卡改吃它
+  - 实测（本地真库真 HTTP，7 条临时行）：**228B vs 旧接口 141,362B**，旧接口确实白造 1100 个
+    `dailyStats` 对象；点数、字段、正序、脏行过滤逐条对齐后临时行按 id 清干净
+  - 没动的同类调用：`albumData.ts` 的 `getStats(60)`（要的是 `dailyStats`，不是这一个字段）、
+    `HeightWeightForm` 的 `getStats(babyId)`（要 `latestHeightWeight`，7 天窗口，换成 growth 反而要在
+    客户端重写一遍「身高体重各取最近一次」的判定，不值）
 
 ### 4.2 统计页进页面时 `loadDayDetail` 被调两次
 
 - `stats/index.tsx:81-93`（`useDidShow`）与 `:95-99`（`useEffect`）各触发一次，每次 3 个请求 → 6 个里 3 个是废的
-- [ ] 修：去掉一处，或用 ref 去重
+- [x] 修：去掉一处，或用 ref 去重 —— ✅ 2026-09-23：**选去重，不删任何一处**
+  - 两处都有用：`useDidShow` 负责「切回本页要重新拉」（`useEffect` 的依赖没变，不会再触发）；
+    `useEffect` 负责「换日期 / 换页签 / 换宝宝要重新拉」。删掉任一处都会丢一种刷新时机
+  - 改成同 key（`babyId|type|date`）合成一个在途请求：撞车的第二次直接复用第一次的 promise
+  - 只在"在途"期间合并，`.finally` 里清标记 → 下次再进本页照常重新取
 
 ### 4.3 那 3 个请求是串行的
 
 - `stats/index.tsx:64-78`，代码注释自己写了原因：「store 的 detailSummary 是单值，前一日和当日只能串行取」
-- [ ] 修：让 `fetchDetailSummary` / `fetchDetail` 把值 return 出来，然后 `Promise.all`
+- [x] 修：让 `fetchDetailSummary` / `fetchDetail` 把值 return 出来，然后 `Promise.all` —— ✅ 2026-09-23
+  - 根因就是那个单值槽位：`fetch*` 除了写 store 现在**也把本次取到的值 return 出来**，
+    当日与前一日两份汇总各拿各的返回值，互不覆盖；store 槽位照旧写（明细页还在读它）
+  - 失败路径在 store 内部消化：`fetchDetail` 失败返回 `[]`、`fetchDetailSummary` 失败返回 `null`，
+    不会把整个 `Promise.all` 打断（也就不会有 unhandled rejection）
+  - 顺带一个改进：以前明细请求失败时本页会留着**上一个日期**的列表继续显示（错数据配新日期），
+    现在返回 `[]`，宁可空着也不摆错的
+  - 打桩验证 19/19：两份汇总并行取（发出相差 0ms）且值不串台
 
 ### 4.4 首页每次 onShow 打 4 个请求，其中一个是重接口只为了 2 个数
 
 - `index/index.tsx:179-186`：`fetchBabies` → `fetchSummary` + `fetchStats` + `fetchRecentPhotos`
 - `fetchStats` 只为 `latestHeightWeight` + `latestTemperature`，背后是 `record-query.service.ts:184-208` 的 4 条额外 SQL + 全区间记录
-- [ ] 修（第二批）：4 请求合成 1 个 `/record/home`；或把两个 latest 并进 summary 接口
+- [x] 修（第二批）：4 请求合成 1 个 `/record/home`；或把两个 latest 并进 summary 接口 —— ✅ 2026-09-23：**选了后者**
+  - `getTodaySummary` 的返回体加 `latestHeightWeight` / `latestTemperature` 两个顶层字段，
+    五条 `findOne` 与原有两条并成**一个** `Promise.all` —— 全是
+    `idx_records_baby_type_start_time` 上的 `ORDER BY start_time DESC LIMIT 1`，不增加墙上时间
+  - 两处共用新的 `toLatestHeightWeight()`：`getStats` 里那份「身高体重各取最近一次、日期取较新」的
+    判定原本是手写的，现在只有一个实现（实测两个接口的该字段逐字节相同）
+  - 首页 `fetchStats` 调用删掉，onShow 从 3 个并行请求降到 2 个；`fetchSummary` 顺带写这两个 store 字段
+  - 首页不读 `dailyStats`/趋势（已核对），所以砍掉的是纯浪费；未登录 mock 分支不受影响
+  - 没选「合成一个 `/record/home`」：那要动首页整条数据流，收益却只比现在多省一个请求
 
 ### 4.5 写操作后串行刷新两次
 
 - `recordStore.ts:203-228`：每次增/改/删记录后 `await fetchSummary()` 再 `await fetchStats()`，直接加在「记一条」的感知延迟上
-- [ ] 修：`Promise.all`
+- [x] 修：`Promise.all` —— ✅ 2026-09-23：三处（add/update/delete）全改并行，实测刷新段 62ms（串行 120ms）
+  - 记一笔观察：`fetchStats` 这次刷新其实**可能是纯浪费** —— 统计页每次 `useDidShow` 都会自己
+    `fetchStats(baby.id, days)`。本轮只按清单做并行，没顺手删，删它是下一个可摘的果子
 
 ### 4.6 `deleteRecord` 从明细页删完不刷新
 
 - `recordStore.ts:220-228` 靠 `get().records` 反查 babyId；明细页时 store 里没有那条 → 跳过刷新
-- [ ] 修：babyId 由调用方传入
+- [x] 修：babyId 由调用方传入 —— ✅ 2026-09-23：签名改 `deleteRecord(id, babyId?)`，
+  `pages/record-detail/index.tsx` 传本页 `router.params.babyId`；`records` 反查整段删掉。
+  没传 babyId（未登录看示例数据那条路）就明确不刷新，不再假装刷新过
 
 ---
 

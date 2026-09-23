@@ -1130,5 +1130,94 @@ $ npx tsc --noEmit -p apps/client/tsconfig.json → 本批 6 个文件零新报�
 - 表单里"刚选完的那张"预览（`DiaperForm`、里程碑编辑框）没走缩略图也没加 `lazyLoad`：单张、且可能是本地临时路径
 - 本地开发环境图片仍是原图（`UPLOAD_DRIVER=local` 不支持这套语法），改完在模拟器上看不出差别
 
+### 17. 追加（2026-09-23）：请求数与串行（backlog 四 全部 6 项）· 服务端 + 小程序
+
+对应 `docs/2026-09-22-optimization-backlog.md` 四：4.1 / 4.2 / 4.3 / 4.4 / 4.5 / 4.6。
+
+#### 改了什么
+
+**服务端（3 个文件）**
+
+| 位置 | 改动 |
+| --- | --- |
+| `record-query.service.ts` | 新增 `getGrowthTrend()`：只查 `height_weight` 一种、只 `select` 三列，返回 `[{date,height,weight}]` 正序 |
+| | `getTodaySummary()` 载荷新增顶层 `latestHeightWeight` / `latestTemperature`；五条 `findOne` 并成一个 `Promise.all`（全走 `idx_records_baby_type_start_time`） |
+| | 抽出 `toLatestHeightWeight()`：`getStats` 与 `getTodaySummary` 共用同一份「身高/体重各取最近一次、日期取较新」判定 |
+| `record.service.ts` | 查询代理加一行 `getGrowthTrend()` |
+| `record.controller.ts` | 新增 `GET /record/growth/:babyId`（声明在 `@Get(':id')` 之前） |
+
+**小程序（5 个文件）**
+
+| 位置 | 改动 |
+| --- | --- |
+| `utils/request.ts` | 新增 `recordApi.getGrowth(babyId)` |
+| `pages/stats/index.tsx` | WHO 曲线/英雄卡改吃 `getGrowth`（原来是 `getStats(id, 1100)`）；`loadDayDetail` 三个请求并成 `Promise.all`；同 key 在途请求去重 |
+| `stores/recordStore.ts` | `fetchDetail`/`fetchDetailSummary` 除写 store 外**把值 return 出来**（这是能并行的前提）；`fetchSummary` 顺带写 `latestHeightWeight`/`latestTemperature`；add/update/delete 后两个刷新改 `Promise.all`；`deleteRecord(id, babyId?)` 由调用方传 babyId |
+| `pages/index/index.tsx` | 删掉 `fetchStats(baby.id)`，onShow 从 3 个并行请求降到 2 个 |
+| `pages/record-detail/index.tsx` | 删除时把本页 `babyId` 传给 `deleteRecord` |
+
+#### ⚠️ 部署顺序（硬约束）：先服务端，后小程序
+
+```bash
+# 1) 服务器上仓库根目录
+bash server.sh
+# 2) 服务端确认起来之后，再发小程序
+bash mini.sh <版本号> "统计页/首页请求数与串行优化（新增 /record/growth，summary 带最近身高体重与体温）"
+```
+
+- 反过来发的后果：新版小程序首页读 `summary.latestHeightWeight`、统计页打 `/record/growth`，
+  旧服务端都没这两个 → **首页身高体重与体温卡变空、WHO 曲线空**（不崩，但看着像坏了）
+- 旧小程序 + 新服务端：`summary` 只是多两个字段，没人读，无害 ✓
+- 无 SQL、无环境变量变更、无 `.env` 动作
+
+#### 真机回归检查项
+
+- [ ] **首页**：登录后首屏的「最近身高/体重」卡与「体温」卡照常显示（本轮换了这两个数的来源）
+- [ ] 首页刚记完一条身高/体重 → 回到首页，卡片数值应立刻更新（现在靠 `fetchSummary` 带回）
+- [ ] **统计页 → 身高/体重页签**：WHO 成长曲线点数与改前一致（含只记身高、只体重、两项都记三种记录），
+      英雄卡的数值/日期取的是**各自**最近一次测量
+- [ ] 统计页其它页签（喂奶/尿布/睡眠/体温）：当日明细 + 「较昨日」对比照常；**日期左右切换**不串数据
+- [ ] 统计页进页面的请求数：开发者工具 Network 里应是 **3 个**（明细 + 当日汇总 + 前一日汇总），
+      改前是 6 个（同一批请求发了两遍）
+- [ ] 记录页记一条 → 返回首页/统计页数据刷新，且没有变慢
+- [ ] **明细页（统计页「查看完整明细」进去的）删一条记录** → 首页与统计页的汇总应跟着刷新
+      （改前这条路径静默不刷新，就是 4.6）
+- [ ] 未登录看示例数据：首页与统计页仍走 mock，不应出现空态或报错
+
+#### 本地已验证
+
+```
+$ 真库真 HTTP（本地 mysqld + node dist/main.js，7 条带 TMPSEC4 标记的临时记录，验完按 id 精确删除）
+  node /tmp/verify-section4.js --api=http://127.0.0.1:3000                → 19/19 通过
+    /record/growth 200 且只有 date/height/weight 三字段、正序、双空脏行已滤、非身高体重记录没混进来
+    decimal 是 number 不是字符串（60.5 / 7.25 / 7.9）
+    summary.latestHeightWeight 与 stats.latestHeightWeight 逐字段相同（={66,7.9,"2026-09-18T02:00:00.000Z"}）
+      ↑ 这条是"两处共用一个实现"没跑偏的证据：66 取的是 5 天前那条，不是 40 天前那条 60.5
+    summary.latestTemperature=36.8 与 stats 一致；summary 原有载荷（今日喂奶 + records）没被改坏
+    载荷实测：/record/growth 228B  vs  /record/stats?days=1100 141,362B（后者 dailyStats 正好 1100 个）
+    无 token → 401；不存在的 babyId → 404（不是 500）
+    清理：删除 7 条、残留 0 条（另用一条独立连接复核过）
+  NODE_PATH=... node /tmp/verify-store4.js（真 recordStore 转译产物 + 每个请求延迟 60ms 的插桩桩件） → 19/19
+    两份汇总并行取、值不串台；请求失败返回 [] / null 不打断 Promise.all
+    add/update/delete 后两个刷新并行（刷新段 62ms，串行要约 120ms）
+    不传 babyId 不刷新、传了就刷新；store 里没有该记录时仍能刷新（4.6 的原始 bug）
+$ pnpm run build:server                                                   → nest build 通过
+$ pnpm --filter @baby-time/client build                                   → Compiled successfully
+```
+
+**说明**：4.2 的「重复调用合成一个」只由代码推导 + 构建保证，React 两处的先后顺序在打桩里测不到，
+所以给了上面那条 Network 数请求数的真机核对项（3 个 = 生效，6 个 = 没生效）。
+
+#### 本轮没动（避免误会）
+
+- `albumData.ts` 的 `getStats(baby.id, 60)`：它要的是 `dailyStats`（纪念册按月聚合），不是某一个字段
+- `HeightWeightForm.tsx` 的 `getStats(babyId)`（7 天窗口）：只要 `latestHeightWeight`。
+  换成 `getGrowth` 要在客户端重写一遍「身高、体重各取最近一次非空」的判定 —— 等于把刚收拢到
+  `toLatestHeightWeight()` 的规则又复制一份，不值
+- 写操作后的 `fetchStats` 刷新没删（只并行了）：统计页自己 `useDidShow` 会拉，这次刷新大概率是纯浪费，
+  留给下一轮判断
+- `getStats` 本身没瘦身：`dailyStats` 生成 1100 个对象的路径还在（谁再传 1100 谁付钱），
+  但**现在没有任何客户端调用会传超过 60 天了**
+
 
 

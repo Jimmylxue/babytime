@@ -1,6 +1,6 @@
 import { View, Text, Canvas } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import {
@@ -56,26 +56,41 @@ export default function StatsPage() {
 	const [prevDaySummary, setPrevDaySummary] = useState<DetailSummary | null>(
 		null,
 	)
-	// 成长曲线用全量身高体重历史（stats 接口无 days 上限）
+	// 成长曲线用全量身高体重历史（/record/growth 无天数窗口，直接查这一种记录）
 	const [whoSeries, setWhoSeries] = useState<HeightWeightTrendPoint[]>([])
+	// 同参数的在途明细请求，用来合成 useDidShow 与 useEffect 撞车的重复调用
+	const dayDetailInflight = useRef<{ key: string; promise: Promise<unknown> } | null>(
+		null,
+	)
 	// 身高/体重趋势图点按选中的点（该页签没有明细卡，只用来把数值显示出来）
 	const [growthPointIndex, setGrowthPointIndex] = useState<number | null>(null)
 
 	// 拉取选中日期的明细/汇总，完成后拷贝到本页状态，之后 store 再被谁覆盖都不影响本页展示
-	const loadDayDetail = async (babyId: string, type: string, date: string) => {
+	const loadDayDetail = (babyId: string, type: string, date: string) => {
 		// 身高/体重页签只看趋势图（单日明细/汇总视图已移除），不发明细请求
-		if (type === 'height_weight') return
-		// store 的 detailSummary 是单值，前一日和当日只能串行取：先取前一日（较昨日对比用），再取当日覆盖
-		await fetchDetail(babyId, type, { date })
-		setDayItems(useRecordStore.getState().detailItems)
-		try {
-			await fetchDetailSummary(babyId, type, { date: shiftDate(date, -1) })
-			setPrevDaySummary(useRecordStore.getState().detailSummary)
-		} catch {
-			setPrevDaySummary(null)
-		}
-		await fetchDetailSummary(babyId, type, { date })
-		setDaySummary(useRecordStore.getState().detailSummary)
+		if (type === 'height_weight') return Promise.resolve()
+		// 进本页时 useDidShow 与下面监听 currentBaby 的 useEffect 会各来一次同参数请求，
+		// 这里把同 key 的在途请求合成一个；换日期/换页签/下次再进本页照常重新取
+		const key = `${babyId}|${type}|${date}`
+		if (dayDetailInflight.current?.key === key) return dayDetailInflight.current.promise
+
+		// 三个请求互不依赖，直接并行。值取 fetch* 的返回值而不是 store 的 detailSummary ——
+		// 那个槽位是单值的，正是原来「前一日必须先取完、再取当日覆盖」被迫串行的原因
+		const promise = Promise.all([
+			fetchDetail(babyId, type, { date }),
+			fetchDetailSummary(babyId, type, { date }),
+			fetchDetailSummary(babyId, type, { date: shiftDate(date, -1) }),
+		])
+			.then(([items, todaySummary, prevSummary]) => {
+				setDayItems(items)
+				setDaySummary(todaySummary)
+				setPrevDaySummary(prevSummary)
+			})
+			.finally(() => {
+				if (dayDetailInflight.current?.key === key) dayDetailInflight.current = null
+			})
+		dayDetailInflight.current = { key, promise }
+		return promise
 	}
 
 	// 每次进入统计页都重新拉一次最新的宝宝信息和数据，避免拿到切换宝宝前的旧数据
@@ -105,9 +120,9 @@ export default function StatsPage() {
 			return
 		}
 		recordApi
-			.getStats(currentBaby.id, 1100)
+			.getGrowth(currentBaby.id)
 			.then(res => {
-				setWhoSeries(res.data?.heightWeightTrend || [])
+				setWhoSeries(res.data || [])
 			})
 			.catch(() => setWhoSeries([]))
 	}, [isLoggedIn, currentBaby?.id, activeType])

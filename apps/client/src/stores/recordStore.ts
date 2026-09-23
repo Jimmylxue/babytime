@@ -112,11 +112,14 @@ interface RecordState {
   fetchRecords: (babyId: string, date?: string) => Promise<void>;
   fetchSummary: (babyId: string) => Promise<void>;
   fetchStats: (babyId: string, days?: number) => Promise<void>;
-  fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number; metric?: 'height' | 'weight' }) => Promise<void>;
-  fetchDetailSummary: (babyId: string, type: string, params: { date?: string; days?: number; metric?: 'height' | 'weight' }) => Promise<void>;
+  // fetchDetail / fetchDetailSummary 除了写 store，还把本次取到的值 return 出来：
+  // 统计页要同时取「当日」和「前一日」两份汇总，只读 store 那个单值槽位就只能串行取。
+  fetchDetail: (babyId: string, type: string, params: { date?: string; days?: number; page?: number; pageSize?: number; metric?: 'height' | 'weight' }) => Promise<DetailRecord[]>;
+  fetchDetailSummary: (babyId: string, type: string, params: { date?: string; days?: number; metric?: 'height' | 'weight' }) => Promise<DetailSummary | null>;
   addRecord: (data: any) => Promise<void>;
   updateRecord: (id: string, data: any) => Promise<void>;
-  deleteRecord: (id: string) => Promise<void>;
+  // babyId 由调用方给：明细页删记录时 store 的 records 里没有那条，反查不到就没法刷新
+  deleteRecord: (id: string, babyId?: string) => Promise<void>;
 }
 
 export const useRecordStore = create<RecordState>((set, get) => ({
@@ -146,9 +149,13 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   fetchSummary: async (babyId: string) => {
     try {
       const res = await recordApi.getSummary(babyId);
+      // latestHeightWeight / latestTemperature 原本只有 /record/stats 返回，
+      // 现在 summary 也带（同一个接口的同一份算法），首页就不用再打那个重接口
       set({
         records: res.data?.records || [],
         summary: res.data?.summary || null,
+        latestHeightWeight: res.data?.latestHeightWeight || null,
+        latestTemperature: res.data?.latestTemperature || null,
       });
     } catch (error) {
       console.error('获取统计失败', error);
@@ -175,8 +182,9 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     set({ detailLoading: true });
     try {
       const res = await recordApi.getDetail(babyId, type, params);
+      const items = (res.data?.items || []) as DetailRecord[];
       set({
-        detailItems: page > 1 ? [...get().detailItems, ...(res.data?.items || [])] : (res.data?.items || []),
+        detailItems: page > 1 ? [...get().detailItems, ...items] : items,
         detailPagination: res.data ? {
           page: res.data.page,
           pageSize: res.data.pageSize,
@@ -185,26 +193,31 @@ export const useRecordStore = create<RecordState>((set, get) => ({
         } : null,
         detailLoading: false,
       });
+      return items;
     } catch (error) {
       set({ detailLoading: false });
       console.error('获取明细数据失败', error);
+      return [];
     }
   },
 
   fetchDetailSummary: async (babyId: string, type: string, params: { date?: string; days?: number; metric?: 'height' | 'weight' }) => {
     try {
       const res = await recordApi.getDetailSummary(babyId, type, params);
-      set({ detailSummary: res.data || null });
+      const summary = (res.data || null) as DetailSummary | null;
+      set({ detailSummary: summary });
+      return summary;
     } catch (error) {
       console.error('获取明细汇总失败', error);
+      return null;
     }
   },
 
+  // 写完记录后的两个刷新请求互不依赖，并行取；串行等于给「记一条」多加一个往返
   addRecord: async (data: any) => {
     await recordApi.create(data);
     const { fetchSummary, fetchStats } = get();
-    await fetchSummary(data.babyId);
-    await fetchStats(data.babyId);
+    await Promise.all([fetchSummary(data.babyId), fetchStats(data.babyId)]);
   },
 
   updateRecord: async (id: string, data: any) => {
@@ -212,18 +225,14 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     const { fetchSummary, fetchStats } = get();
     const babyId = res.data?.babyId;
     if (babyId) {
-      await fetchSummary(babyId);
-      await fetchStats(babyId);
+      await Promise.all([fetchSummary(babyId), fetchStats(babyId)]);
     }
   },
 
-  deleteRecord: async (id: string) => {
-    const record = get().records.find((r) => r.id === id);
+  deleteRecord: async (id: string, babyId?: string) => {
     await recordApi.delete(id);
-    if (record) {
-      const { fetchSummary, fetchStats } = get();
-      await fetchSummary(record.babyId);
-      await fetchStats(record.babyId);
-    }
+    if (!babyId) return;
+    const { fetchSummary, fetchStats } = get();
+    await Promise.all([fetchSummary(babyId), fetchStats(babyId)]);
   },
 }));

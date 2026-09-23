@@ -180,6 +180,10 @@ export class RecordService {
     return this.queryService.getStats(userId, babyId, days);
   }
 
+  getGrowthTrend(userId: string, babyId: string) {
+    return this.queryService.getGrowthTrend(userId, babyId);
+  }
+
   getRecordDetail(
     userId: string,
     babyId: string,

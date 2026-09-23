@@ -131,7 +131,8 @@ export default function RecordDetailPage() {
     });
     if (!res.confirm) return;
     try {
-      await deleteRecord(recordId);
+      // babyId 必须传：store 的 records 里通常没有明细页这条记录，靠它反查会查不到、跳过刷新
+      await deleteRecord(recordId, babyId);
       Taro.showToast({ title: '已删除', icon: 'success' });
       loadFirstPage();
     } catch (error) {
