@@ -82,7 +82,27 @@ cron 配置（已安装，`crontab -l` 可查）：
 bash server.sh
 ```
 
-确认两点再继续：快照步骤显示成功；`pm2 status` 里服务 online。启动失败查 `pm2 logs baby-time-server`。
+脚本内建三道闸门，**任何一道不过都会中止部署，且线上仍是完好的旧版在服务**：
+
+1. 部署前 DB 快照（失败会停下来问你，不擅自继续）
+2. `git pull` 之前打回滚锚点 `pre-deploy`（pull 之后就找不到上一版是哪个 commit 了）
+3. **部署前探活**：用生产同一份 `.env`、在临时端口（默认 `PORT+1000`）起一个禁掉订阅消息
+   定时器、且只绑 `127.0.0.1` 的实例，验「实体表 vs 库中表 / 能否启动 / 只读接口 / 收到信号后能否干净退出」。
+   这一道专抓「构建全绿、线上一片 500」——比如忘了先跑 `docs/sql/*.sql`，
+   进程照样 boot 成功，但整条接口 500。单独跑它也可以：
+
+   ```bash
+   node apps/server/scripts/deploy-preflight.js
+   ```
+
+4. 切换后自动验收 `/api/health`（真查库）+ `/api/announcement/current`，
+   30s 内没就绪就**自动回滚到锚点并重建重启**，同时直发一条 Server酱 告警
+   （出事时应用本身可能正是坏的，不能指望它自己推）。
+
+确认两点再继续：快照与探活都显示通过；`pm2 status` 里服务 online。启动失败查 `pm2 logs baby-time-server`。
+
+发版时段不再受限制：`server.sh` 的构建阶段老进程一直在服务，真正的硬性空窗只有切换那不到 1 秒，
+且应用侧已做优雅排空（`--kill-timeout 25000`，最长在途是便便 AI 那 20s）。
 
 ### 小程序
 
@@ -96,7 +116,8 @@ bash server.sh
 | 情况 | 动作 |
 |---|---|
 | 小程序功能异常 | mp 后台「版本管理」→ **版本回退**到上一版，分钟级生效，无需重新提审 |
-| 服务端起不来 | `git checkout <上一个可用提交> && bash server.sh`；数据库随时可用快照回滚 |
+| 服务端起不来 | `server.sh` 已在探活阶段拦住并**不会**碰线上进程；若是切换后验收失败，脚本会自动回滚到 `pre-deploy` 锚点。人工兜底：`git checkout pre-deploy && bash server.sh`；数据库随时可用快照回滚 |
+| 自动回滚也失败 | 脚本会推 Server酱 告警并停在坏状态。此时别再跑 `server.sh`，直接 `cd apps/server && pm2 start dist/main.js --name baby-time-server` 起当前产物，再 `pm2 logs` 定位 |
 | 数据被误删/误改 | 找最近的快照，按第三节恢复命令执行（覆盖前先备份当前状态） |
 
 ## 五、表结构变更（生产已关 synchronize）
@@ -207,5 +228,9 @@ sudo cp -a /www/server/nginx/cert.bak-2026-09-21/. /www/server/nginx/cert/ && su
 ## 八、已知残留事项
 
 - 异地副本目前靠手动 scp，未自动化
-- 服务端启动失败自动回滚上一版本（health check）暂未做，手动 `git checkout` 兜底
+- ~~服务端启动失败自动回滚上一版本（health check）暂未做，手动 `git checkout` 兜底~~
+  ✅ 已做（2026-09-22）：`/health` 改为真查库 + `pre-deploy` 回滚锚点 + 部署前探活 + 切换后验收失败自动回滚，
+  全部在 `server.sh` 内，见第四节
+- 服务端**运行中**崩溃（非部署期）仍不会自动恢复到旧版：PM2 只会重启同一个坏产物。
+  要做的是「连续 N 次重启后自动回滚」，目前靠 Server酱 告警 + 人工
 - 客户端错误上报（App.onError → 后台查看）未实现

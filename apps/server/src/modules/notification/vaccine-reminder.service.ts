@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
@@ -18,7 +18,7 @@ import { getVaccineTemplateId, getReviewTemplateId, dueDate, parseLocalDate, for
  * 计划查询/授权入账在 VaccinePlanService；微信 API 细节在 WechatSubscribeService。
  */
 @Injectable()
-export class VaccineReminderService implements OnModuleInit {
+export class VaccineReminderService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(VaccineReminderService.name);
   private timer?: NodeJS.Timeout;
 
@@ -34,10 +34,29 @@ export class VaccineReminderService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    // 部署前探活会临时起一个进程，它连的是真库、拿着真的模板 ID 与凭据。
+    // onModuleInit 当场就跑一次 runScheduled()，不显式禁掉的话，探活进程会真的往外推消息、
+    // 真扣用户的订阅额度 —— 靠「现在不是 9 点/21 点」赌时钟对不上并不可靠。
+    if (process.env.OPS_DISABLE_SCHEDULER === '1') {
+      this.logger.warn('OPS_DISABLE_SCHEDULER=1：本进程不启动订阅消息定时器（探活/金丝雀模式）');
+      return;
+    }
     // 半小时检查一次，实际发送由配置的本地小时控制，发送表负责幂等。
     if (getVaccineTemplateId() || process.env.WECHAT_SUBSCRIBE_REVIEW_TEMPLATE_ID) {
       this.timer = setInterval(() => this.runScheduled().catch((e) => this.logger.error(e)), 30 * 60 * 1000);
       void this.runScheduled();
+    }
+  }
+
+  /**
+   * 排空时必须清掉：setInterval 是常驻句柄，留着它进程退不干净，
+   * 会被 PM2 在 kill_timeout 之后 SIGKILL —— 那正好又把在途请求砍了，排空白做。
+   */
+  onModuleDestroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = undefined;
+      this.logger.log('订阅消息定时器已停止，可以干净退出');
     }
   }
 

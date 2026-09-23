@@ -161,16 +161,27 @@
 
 ### 5.1 没有优雅停机，PM2 重启会砍掉进行中的请求
 
-- 全库 grep `onModuleDestroy` / `enableShutdownHooks` / `clearInterval` → **零命中**
-- `vaccine-reminder.service.ts:39` 的 `setInterval` 永远挂在事件循环上 → SIGTERM 后进程不退，PM2 等 1.6s 就 SIGKILL
-- 正在上传的照片、正在写的记录被硬砍
-- [ ] 修：`main.ts` 加 `app.enableShutdownHooks()`；`VaccineReminderService` 实现 `onModuleDestroy` 清 timer
+- ~~全库 grep `onModuleDestroy` / `enableShutdownHooks` / `clearInterval` → 零命中~~
+- 原始描述里那句「setInterval 挂住事件循环 → PM2 等 1.6s → SIGKILL」**是错的**，实测纠正：
+  Node 在没有信号监听器时收到 SIGINT/SIGTERM 是**立刻终止**（实测 6ms 退出），
+  `setInterval` 拦不住信号退出。真实情况更糟：瞬间砍死，连 1.6s 的运气都没有
+- [x] 修 ✅ 2026-09-22：`main.ts` 加 `enableShutdownHooks()`；`VaccineReminderService` 实现
+      `onModuleDestroy` 清 timer；`server.sh` 启动参数带 `--kill-timeout 25000`
+- **实施中发现的第二个坑（不修就等于白做）**：光加排空，退出耗时是 **6378ms** 而不是预期的一瞬 ——
+  Nest 的 `close()` 就是 `new Promise(r => httpServer.close(r))`，里面**没有** `closeIdleConnections()`，
+  空闲 keep-alive 要等满 Node 默认 `keepAliveTimeout`(5s)；而小程序侧连接是复用的，必然撞上。
+  更关键的是：drain 期间进程已拒新连接又没退，**每次重启的用户可见停机会从 0.56s 恶化到约 7s**。
+  修法是在信号到达时把 `keepAliveTimeout` 压到 300ms 并回收空闲连接（只调
+  `closeIdleConnections()` 不够 —— 信号到达那一刻在途请求还没结束，那个 socket 还不算"空闲"，会漏掉它）。
+  实测：**6378ms → 1407ms**，在途请求 494ms 完整拿到 200
+- [x] 附：`--kill-timeout` 本机无法验证 pm2 是否接受，而「delete 成功、start 失败」正是会把服务
+      直接弄挂的失效模式，故做成**探测式回退**（不认就退回原参数 + 推告警），不赌参数合法性
 
 ### 5.2 `/health` 不查数据库
 
 - `app.controller.ts:14-20`：MySQL 挂了照样返回 `status: ok`
-- 这是 runbook 里「服务端启动失败自动回滚（health check）暂未做」的前置条件
-- [ ] 修：`SELECT 1` + 失败返回 503
+- [x] 修 ✅ 2026-09-22：改为 `SELECT 1`，失败抛 503。这是部署前探活与部署后验收能成立的前提 ——
+      不查库的 health 会让任何拿它做验收的脚本误判为正常
 
 ### 5.3 没设 `trust proxy`，日志里的 IP 全是假的
 
@@ -368,7 +379,26 @@ todo.md 记的是主包 1526.7KB / 余量 25.5%。还能再抠：
 ## 分批建议
 
 **第一批 · 半天 · 低风险高确定性**
-1.1 1.2 1.3 ✅（2026-09-22 已完成）· 2.1 · 5.1 5.2 5.3 · 6.1 6.2 6.6 · 3.2 · 8.2 8.3
+1.1 1.2 1.3 ✅（2026-09-22 已完成）· 2.1 · **5.1 5.2 ✅（2026-09-22 已完成，含部署安全改造，见下）** 5.3 · 6.1 6.2 6.6 · 3.2 · 8.2 8.3
+
+**本清单之外新增并已完成（2026-09-22）· 部署安全链路**
+
+起因是用户真正的痛点：「发版只能很迟才发，怕影响用户使用」。实测把风险量化后修正了优先级 ——
+`server.sh` 的构建阶段老进程一直在服务，硬性停机空窗只有约 **0.56s**；而"发上去一个起不来的版本"
+才是会让全站挂几十分钟的那一档。所以投入压在后者：
+
+- `apps/server/scripts/deploy-preflight.js`：**在 `pm2 delete` 之前**用生产同一份 `.env`、
+  在临时端口起一个禁掉定时器的实例，验「实体表 vs 库中表 / 启动 / 只读接口 / 优雅退出」。
+  不过就中止，线上进程根本没被动过。专抓 `pm2 reload --wait-ready` 救不了的那一类
+  （boot 正常但表结构或功能是坏的）。
+- `server.sh`：`git pull` **之前**打 `pre-deploy` 回滚锚点（pull 之后就找不到上一版了）；
+  部署后自动验收 `/api/health` + 一个走控制器的只读接口，失败自动 `git checkout` 锚点 + 重建 + 重启，
+  并走 Server酱 直发告警（出事时应用本身可能正是坏的，不能指望它自己推）。
+- 探活脚本的正反例都实测过：表齐 11/11 绿；指向 `information_schema` → 列出 14 张缺表并 exit 1；
+  库名不存在 → exit 1；探活端口被占 → 立即中止（这条是过程中发现的假绿风险，
+  不修的话闸门会去验一个残留的旧进程然后报全绿 —— 比没有闸门更危险）。
+- 明确不做：`pm2 reload` / cluster 零停机。理由：它解决的 0.56s 在 DAU 34 下几乎撞不到，
+  代价却是改运行模型（进程内状态要重新审视）+ 第一次切换本身仍有一次硬停机。
 
 **第二批 · 一天 · 需真机验证 / 需先确认外部开关**
 3.1（先确认又拍云）· 4.1 4.2 4.3 4.5 · 8.1 · 7.3

@@ -552,3 +552,94 @@ $ POST /api/stool-analysis        → 401（未登录）
 - 探测显示 `image.jimmyxuexue.top` 证书剩 **34 天**（其余 6 个端点 89 天）。
   未触发 14 天告警线，但它是「历史图片域名」、由又拍云自动续签，
   与其他 5 个 acme.sh 泛域名不同源，下次巡检值得单独看一眼它是否真的在续
+
+---
+
+### 12. 追加（2026-09-22）：部署安全链路 · 优雅排空 + 探活闸门 + 自动回滚
+
+动机是用户的一句「发版只能很迟才发，怕影响用户使用」。先把风险量化了一遍，结论是**优先级要换**：
+
+| 测的东西 | 实测结果 |
+|---|---|
+| 改动前收到 SIGINT 到进程消失 | **6ms**（完全没有排空，在途请求当场断） |
+| `pm2 delete → start` 的硬性不可用空窗 | **约 0.56s**（构建阶段老进程一直在服务，不在这段里） |
+| 只加排空、不处理空闲连接 | 退出 **6378ms**（反而把 0.56s 恶化成约 7s） |
+| 空闲连接也处理掉之后 | 退出 **1407ms**，在途请求 494ms 完整拿到 200 |
+
+所以真正会毁掉服务的不是那半秒，而是「发上去一个起不来的版本」。这一节全部投在这里。
+
+#### 改了什么
+
+1. `apps/server/src/main.ts`：`enableShutdownHooks()` + 信号到达时把 `keepAliveTimeout` 压到 300ms
+   并回收空闲连接。**注意**：只调 `closeIdleConnections()` 不够 —— 信号到达那一刻在途请求还没结束，
+   那个 socket 还不算"空闲"，会被漏掉，于是照样等满默认 5s。
+2. `apps/server/src/modules/notification/vaccine-reminder.service.ts`：实现 `OnModuleDestroy` 清 timer；
+   新增 `OPS_DISABLE_SCHEDULER=1` 时完全不建定时器。
+3. `apps/server/src/app.controller.ts`：`/api/health` 改为真跑 `SELECT 1`，失败 503。
+4. 新增 `apps/server/scripts/deploy-preflight.js`：部署前探活（详见 `docs/ops-runbook.md` 第四节）。
+5. `server.sh`：`git pull` 前打 `pre-deploy` 锚点 → 探活（在 `pm2 delete` **之前**）→
+   `--kill-timeout 25000` → 切换后验收 → 失败自动回滚 + Server酱 直发告警。
+
+#### ⚠️ 环境变量（新增两个，都不要在生产的 `.env` 里设）
+
+- `OPS_DISABLE_SCHEDULER` —— **正常服务端 `.env` 里绝对不要设**。
+  它只由探活脚本在自己的子进程上临时传入。若有人误写进生产 `.env`，
+  疫苗提醒和每日回顾会**一条都不发，而且没有任何报错**（只在启动日志留一行 WARN）。
+
+  部署后确认它没被带进生产环境：
+
+  ```bash
+  grep -n OPS_DISABLE_SCHEDULER .env || echo "✓ 生产 .env 未设该变量（正确）"
+  pm2 logs baby-time-server --lines 200 | grep -c "OPS_DISABLE_SCHEDULER=1"   # 应为 0
+  ```
+
+- `LISTEN_HOST` —— 只由探活脚本临时传给它的子进程（`127.0.0.1`），让那个只活几秒的实例
+  不再在 `0.0.0.0` 上多开一个可达端口。**生产 `.env` 不要设**：留空才会走 Node 默认的
+  双栈监听（实测 `TCP *:3000` 是 IPv6 套接字，同时覆盖 IPv4）。
+  当初若图省事在代码里写死 `'0.0.0.0'`，就会退化成 IPv4-only，nginx 只要按 `::1` 回源就直接连不上 ——
+  这条是实测出来的，不是推测的，所以「不设时保持原样调用 `listen(port)`」是刻意的。
+
+  ```bash
+  grep -n LISTEN_HOST .env || echo "✓ 生产 .env 未设该变量（正确，走默认双栈）"
+  ```
+
+- `--kill-timeout` 本机（无 pm2）无法验证是否被接受，已做成**探测式回退**：
+  不认就退回原参数并推一条告警，服务照常起，只是长请求保护打折。
+  [ ] 待确认：第一次跑 `server.sh` 时看有没有那条「本机 pm2 不接受 --kill-timeout」告警。
+      若有，说明 pm2 版本偏旧，可改用 ecosystem 文件配 `kill_timeout`。
+
+#### 探活端口
+
+默认取 `PORT+1000`（生产 PORT=3006 → 探活用 4006）。被占用时脚本会**立即中止**并告诉你谁占着它
+（不能拿别人的进程当自己的探活结果，那会报假绿）。要换端口：
+
+```bash
+PREFLIGHT_PORT=4106 bash server.sh
+```
+
+#### 诚实披露两个边界
+
+- 探活进程连的是**生产库**。查询都是只读的，但 `AnnouncementService.onModuleInit` 有一段
+  「种子公告不存在就插入」的引导写入 —— 生产那行早已存在，等于空转。首次在全新库上跑时它会真插一行。
+- 自动回滚只覆盖**部署期**。服务端**运行中**崩溃（非部署触发）PM2 只会重启同一个坏产物，
+  不会退回旧版；那条要靠告警 + 人工（已记进 runbook 第八节）。
+
+#### 已验证（本地真库真 HTTP）
+
+```
+构建               nest build 通过；boot 零 DI 报错
+排空回归           /tmp/verify-graceful-shutdown.js → 12/12 通过
+                   （在途请求 494ms 完整 200 / 退出 1407ms / 未被 SIGKILL /
+                    日志见「收到 SIGINT 开始排空」+「定时器已停止」/ 排空后拒新连接 ECONNREFUSED）
+探活 正例          12 项全过，exit 0（含「探活实例只在回环可见」—— 对着真实内网地址试连，拒接）
+绑定回归           不设 LISTEN_HOST → `TCP *:3000`（IPv6 双栈，与改动前一致）
+                   设 LISTEN_HOST=127.0.0.1 → `TCP 127.0.0.1:3003`（IPv4 单栈）
+探活 负例·缺表     DB_DATABASE=information_schema → 列出 14 张缺表，exit 1
+探活 负例·库不存在  DB_DATABASE=no_such_db_xyz → 「进程在就绪前退出 code=1」，exit 1
+探活 负例·端口占用  占住 4006 等价位 → 立即中止，exit 1（不产生假绿）
+alert_ops          无 key 不外发；有 key 拼出正确 URL + title/desp 两字段（影子 curl 验参数）
+verify_live        健康服务 0s 判通过；空端口 31s 判失败（重试预算正确）
+server.sh          bash -n 通过
+```
+
+部署：`bash server.sh` 即可，无额外人工步骤；第一道闸门前所有失败都发生在碰线上进程之前。
