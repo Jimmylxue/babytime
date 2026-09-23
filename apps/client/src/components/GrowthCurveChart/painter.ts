@@ -1,5 +1,6 @@
 /** WHO 成长曲线绘制逻辑：屏幕渲染与分享海报共用 */
 import { easeOutCubic } from '../../utils/canvasDraw'
+import { formatMeasurement } from '../../utils/format'
 import {
   getWhoTable,
   getWhoPercentilesAt,
@@ -353,7 +354,7 @@ export function paintGrowthCurve(
     // 最新测量点不在视窗内（比如放大看更早的区间）就不显示气泡
     if (fade > 0 && lastPt.x >= plotLeft && lastPt.x <= plotRight) {
       const lastValue = babyPoints[babyPoints.length - 1].value
-      const text = `${lastValue.toFixed(1)}${unit}`
+      const text = `${formatMeasurement(lastValue)}${unit}`
       ctx.globalAlpha = fade
       ctx.font = 'bold 11px sans-serif'
       const textW = ctx.measureText(text).width

@@ -9,6 +9,7 @@ import {
 	zoomCurveView,
 } from '../../../components/GrowthCurveChart/painter'
 import { getWhoBand } from '../../../utils/whoGrowthStandards'
+import { formatMeasurement } from '../../../utils/format'
 import { HeightWeightTrendPoint } from '../../../stores/recordStore'
 import { ChartPosterOptions } from '../../../utils/chartExport'
 import ChartActions from './ChartActions'
@@ -189,7 +190,7 @@ export default function WhoSection({
 						{selected && selectedBand ? (
 							<View className="who-readout-body">
 								<Text className="who-readout-main">
-									{`${selected.ageMonths.toFixed(1)} 月龄 · ${selected.value.toFixed(1)}${metric === 'height' ? 'cm' : 'kg'}`}
+									{`${selected.ageMonths.toFixed(1)} 月龄 · ${formatMeasurement(selected.value)}${metric === 'height' ? 'cm' : 'kg'}`}
 								</Text>
 								<Text className="who-readout-sub">
 									{`落在 ${selectedBand.band} · ${

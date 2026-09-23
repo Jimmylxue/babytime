@@ -1,6 +1,7 @@
 import { View, Text } from '@tarojs/components'
 import LineChart, { LineChartPoint } from '../../../components/LineChart'
 import { ChartPosterOptions } from '../../../utils/chartExport'
+import { formatMeasurement } from '../../../utils/format'
 import { fmtShort, GrowthSeriesPoint } from '../utils'
 import ChartActions from './ChartActions'
 
@@ -55,8 +56,8 @@ export default function GrowthTrendChart({
 	)?.[metric] as number | undefined
 	const reviewText =
 		firstMeasured != null
-			? `近${days}天${metricLabel}从 ${firstMeasured.toFixed(1)}${unit} 到 ${lastValue.toFixed(1)}${unit}，宝宝在稳稳长大～`
-			: `近${days}天${metricLabel}最新 ${lastValue.toFixed(1)}${unit}，宝宝在稳稳长大～`
+			? `近${days}天${metricLabel}从 ${formatMeasurement(firstMeasured)}${unit} 到 ${formatMeasurement(lastValue)}${unit}，宝宝在稳稳长大～`
+			: `近${days}天${metricLabel}最新 ${formatMeasurement(lastValue)}${unit}，宝宝在稳稳长大～`
 	const whoRangeText = points.length
 		? `${fmtShort(points[0].date)} – ${fmtShort(points[points.length - 1].date)}`
 		: dateRangeText
@@ -67,7 +68,7 @@ export default function GrowthTrendChart({
 		avatarUrl,
 		genderText,
 		rangeText: whoRangeText,
-		metaTexts: [`近${days}天`, `最新 ${lastValue.toFixed(1)}${unit}`],
+		metaTexts: [`近${days}天`, `最新 ${formatMeasurement(lastValue)}${unit}`],
 		reviewTitle: `近${days}天小结`,
 		reviewText,
 		data: {
@@ -81,6 +82,7 @@ export default function GrowthTrendChart({
 			}),
 			unit,
 			minSpan: metric === 'height' ? 1 : 0.2,
+			formatValue: formatMeasurement,
 		},
 	}
 
@@ -104,6 +106,7 @@ export default function GrowthTrendChart({
 				unit={unit}
 				minSpan={metric === 'height' ? 1 : 0.2}
 				points={posterOpts.data.points as LineChartPoint[]}
+				formatValue={formatMeasurement}
 				highlightIndex={highlightIndex}
 				onSelectIndex={onSelectIndex}
 			/>

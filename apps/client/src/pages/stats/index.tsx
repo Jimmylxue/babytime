@@ -10,6 +10,7 @@ import {
 	DetailSummary,
 } from '../../stores/recordStore'
 import { formatDate } from '../../utils/date'
+import { formatMeasurement } from '../../utils/format'
 import { needLogin } from '../../utils/needLogin'
 import { MOCK_STATS, MOCK_DETAIL } from '../../utils/mock'
 import { detailTypeTabs } from '../../utils/recordDisplay'
@@ -226,7 +227,7 @@ export default function StatsPage() {
 			? measuredGrowthPoints[measuredGrowthPoints.length - 1]
 			: null
 	const latestGrowthValue = latestGrowth
-		? (latestGrowth[growthMetric] as number).toFixed(1)
+		? formatMeasurement(latestGrowth[growthMetric] as number)
 		: null
 	const latestGrowthDate = latestGrowth
 		? formatDate(latestGrowth.date).replace(/-/g, '.')

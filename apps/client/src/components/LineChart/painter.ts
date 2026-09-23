@@ -17,9 +17,14 @@ export interface LineChartPaintData {
   color?: string
   /** 高亮某个数据点（点按选中）；null / undefined 时数值气泡标在末点 */
   highlightIndex?: number | null
+  /** 数值气泡文案；默认保留一位小数（成长值传 utils/format 的 formatMeasurement，避免 6.75 被显示成 6.8） */
+  formatValue?: (value: number) => string
 }
 
 export const LINE_PAD = { top: 34, right: 16, bottom: 24, left: 38 }
+
+/** 数值气泡默认文案：保留一位小数 */
+const formatValueDefault = (value: number) => value.toFixed(1)
 
 export function paintLineChart(
   ctx: any,
@@ -33,6 +38,7 @@ export function paintLineChart(
     minSpan = 1,
     color = '#FF8FA9',
     highlightIndex = null,
+    formatValue = formatValueDefault,
   } = data
   if (!points.length) return
 
@@ -185,7 +191,7 @@ export function paintLineChart(
   if (fade > 0) {
     const active = points[activeIndex]
     const activePt = pts[activeIndex]
-    const text = `${active.value.toFixed(1)}${unit}`
+    const text = `${formatValue(active.value)}${unit}`
     ctx.globalAlpha = fade
     ctx.font = 'bold 11px sans-serif'
     const textW = ctx.measureText(text).width

@@ -8,7 +8,7 @@ import pencilWhiteIcon from '../../../assets/icons/pencil-white.svg'
 interface GrowthHeroCardProps {
 	metric: 'height' | 'weight'
 	gender?: 'male' | 'female'
-	/** 最新测量值，已 toFixed(1)；无数据为 null */
+	/** 最新测量值，已格式化（最多两位小数）；无数据为 null */
 	latestValue: string | null
 	/** 记录日期 yyyy.MM.dd；无数据为 null */
 	latestDate: string | null

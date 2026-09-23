@@ -272,8 +272,18 @@ curl -sI -H 'Accept-Encoding: gzip' https://baby-cheese.jimmyxuexue.top/api/anno
 ```
 
 - 没有 `content-encoding: gzip` 就是没开
-- [ ] 确认
-- [ ] 修：nginx 加 `gzip_types application/json`，**或** Nest `app.use(compression())`（自带依赖、本地可验证、不依赖服务器上的 nginx 配置）
+- [x] 确认 —— ✅ 2026-09-23 生产实测**成立**：公网域名那条返回**没有** `content-encoding`，
+      JSON 全裸传；直连 `127.0.0.1:3006` 同样没压（正常，压不压是 nginx 的事）。
+      顺带把 9.8 也带实了：后台 SPA 那 2.28MB / 743KB-gz 的单一 JS **也是裸传**，
+      等于每次登录后台都要下满 2.28MB。
+- [ ] 修：二选一
+      · **Nest `app.use(compression())`（推荐）**——后台静态资源也由 Nest 的 `useStaticAssets`
+        托管，所以这一处能同时压住 API JSON **和** admin 的 JS/CSS；自带依赖、可在本地用真实 HTTP
+        量出前后对比、不依赖服务器上那份没进仓库的 nginx 配置
+      · nginx 加 `gzip_types application/json application/javascript text/css`——更通用（覆盖其他 vhost），
+        但要改只存在于服务器上的 vhost 文件，且 runbook 里那条「把 vhost 拉进仓库」还没做
+      注：DAU 34 的量级下 gzip 的 CPU 成本可忽略；真正的收益在 4.1 那个 1100 天响应（约 100KB → ~5KB）
+      和 admin 首屏 2.28MB → 743KB
 
 ### 7.4 运维告警只覆盖 HTTPS 与域名
 
@@ -373,6 +383,22 @@ todo.md 记的是主包 1526.7KB / 余量 25.5%。还能再抠：
 - `vaccine-reminder.service.ts:36-42`：30 分钟一轮，靠 `hour === 9` / `hour === 21` 命中
 - 时钟不对齐 + setInterval 会漂移；dedupeKey 兜住了重复发送，但漏发没有兜底
 - [ ] 评估：换 cron 表达式对齐时钟（会引入一个依赖，需权衡）
+
+### 9.8 后台 SPA 是单个 2.28MB chunk（2026-09-23 生产构建日志暴露）
+
+```
+dist/assets/index-xToEUtkD.js   2,279.85 kB │ gzip: 742.77 kB
+(!) Some chunks are larger than 500 kB after minification.
+```
+
+- 一次 `vite build` 出 2.28MB 未压 / 743KB gz 的单一 JS，登录后台就得全量拉下来
+- 大头是 `antd` + `echarts` 全量引入（见 `apps/admin/package.json`）
+- [x] 2026-09-23 已确认（见 7.3）：**公网路径没开 gzip** → 这 2.28MB 是实打实每次登录都要下的，
+      不是"压完只有 743KB 所以无所谓"。**先把 gzip 开了再说分包**——
+      开 gzip 是一处改动全场受益，分包要先动路由结构；顺序反了就是白干活
+- 可选改法（按性价比）：路由级 `React.lazy` 分包，让 echarts 只在数据/运维页加载；
+  或 `manualChunks` 把 antd / echarts 拆成独立可缓存 chunk（后台不常发版，拆开后二次访问命中缓存即秒开）
+- 属于「admin 前端返工」那一档，等 gzip 落地后还有真实诉求再做，别只为构建告警动手
 
 ---
 

@@ -13,6 +13,8 @@ interface LineChartProps {
   unit: string
   minSpan?: number
   color?: string
+  /** 数值气泡文案；不传则保留一位小数 */
+  formatValue?: (value: number) => string
   /** 高亮某个数据点；null 表示无选中 */
   highlightIndex?: number | null
   /** 点按某个数据点后回调；点在图表空白处回调 null */
@@ -27,6 +29,7 @@ export default function LineChart({
   unit,
   minSpan = 1,
   color = '#FF8FA9',
+  formatValue,
   highlightIndex = null,
   onSelectIndex,
 }: LineChartProps) {
@@ -48,7 +51,7 @@ export default function LineChart({
     }, 60)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pointKey, unit, minSpan, color, highlightIndex])
+  }, [pointKey, unit, minSpan, color, formatValue, highlightIndex])
 
   const draw = (animate: boolean) => {
     Taro.createSelectorQuery()
@@ -67,7 +70,7 @@ export default function LineChart({
   }
 
   const paint = (node, ctx, W: number, H: number, animate: boolean) => {
-    const data = { points, unit, minSpan, color, highlightIndex }
+    const data = { points, unit, minSpan, color, formatValue, highlightIndex }
 
     if (!animate) {
       // 生长动画进行中就不打断它（点选一般发生在动画结束后，这里只是兜底）
