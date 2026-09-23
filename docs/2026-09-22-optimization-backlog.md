@@ -138,18 +138,41 @@
 - 方案 A（推荐）：又拍云原生图片处理，URL 后缀出缩略图（`xxx.jpg!/fw/400` 一类），**零存储成本、零上传链路改动**
   - ⚠️ **前置待确认**：又拍云控制台「缩略图版本 / 分隔符」是否已开——本地无法验证
 - 方案 B（退路）：上传时 sharp 生成真缩略图存两份（多一份存储 + 一个原生依赖）
-- [ ] 确认又拍云图片处理开关
-- [ ] 实施
+- [x] 确认又拍云图片处理开关 —— ✅ 2026-09-23：**线上实测已开，分隔符是默认的 `!`**
+  - 真打：`baby-illustration.png`（原 580×650 / 351,715 B）加 `!/fw/400` → 200，**400×448 / 151,946 B**
+  - `@` 分隔符没开（404）；`/q/75` 不是合法指令（400），合法名是 `quality/75`；
+    `fw` / `fh` / `clip` / `quality` / `format` / `rotate` 都验证可用
+  - 微信真机可能会编码 src 里的 `!` —— 实测把 `!` 写成 `%21` 同样 200 且字节数一致，不会裂图
+  - 没上 `format/webp`（同一张图 152KB → 30KB，再省 5 倍）：包内 webp 真机翻车过，
+    网络 webp 在 iOS 上要不要额外给 `<Image webp>` 标记没实测，留作后续单独真机验证
+- [x] 实施（走方案 A）—— ✅ 2026-09-23：新增 `apps/client/src/utils/imageThumb.ts`
+  - `thumbUrl(url, width)` 追加 `!/fw/{width}/quality/80`；`THUMB_W` 三档按 3x 屏显示像素取：
+    grid 400（相册三列 / 首页横排）、wide 900（里程碑整宽照片，取"看不出比原图软"的下限，
+    不是 3x 满格）、chip 240（行内小方图）
+  - **只认已实测开启的 origin** `https://babyimg.jimmyxuexue.top`；本地开发（`UPLOAD_DRIVER=local`
+    由 Nest 静态目录服务，不认这套语法）和历史域名 `image.jimmyxuexue.top`（根目录与现桶不同、
+    无法确认）原样返回 —— 追加在没开启的地址上是 404 裂图，比省流量重要
+  - 幂等：地址里已有 `!` 或带 `?`/`#` 时不再追加（库里万一存过已处理地址）
+  - 接入 5 个渲染点：`pages/photo/index.tsx`（网格）、`MomentsSection.tsx`（首页）、
+    `pages/milestones/index.tsx`（列表照片）、`pages/record-detail/index.tsx`（`cell-thumb`）、
+    `pages/stats/components/DayDetailCard.tsx`（`timeline-thumb`）
+  - 预览/海报仍是原图：`Taro.previewImage` 传 `photo.url`，`albumPoster.ts` 的「原图优先」顺序不动
+  - `photos.thumbnail` 那列**依旧没人写**：方案 A 的收益正是存量照片也能吃到，补写这列只对新上传生效。
+    列与 DTO 字段保留（前端读法仍是 `photo.thumbnail || photo.url`，真存过就用），不动表结构、无生产 SQL
 
 ### 3.2 全站只有一处 `lazyLoad`
 
 - 唯一一处在 `milestones/index.tsx:434`；相册网格（`photo/index.tsx:308-312`）和首页九宫格（`MomentsSection.tsx:48-53`）都没有
-- [ ] 修：所有列表/网格图片加 `lazyLoad`
+- [x] 修：所有列表/网格图片加 `lazyLoad` —— ✅ 2026-09-23：上表那 5 个用户图片渲染点全加上
+  （相册网格、首页横排、里程碑、记录详情、统计日详情），现在全站 `<Image>` 列表图一致带 `lazyLoad`；
+  表单里"刚选完的那张"预览（`DiaperForm`、里程碑编辑框）没加 —— 单张且可能是 `wxfile://` 临时路径，加了也没意义
 
 ### 3.3 相册大图预览不能跨天滑动
 
 - `photo/index.tsx:194-203` 只传当天的 `urls`
-- [ ] 修：传全部已加载照片，`current` 定位到点击那张
+- [x] 修：传全部已加载照片，`current` 定位到点击那张 —— ✅ 2026-09-23：`handlePreview(photo)`
+  的 `urls` 改用页面已有的 `allPhotos`（`timeline.flatMap` 的扁平顺序 = 视觉顺序，按日期倒序），
+  `current` 仍是被点那张的 `photo.url`；继续触底翻页后数组跟着变长，预览能滑到的范围也一起长大
 
 ---
 

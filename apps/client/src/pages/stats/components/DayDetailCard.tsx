@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { DetailRecord, DetailSummary } from '../../../stores/recordStore'
 import { formatDuration, formatDurationLong, formatHM } from '../../../utils/date'
 import { getIntervalText, getRecordMainText } from '../../../utils/recordDisplay'
+import { thumbUrl, THUMB_W } from '../../../utils/imageThumb'
 import { getDateLabel, isToday } from '../utils'
 
 interface DayDetailCardProps {
@@ -230,8 +231,9 @@ export default function DayDetailCard({
 									{activeType === 'diaper' && item.diaperImage && (
 										<Image
 											className="timeline-thumb"
-											src={item.diaperImage}
+											src={thumbUrl(item.diaperImage, THUMB_W.chip)}
 											mode="aspectFill"
+											lazyLoad
 											onClick={() => {
 												const url = item.diaperImage
 												if (!url) return

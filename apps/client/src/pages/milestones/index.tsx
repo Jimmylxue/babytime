@@ -12,6 +12,7 @@ import {
 } from '@baby-time/shared'
 import { calculateAgeAt, formatDate } from '../../utils/date'
 import { chooseAndUploadImage } from '../../utils/upload'
+import { thumbUrl, THUMB_W } from '../../utils/imageThumb'
 import { deliverMilestonePoster } from '../../utils/chartExport'
 import {
 	MILESTONE_CANVAS_ID,
@@ -429,7 +430,7 @@ export default function MilestonesPage() {
 													? 'ms-row-photo--portrait'
 													: ''
 											}`}
-											src={item.photoUrl}
+											src={thumbUrl(item.photoUrl, THUMB_W.wide)}
 											mode="widthFix"
 											lazyLoad
 											onLoad={e => rememberRatio(item.photoUrl || '', e.detail)}

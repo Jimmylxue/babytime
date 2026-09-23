@@ -1023,5 +1023,112 @@ $ curl -s https://baby-cheese.jimmyxuexue.top/api/notification/config         �
 - 频控规则本身（7 天 / 30 天 / 有额度不弹）没改，只是把「为什么没弹」的排查路径写清楚
 - 没在小程序里加「为什么不弹」的调试文案 —— 线上要看的是上面那条 SQL 和后台订阅看板，不是给用户看的日志
 
+### 16. 追加（2026-09-23）：照片缩略图走又拍云原生处理 + 列表懒加载 + 相册跨天预览 · 纯小程序端
+
+对应 `docs/2026-09-22-optimization-backlog.md` 三（3.1 / 3.2 / 3.3）全部三项。
+
+#### 改了什么（6 个文件，全在小程序端）
+
+| 文件 | 改动 |
+| --- | --- |
+| `apps/client/src/utils/imageThumb.ts` | **新增**：`thumbUrl(url, width)` 给图床地址追加 `!/fw/{width}/quality/80`；`THUMB_W` 三档 grid 400（相册/首页小格）/ wide 900（里程碑整宽，取"看不出比原图软"的下限，非 3x 满格）/ chip 240（行内小方图） |
+| `pages/photo/index.tsx` | 网格 `src` 走缩略图 + `lazyLoad`；`handlePreview` 的 `urls` 从「当天那些」改成全部已加载照片（`allPhotos`），跨天能连着滑 |
+| `pages/index/components/MomentsSection.tsx` | 首页横排 9 张走缩略图 + `lazyLoad`（原来是**首屏 9 张原图**） |
+| `pages/milestones/index.tsx` | 列表照片走 `THUMB_W.wide`（原本已有 `lazyLoad`，但下的是原图） |
+| `pages/record-detail/index.tsx` | `cell-thumb`（64rpx 小方图）走 `THUMB_W.chip` + `lazyLoad` |
+| `pages/stats/components/DayDetailCard.tsx` | `timeline-thumb`（56rpx）同上 |
+
+#### 为什么没有服务端改动、没有 SQL
+
+又拍云的「原生图片处理」是**读 URL 时当场缩放**，对象只有一个：处理指令拼在图片 URL 后面
+（`https://babyimg.jimmyxuexue.top/baby-time/<uuid>.jpg!/fw/400/quality/80`）。
+所以：不改上传链路、不多存一份文件、不动 `photos` 表（`thumbnail` 那列仍然没人写，
+方案 B 的 sharp 双份存储只在"新上传"上有效，补不齐存量照片，故未采用），生产 `server.sh` 不需要跑。
+
+`Taro.previewImage` 与 `albumPoster.ts` 仍然用**原图**：大图预览和海报清晰度不能拿缩略图换。
+
+#### ⚠️ 这套做法唯一的强依赖：图床域名必须开着原生图片处理
+
+只对实测过的 `https://babyimg.jimmyxuexue.top` 追加指令；本地开发（`UPLOAD_DRIVER=local`，
+Nest 静态目录不认这套语法）与历史域名 `image.jimmyxuexue.top`（根目录与现桶不同、没法确认）
+一律原样返回 —— 加错地址上是 404 裂图，比省流量严重。生产若换图床域名，`imageThumb.ts`
+里的 `PROCESSABLE_ORIGINS` 必须跟着改，否则退化回原图（不裂，但白干）。
+
+复核命令（GET 口径，两条字节数应差一倍左右）：
+
+```bash
+U=https://babyimg.jimmyxuexue.top/baby-time/assets/baby-illustration.png
+curl -s -o /dev/null -w "原图   %{http_code} %{size_download}B\n" --max-time 20 "$U"
+curl -s -o /dev/null -w "缩略图 %{http_code} %{size_download}B\n" --max-time 20 "$U!/fw/400/quality/80"
+# 真机若把 src 里的 ! 百分号编码成 %21，又拍云照样认（实测同为 200 且字节数一致）
+curl -s -o /dev/null -w "编码后 %{http_code} %{size_download}B\n" --max-time 20 "$U%21/fw/400/quality/80"
+```
+
+#### 部署
+
+**只发小程序，不用跑 `server.sh`**：无 SQL、无环境变量、服务端零改动。
+
+```bash
+bash mini.sh <版本号> "相册/首页/里程碑/记录照片改走 CDN 缩略图 + 列表懒加载 + 相册大图跨天滑动"
+```
+
+#### 真机回归检查项
+
+**⚠️ 阻塞级（HTTP 层证不了，只能真机认定）**：
+
+- [ ] **首屏出图**：冷启动首页 → 「最近的瞬间」9 张全部正常显示；进相册 → 网格正常。
+      有任何一张空白/裂图都算失败（失败面是全部照片，因为域名判定只有一条）
+- [ ] **竖拍方向**：手机竖着拍一张 → 存相册 → 网格里那张应是**正立**且裁切符合预期。
+      又拍云会重编码 jpg，EXIF 方向若在边缘被抹掉而没扶正，这里会先露出来；
+      真出现方向错，指令改成 `!/fw/400/quality/80/rotate/auto`（`rotate/auto` = 又拍云「自动扶正」，已实测可用）
+- [ ] **流量真的降了**：开发者工具 Network 面板看首页那 9 张 —— 单张应是几十 KB 级，不再是 200KB+ 原图
+
+其余常规项：
+
+- [ ] 相册点一张大图 → 左右滑**能滑过日期分界**（改前滑到当天最后一张就到底了）
+- [ ] 大图本身仍是原图清晰度（双指放大看不发糊；只有网格小图被缩过）
+- [ ] 相册触底翻页后再进预览 → 能滑到的范围包含新加载的那些
+- [ ] 相册长按 → 管理模式：单选 / 全选 / 批量删除照常（预览改动只动了非管理模式的点击）
+- [ ] 首页「最近的瞬间」横滑 + 点击预览正常
+- [ ] 里程碑列表照片：横图与竖图都不跳版（`widthFix` 布局 + 按原图 URL 记的比例仍对得上）；
+      顺便看清晰度能不能接受 —— 这张走 900px，3x 屏整宽显示低于满格（要 1076px），
+      觉得软就直接把 `THUMB_W.wide` 调大，它是这批里唯一一处"缩略图可能看得见"的地方
+- [ ] 记录详情、统计日详情的便便小图能出图，点开还是大图
+- [ ] 生成成长纪念册海报 / 每日海报：照片仍清晰（这些链路没走缩略图）
+- [ ] 懒加载后往下快速滑相册：不应看到成片"空白格"卡在屏幕上（`lazyLoad` 是提前 3 屏预取，滑得快时应已到位）
+
+#### 本地已验证
+
+```
+$ 又拍云指令实测（GET，同一张 580×650 / 351,715B 的桶内对象）：
+    !/fw/400            → 200，sips 量出 400×448，151,946B
+    !/fw/300            → 200，300×336，96,275B
+    !/fw/400/quality/80 → 200，151,946B（PNG 无损，quality 对 png 无效，jpg 才吃得到）
+    !/fw/400/format/webp→ 200，30,130B（再省 5 倍，本轮**没用**，见下"没动"）
+    !/fw/400/rotate/auto→ 200；!/fw/400/clip/200x200a0a0 → 200
+    @fw/400             → 404（`@` 分隔符没开，当前分隔符是默认的 `!`）
+    !/q/75              → 400（简写不是合法指令，合法名是 quality）
+    %21 代替 !          → 200，字节数与 ! 完全一致（编码安全）
+$ node 跑转译后的 imageThumb.js，逐条核对 URL：图床 jpg/png 正确追加；已带 ! / ? / # 不重复追加；
+  localhost、image.jimmyxuexue.top、wxfile:// 临时路径全部原样返回
+$ pnpm --filter @baby-time/client build        → Compiled successfully（dist/common.js 内可见该逻辑）
+$ npx tsc --noEmit -p apps/client/tsconfig.json → 本批 6 个文件零新报错
+  （photo/index.tsx 报的 babyId 可能 undefined、PhotoTimelineGroup 未使用是仓库既有噪音）
+```
+
+**注意**：`quality/80` 对 jpg 的实际压缩率**没有线上样本可测**（桶内没有可用的真实照片对象，
+只有装饰 png）。按 400px 宽 + q80 的常规量级估单张 20–40KB，真机那条 Network 核对项就是补这一刀。
+
+#### 本轮没动（避免误会）
+
+- 没写 `photos.thumbnail` 列、没引入 sharp（方案 B）：存量照片吃不到，还多一份存储与一个原生依赖
+- 没上 `format/webp`：装饰图走包内 webp 在真机翻过车（见 `config/assets.ts` 顶部教训），
+  网络 webp 在 iOS `<Image>` 上要不要显式 `webp` 标记没实测 —— 想再省 5 倍的话，单独一轮真机验证后再开
+- 海报链路（`albumPoster.ts` / `dailyPoster` / `chartExport`）全部保持原图，那段「缩略图会把海报拉糊」的注释仍成立
+  - 顺带记一笔：纪念册并行加载 6 张**原图**是 iOS canvas 内存的大头，哪天海报生成报内存问题，
+    给海报照片换成 `fw/800` 是一步到位的解法（格子只有 100–200pt，画质不降反稳）
+- 表单里"刚选完的那张"预览（`DiaperForm`、里程碑编辑框）没走缩略图也没加 `lazyLoad`：单张、且可能是本地临时路径
+- 本地开发环境图片仍是原图（`UPLOAD_DRIVER=local` 不支持这套语法），改完在模拟器上看不出差别
+
 
 

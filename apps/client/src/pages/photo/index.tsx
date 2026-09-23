@@ -3,6 +3,7 @@ import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
 import { useRef, useState } from 'react';
 import { photoApi, trackEvent, PhotoTimelineGroup } from '../../utils/request';
 import { takePhotoAndSave } from '../../utils/upload';
+import { thumbUrl, THUMB_W } from '../../utils/imageThumb';
 import { CDN_ASSETS } from '../../config/assets';
 const albumBaby = CDN_ASSETS.albumBaby;
 import cameraIcon from '../../assets/icons/camera-white.svg';
@@ -191,11 +192,12 @@ export default function PhotoPage() {
     }
   };
 
-  const handlePreview = (photo: Photo, itemPhotos: Photo[]) => {
+  // urls 用**全部已加载**照片：只传当天的话，翻到一组最后一张就滑不动了
+  const handlePreview = (photo: Photo) => {
     previewingRef.current = true;
     Taro.previewImage({
       current: photo.url,
-      urls: itemPhotos.map((p) => p.url),
+      urls: allPhotos.map((p) => p.url),
       fail: () => {
         previewingRef.current = false;
       },
@@ -299,7 +301,7 @@ export default function PhotoPage() {
                           onClick={() =>
                             manageMode
                               ? toggleSelect(photo.id)
-                              : handlePreview(photo, item.photos)
+                              : handlePreview(photo)
                           }
                           onLongPress={() => {
                             if (!manageMode) enterManageWith(photo.id);
@@ -307,8 +309,9 @@ export default function PhotoPage() {
                         >
                           <Image
                             className="card-photo-img"
-                            src={photo.thumbnail || photo.url}
+                            src={thumbUrl(photo.thumbnail || photo.url, THUMB_W.grid)}
                             mode="aspectFill"
+                            lazyLoad
                           />
                           {manageMode && (
                             <View

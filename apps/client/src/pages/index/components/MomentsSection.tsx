@@ -1,4 +1,5 @@
 import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { thumbUrl, THUMB_W } from '../../../utils/imageThumb'
 
 interface RecentPhoto {
 	id: string
@@ -48,8 +49,9 @@ export default function MomentsSection({
 							<Image
 								key={photo.id}
 								className="moments-photo"
-								src={photo.thumbnail || photo.url}
+								src={thumbUrl(photo.thumbnail || photo.url, THUMB_W.grid)}
 								mode="aspectFill"
+								lazyLoad
 								onClick={() => onPreview(photo)}
 							/>
 						))}

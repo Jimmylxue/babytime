@@ -6,6 +6,7 @@ import { formatDate, formatDurationLong, formatHM } from '../../utils/date';
 import { detailTypeTabs, detailTypeInfo, getRecordMainText, getIntervalShortText } from '../../utils/recordDisplay';
 import { MOCK_DETAIL } from '../../utils/mock';
 import { recordApi } from '../../utils/request';
+import { thumbUrl, THUMB_W } from '../../utils/imageThumb';
 import './index.scss';
 
 export default function RecordDetailPage() {
@@ -237,8 +238,9 @@ export default function RecordDetailPage() {
                     {type === 'diaper' && item.diaperImage && (
                       <Image
                         className="cell-thumb"
-                        src={item.diaperImage}
+                        src={thumbUrl(item.diaperImage, THUMB_W.chip)}
                         mode="aspectFill"
+                        lazyLoad
                         onClick={(e) => {
                           e.stopPropagation();
                           Taro.previewImage({ current: item.diaperImage, urls: [item.diaperImage] });
