@@ -279,59 +279,115 @@
 
 ---
 
-## 六、数据库（🟡 随规模线性恶化）
+## 六、数据库（🟡 随规模线性恶化）—— ✅ 2026-09-23 全部处理完（6.9 评估后不做）
+
+> 生产需执行 `docs/sql/db-indexes-2026-09-23.sql`，见发版清单第 18 节。
+> 下面的实测数字都来自本地灌到生产同规模的临时夹具（3 万行 user_events / 8 千行 records /
+> 148 宝宝 / 4.8 万行 user_events 的留存夹具），验完按标记精确删除、各表行数已复核回到原状。
 
 ### 6.1 `user_events` 索引前导列错了 ⭐
 
 - `user-event.entity.ts:4` 建的是 `(userId, name, createdAt)`
 - 但后台所有分析查询都是 `WHERE name = ? AND created_at >= ?`，**不带 userId**（`admin-stats.service.ts:252-253, 385-388, 444-449`）→ 索引完全用不上，全表扫
 - `user_events` 是增长最快的表（每次 app_open 一行）
-- [ ] 修：加 `(name, created_at)` 索引（实体 `@Index` + `docs/sql/*.sql`）
+- [x] 修：加 `(name, created_at)` 索引（实体 `@Index` + `docs/sql/*.sql`）
+  - 实测（3 万行）：`WHERE name='app_open' AND created_at >= 近 6 天` 从 **扫 30064 条索引项 → 557 条**
+  - 补充一条清单没写的：原索引对**留存分析**（`WHERE user_id=? AND <created_at 落在某天>`）也没用，
+    中间的 `name` 把 created_at 挡在范围外，只能用 user_id 前缀（每用户 30 行 → 1 行）。
+    全仓没有任何查询同时按 user_id + name 过滤，所以是**换掉**而不是叠加：
+    DROP `(user_id, name, created_at)`，ADD `(name, created_at)` + `(user_id, created_at)`
 
 ### 6.2 `DATE(created_at) = CURDATE()` 让索引失效
 
 - `admin-stats.service.ts:21-29`，5 处（todayUsers / todayBabies / todayRecords / todayActiveUsers / aiAnalysisToday）
-- [ ] 修：改成 `created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY`
+- [x] 修：改成 `created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY`（抽成 `isToday()`）
+  - 反证实测：**光加索引不改写法是没用的** —— 索引建好后 `DATE(created_at)=CURDATE()` 仍然是
+    全索引扫 8091 行，半开区间写法只扫 88 行
+  - 口径逐表核对过（users / records / user_events / photos / notification_deliveries 两种写法计数相同），
+    含边界行：昨天 23:59:59.999999 排除、今天 00:00:00 与 23:59:59.999999 计入
+  - **清单漏了的同类问题一并修了**：`getRetention` 里还有 3 处 `DATE(列) = ...`（相关子查询 + 外层窗口），
+    它正是 `(user_id, created_at)` 新索引的唯一使用者。改成半开区间后 4.8 万行埋点下
+    **3930ms → 720ms**（offset=1: 4338→796，offset=30: 2233→466；新旧顺序对调复测结果一致），
+    7 组参数下 eligible/returned 与旧写法逐值相同
 
 ### 6.3 后台看板零缓存
 
 - `admin.controller.ts` 的 10 个 stats 端点每次重跑全部聚合；`getOverview` 一条 SQL 里 15 个子查询
 - `ops-health.service.ts:31` 已有 5 分钟内存缓存的先例可照抄
-- [ ] 修：加 60s 内存缓存
+- [x] 修：加 60s 内存缓存
+  - 9 个 `stats/*` 端点全部走 `AdminStatsService.cached()`；缓存的是 **Promise** 而不是结果，
+    所以并发打来的同一端点只查一次库，失败立刻丢弃、不会把错误缓存 60 秒
+  - 缓存键对 `days` 先做归一（`trends:1..90` / `retention:7..365`），避免任意数字把 Map 撑成无界
+  - **`/admin/users` 与 `/admin/users/:id/babies` 故意不缓存**（带分页与搜索，管理员搜完要立刻看到）
+  - 实测：overview 首次 21ms → 第二次 3ms；缓存窗口内插入新用户看板不变，61 秒后 +1
+  - 代价：看板数字最长滞后 60 秒（比如「测试推送」后漏斗不会立刻动）
 
 ### 6.4 `trackEvent` 每个事件 2 次写
 
 - `user.service.ts:129-134`：插 `user_events` + `UPDATE users SET last_seen_at`
 - 首页每次 onShow 都打一次 → `users` 表高频行写 + binlog 膨胀
-- [ ] 修：lastSeenAt 加「距上次 >5 分钟才更新」
+- [x] 修：lastSeenAt 加「距上次 >5 分钟才更新」
+  - 条件写在 `WHERE` 里而不是先 SELECT 一次：`id = ? AND (last_seen_at IS NULL OR last_seen_at < ?)`，
+    不满足时 0 行受影响、没有行写入
+  - 阈值时间戳由 Node 侧算好后传参（不用 MySQL 的 `NOW()`），与既有写入同一个时钟与时区口径
+  - 实测（真 HTTP + `Innodb_rows_updated` 计数器）：第 1 次埋点更新 1 行 → 5 分钟内第 2 次更新 **0 行**
+    → 回拨 6 分钟后第 3 次又更新 1 行；三次埋点本身都照常入库
 
 ### 6.5 `sendDueVaccines` 的 N+1
 
 - `vaccine-reminder.service.ts:125-140`：`babies.find()` 全表，然后每宝宝 1 次 vaccine_plans + 1 次 family_members + 每收件人 1 次 user + 1 次 grant ≈ **680 条查询/轮**（148 宝宝）
 - 这是清单里**唯一随用户数线性恶化**的定时任务
-- [ ] 修：`In(babyIds)` 批量预加载，压到 5 条以内
+- [x] 修：`In(babyIds)` 批量预加载，压到 5 条以内
+  - 实测（149 宝宝 / 164 收件人槽 / 45 个到期候选的夹具）：**固定开销 627 → 6 条**，
+    整轮 1294 → 628 条；省下的 666 条全是随宝宝数线性增长的部分
+  - 实际是 6 条不是 5 条：授权、用户、宝宝、计划、成员、已接种记录各 1 条。
+    顺序上**先查「有额度的授权」再回查用户** —— 有额度的人是小子集（生产 21 人 vs 210 用户），
+    且一个额度都没有时整轮直接结束
+  - 发送环节（每候选一次 dedupe 点查 + 写投递 + 写额度）**没动**，那是发消息本身的成本
+  - 行为用一份独立写的参考实现对拍过：45 条 dedupe_key 完全一致、额度逐用户对账 0 处不符、
+    43101 拒收后额度清零、无 openId 与额度耗尽的用户都跳过、第二轮的 dedupe 语义不变
 
 ### 6.6 TypeORM 没开慢查询日志
 
 - `app.module.ts:35-55` 无 `logging`、无 `maxQueryExecutionTime`
-- [ ] 修：`maxQueryExecutionTime: 1000` + `logging: ['error','warn']` —— 一行配置换一个免费的性能雷达
+- [x] 修：`maxQueryExecutionTime: 1000` + `logging: ['error','warn']` —— 一行配置换一个免费的性能雷达
+  - 读 TypeORM 0.3.28 源码确认过链路：慢查询走 `logQuerySlow` → `writeLog("warn", ...)`，
+    所以 `logging` 里**必须带 `warn`** 才看得到（只写 `error` 的话慢查询是哑的）
+  - 实测：`SELECT SLEEP(1.4)` 被报成 1477ms 慢查询，`SELECT 1` 不报
+  - 不开 `'query'`：那会把每条 SQL 都灌进 pm2 日志
+  - 顺带印证了 6.2：改之前 `getRetention` 单条要 3.9 秒，上线后这个雷达本来就该把它抓出来
 
 ### 6.7 缺 `created_at` 索引
 
 - `records`、`photos`、`notification_deliveries`、`users`（后台按时间段的所有查询都在扫）
-- [ ] 修：与 6.1 合并成一份 `docs/sql/*.sql`
+- [x] 修：与 6.1 合并成一份 `docs/sql/*.sql`（`docs/sql/db-indexes-2026-09-23.sql`）
+  - 实测全部从 `type: ALL` 变成 `type: range`：records 8091 → 88 行、users 1002 → 9、
+    photos 1501 → 119、notification_deliveries 2004 → 237
+  - `notification_deliveries` **没建单列 created_at**，建的是 `(template_id, created_at)`：
+    疫苗漏斗的每条查询都先按模板过滤再按时间取范围/分组，单列版仍要回表逐行判 template_id
 
 ### 6.8 `findAllByBaby` 无分页
 
 - `record.service.ts:68-85`：不传 date 时返回该宝宝**全部历史记录**
 - 现在人均 ~30 条没事；重度用户两年后可能几千条 → 多 MB JSON
-- [ ] 修：加上限或分页（先确认有没有调用方真的不传 date）
+- [x] 修：加上限或分页（先确认有没有调用方真的不传 date）
+  - 调用方查过了：`recordStore.fetchRecords(babyId, date?)` 定义在那儿，但**全仓没有任何页面调用它**；
+    首页与统计页的记录列表都来自 `/record/summary`。所以这是给直连接口的人兜底，不是修线上问题
+  - 做法：`take: 500`（单日也不可能到这个数，所以两个分支共用一个上限，不引入分页参数）
+  - 实测：605 条记录的宝宝不带 date → 返回 500 条且是最近的 500 条（首条 = 库里最新一条）、仍倒序；
+    带 date → 当天 49 条不受影响；无 token 仍 401
 
 ### 6.9 `family_members` 缺复合索引
 
 - 查询模式是 `(inviter_id, status)` / `(baby_id, status)` / `(user_id, status)`；目前只有 FK 自动单列索引
 - 表还小，且 `verifyBabyAccess` 是每次记录访问的鉴权热路径
-- [ ] 修：低优先，跟 6.7 一起做
+- [ ] ~~修：低优先，跟 6.7 一起做~~ → **评估后不做**，理由记在 SQL 文件末尾
+  - 查过库里现有索引：`user_id` / `baby_id` / `inviter_id` 三个 FK 单列索引都在，
+    已经把候选行压到个位数（一个用户在 ≤2 个家庭、一个宝宝 ≤5 个成员），`status` 只有 3 个取值，
+    再叠 `(xxx_id, status)` 只省掉几行的过滤
+  - 成本却是实的：`status` 会从 pending 翻成 accepted，每次翻都要多维护一个索引
+  - 收益≈0、成本>0，故跳过。下次有人再提这条，先看这段
+
 
 ---
 

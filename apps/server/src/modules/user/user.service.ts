@@ -10,6 +10,9 @@ import { LoginDto, UpdateUserDto } from './dto/login.dto';
 import { ContentSecurityService } from '../content-security/content-security.service';
 import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 
+/** users.last_seen_at 的最小写入间隔，见 trackEvent */
+const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
@@ -129,7 +132,19 @@ export class UserService {
   async trackEvent(userId: string, name: string, properties?: Record<string, any>) {
     const event = this.eventRepository.create({ userId, name, properties });
     await this.eventRepository.save(event);
-    await this.userRepository.update(userId, { lastSeenAt: new Date() });
+    // 首页每次 onShow 都打一个 app_open，逐次 UPDATE users 会把这张表变成高频写热点
+    // （行锁 + binlog 膨胀），而 last_seen_at 的用途只是「最近活跃」，5 分钟粒度完全够。
+    // 条件写在 WHERE 里而不是先 SELECT 一次：不满足时 0 行受影响，不产生行写入。
+    const staleBefore = new Date(Date.now() - LAST_SEEN_THROTTLE_MS);
+    await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ lastSeenAt: new Date() })
+      .where('id = :id AND (last_seen_at IS NULL OR last_seen_at < :staleBefore)', {
+        id: userId,
+        staleBefore,
+      })
+      .execute();
     return { success: true };
   }
 }

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, In, IsNull, MoreThan, Not, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { User } from '../user/entities/user.entity';
 import { Baby } from '../baby/entities/baby.entity';
@@ -141,41 +141,95 @@ export class VaccineReminderService implements OnModuleInit, OnModuleDestroy {
     if (!templateId || !process.env.WECHAT_APP_ID || !process.env.WECHAT_APP_SECRET) return { sent: 0, skipped: true };
     const token = await this.wechat.getAccessToken();
     if (!token) return { sent: 0, skipped: true };
-    const babies = await this.babies.find();
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const horizon = new Date(today);
     horizon.setDate(horizon.getDate() + Number(process.env.VACCINE_REMINDER_DAYS || 3));
     horizon.setHours(23, 59, 59, 999);
+
+    // 原先是「全表宝宝 → 每宝宝查计划与成员 → 每收件人查用户与额度 → 每候选 COUNT 一次接种记录」，
+    // 随宝宝数线性恶化（本地按生产同规模夹具实测一轮 1294 条 SQL），是清单里唯一会这样长的定时任务。
+    // 现在压成 6 条批量查询 + 每个候选一次 dedupe_key 唯一索引点查（同夹具实测 628 条，
+    // 省下的 666 条全是随规模增长的那部分）。
+    // 顺序上先取「有额度的授权」再回查用户：有额度的人是收件人的小子集（当前 21 人 vs 210 用户），
+    // 反过来先拉全部用户再筛额度会白读一大片；一个额度都没有时整轮直接结束。
+    // 注：In(babyIds) 在宝宝数上到几千时要改成分批，现在这个量级一条 SQL 更划算。
+    const grants = await this.grants.find({ where: { templateId, availableCount: MoreThan(0) } });
+    if (!grants.length) return { sent: 0, skipped: false };
+    const grantByUser = new Map(grants.map((grant) => [grant.userId, grant]));
+
+    const [subscribers, babies] = await Promise.all([
+      this.users.find({ where: { id: In([...grantByUser.keys()]) }, select: ['id', 'openId'] }),
+      this.babies.find({ select: ['id', 'userId', 'name', 'birthday'] }),
+    ]);
+    if (!babies.length) return { sent: 0, skipped: false };
+    const openIdByUser = new Map(
+      subscribers.filter((user) => user.openId).map((user) => [user.id, user.openId]),
+    );
+    const babyIds = babies.map((baby) => baby.id);
+
+    const [plans, members, vaccinated] = await Promise.all([
+      this.vaccinePlans.find({
+        where: { babyId: In(babyIds) },
+        select: ['babyId', 'scheduleItemId', 'scheduledDate'],
+      }),
+      this.familyMembers.find({
+        where: { babyId: In(babyIds), status: InviteStatus.ACCEPTED },
+        select: ['babyId', 'userId'],
+      }),
+      // 已接种的节点一次性取回，替代循环里每个候选一次的 records.count。
+      // 不按 type 过滤：原实现统计的是「该节点 ID 上的任意记录」，保持同一口径。
+      this.records.find({
+        where: { babyId: In(babyIds), vaccineScheduleItemId: Not(IsNull()) },
+        select: ['babyId', 'vaccineScheduleItemId'],
+      }),
+    ]);
+
+    const planByBaby = new Map<string, Map<string, string>>();
+    for (const plan of plans) {
+      const byItem = planByBaby.get(plan.babyId) ?? new Map<string, string>();
+      byItem.set(plan.scheduleItemId, plan.scheduledDate);
+      planByBaby.set(plan.babyId, byItem);
+    }
+    // 收件人 = 宝宝创建者 + 已接受的家庭成员，创建者排第一（额度不够时先发给他，同原顺序）
+    const recipientsByBaby = new Map<string, string[]>(babies.map((baby) => [baby.id, [baby.userId]]));
+    for (const member of members) {
+      const recipients = recipientsByBaby.get(member.babyId);
+      if (recipients && member.userId && !recipients.includes(member.userId)) recipients.push(member.userId);
+    }
+    const doneKeys = new Set(vaccinated.map((record) => `${record.babyId}:${record.vaccineScheduleItemId}`));
+
     let sent = 0;
     for (const baby of babies) {
-      const plans = await this.vaccinePlans.find({ where: { babyId: baby.id } });
-      const planByItem = new Map(plans.map((plan) => [plan.scheduleItemId, plan.scheduledDate]));
-      const members = await this.familyMembers.find({ where: { babyId: baby.id, status: InviteStatus.ACCEPTED } });
-      const recipientIds = Array.from(new Set([baby.userId, ...members.map((item) => item.userId).filter(Boolean)]));
-      for (const recipientId of recipientIds) {
-        const user = await this.users.findOne({ where: { id: recipientId } });
-        if (!user?.openId) continue;
-        const grant = await this.grants.findOne({ where: { userId: user.id, templateId } });
+      // 到期节点与收件人无关，在宝宝这一层算一次就够，别每个收件人重复算
+      const planByItem = planByBaby.get(baby.id);
+      const dueItems: { itemId: string; label: string; scheduledDate?: string; date: string }[] = [];
+      for (const { id: itemId, ageMonths: months, displayName: label } of TIMELINE_VACCINE_SCHEDULE) {
+        if (doneKeys.has(`${baby.id}:${itemId}`)) continue;
+        const scheduledDate = planByItem?.get(itemId);
+        const due = scheduledDate ? parseLocalDate(scheduledDate) : dueDate(baby.birthday, months);
+        if (due < today || due > horizon) continue;
+        dueItems.push({ itemId, label, scheduledDate, date: formatLocalDate(due) });
+      }
+      if (!dueItems.length) continue;
+
+      for (const recipientId of recipientsByBaby.get(baby.id) ?? []) {
+        const openId = openIdByUser.get(recipientId);
+        if (!openId) continue;
+        const grant = grantByUser.get(recipientId);
         if (!grant || grant.availableCount <= 0) continue;
-        for (const { id: itemId, ageMonths: months, displayName: label } of TIMELINE_VACCINE_SCHEDULE) {
-          const scheduledDate = planByItem.get(itemId);
-          const due = scheduledDate ? parseLocalDate(scheduledDate) : dueDate(baby.birthday, months);
-          if (due < today || due > horizon) continue;
-          const done = await this.records.count({ where: { babyId: baby.id, vaccineScheduleItemId: itemId } });
-          if (done > 0) continue;
-          const date = formatLocalDate(due);
+        for (const { itemId, label, scheduledDate, date } of dueItems) {
           // 模板中的 time2 字段要求时间格式；优先展示用户设置的计划接种日。
           const notifyTime = `${date} 09:00`;
-          const dedupeKey = `vaccine:${baby.id}:${itemId}:${date}:${user.id}`;
+          const dedupeKey = `vaccine:${baby.id}:${itemId}:${date}:${recipientId}`;
           let delivery = await this.deliveries.findOne({ where: { dedupeKey } });
           if (delivery && delivery.status !== 'failed') continue;
-          delivery ||= this.deliveries.create({ dedupeKey, userId: user.id, templateId, status: 'sending' });
+          delivery ||= this.deliveries.create({ dedupeKey, userId: recipientId, templateId, status: 'sending' });
           delivery.status = 'sending';
           delivery.error = null;
           await this.deliveries.save(delivery);
           try {
             const body = {
-              touser: user.openId, template_id: templateId, page: `/pages/vaccine-timeline/index?babyId=${baby.id}&source=notification_vaccine`,
+              touser: openId, template_id: templateId, page: `/pages/vaccine-timeline/index?babyId=${baby.id}&source=notification_vaccine`,
               data: {
                 [process.env.WECHAT_VACCINE_FIELD_NAME || 'thing1']: { value: `${baby.name} · ${label}`.slice(0, 20) },
                 [process.env.WECHAT_VACCINE_FIELD_DATE || 'time2']: { value: notifyTime },
@@ -186,6 +240,7 @@ export class VaccineReminderService implements OnModuleInit, OnModuleDestroy {
             const response = await this.wechat.postSubscribe(token, body);
             if (response.errcode) throw new Error(`${response.errcode}: ${response.errmsg}`);
             delivery.status = 'sent';
+            // grant 是整轮共用的同一个对象：扣减留在内存里，本轮后面的宝宝不会把同一份额度超发
             grant.availableCount = Math.max(0, grant.availableCount - 1);
             grant.sentCount += 1;
             grant.status = grant.availableCount > 0 ? 'accept' : 'consumed';
@@ -201,6 +256,7 @@ export class VaccineReminderService implements OnModuleInit, OnModuleDestroy {
             if (this.wechat.isWechatRefused(delivery.error)) {
               // 微信侧已拒收：清零本地额度，本轮及后续定时任务不再重试该用户
               await this.wechat.invalidateWechatGrant(grant.id);
+              grant.availableCount = 0;
               break;
             }
           }

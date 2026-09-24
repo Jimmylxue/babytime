@@ -43,6 +43,8 @@ export enum DiaperStatus {
 
 @Entity('records')
 @Index('idx_records_baby_type_start_time', ['babyId', 'type', 'startTime'])
+// 后台看板的趋势与「今日记录数」只按 created_at 取范围，用不上上面那个以 baby_id 打头的索引
+@Index('idx_records_created_at', ['createdAt'])
 export class Record {
 	@PrimaryGeneratedColumn('uuid')
 	id: string

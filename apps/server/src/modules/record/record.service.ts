@@ -9,6 +9,9 @@ import { ContentSecurityService } from '../content-security/content-security.ser
 import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 import { RecordQueryService } from './record-query.service';
 
+/** GET /record/baby/:babyId 的单次返回上限，见 findAllByBaby */
+const HISTORY_LIMIT = 500;
+
 /**
  * 记录增删改（写路径）。统计/明细查询在 RecordQueryService，这里代理转发，
  * 控制器注入点保持单一 RecordService 不变。
@@ -81,6 +84,10 @@ export class RecordService {
     return this.recordRepository.find({
       where,
       order: { startTime: 'DESC' },
+      // 不传 date 时这里原本是「该宝宝的全部历史记录」，重度用户两年后是几千条、好几 MB JSON。
+      // 单日也不可能超过这个数，所以两个分支共用一个上限（小程序端目前不走无 date 分支，
+      // 列表数据来自 /record/summary，这个上限是给直连接口的人兜底）。
+      take: HISTORY_LIMIT,
     });
   }
 

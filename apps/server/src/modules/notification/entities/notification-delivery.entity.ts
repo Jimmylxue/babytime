@@ -2,6 +2,9 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 
 
 @Entity('notification_deliveries')
 @Index('idx_notification_deliveries_key', ['dedupeKey'], { unique: true })
+// 疫苗漏斗的每条查询都是「先按模板过滤，再按 created_at 取范围或分组」，
+// 复合索引一次走完；单列 created_at 仍要回表逐行判 template_id。
+@Index('idx_notification_deliveries_template_created', ['templateId', 'createdAt'])
 export class NotificationDelivery {
   @PrimaryGeneratedColumn('uuid')
   id: string;

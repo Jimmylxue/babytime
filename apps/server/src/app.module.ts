@@ -55,6 +55,11 @@ import { NotificationModule } from './modules/notification/notification.module';
             process.env.NODE_ENV === 'production' ? 'false' : 'true',
           ) === 'true',
         charset: 'utf8mb4',
+        // 生产上没有 APM，这是唯一免费的可观测手段：超过 1s 的语句由 TypeORM 打成
+        // "query is slow" 警告（走 warn 通道，所以下面必须带上 warn），SQL 报错也一并留下。
+        // 只开这两个级别——'query' 会把每条 SQL 都灌进 pm2 日志。
+        logging: ['error', 'warn'],
+        maxQueryExecutionTime: 1000,
       }),
     }),
     UserModule,

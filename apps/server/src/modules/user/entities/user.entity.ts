@@ -5,10 +5,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { Baby } from '../../baby/entities/baby.entity';
 
 @Entity('users')
+// 后台「今日/近 7 日新增」与用户列表的 ORDER BY created_at DESC 分页都靠它
+@Index('idx_users_created_at', ['createdAt'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;

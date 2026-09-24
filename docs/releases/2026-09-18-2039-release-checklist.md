@@ -1219,5 +1219,155 @@ $ pnpm --filter @baby-time/client build                                   → Co
 - `getStats` 本身没瘦身：`dailyStats` 生成 1100 个对象的路径还在（谁再传 1100 谁付钱），
   但**现在没有任何客户端调用会传超过 60 天了**
 
+---
+
+### 18. 追加（2026-09-23）：数据库批次（backlog 六 全部 9 项）· 纯服务端 + 一份 SQL
+
+改了 10 个服务端文件 + 新增 `docs/sql/db-indexes-2026-09-23.sql`。
+**小程序端零改动、admin 前端零改动、无新增环境变量。**
+
+#### ① 生产需执行的 SQL（阻塞项：新索引不上，看板与埋点查询会继续扫全表）
+
+```bash
+# 服务器上仓库根目录，先 git pull 拿到这份 SQL
+cd ~/babytime && git pull origin main
+
+# 预检：看看这 5 张表现在有哪些索引（只读，不改任何东西）
+mysql -u root -p baby_time -e "
+  SELECT TABLE_NAME, INDEX_NAME, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) cols
+  FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA='baby_time'
+    AND TABLE_NAME IN ('user_events','records','photos','users','notification_deliveries')
+  GROUP BY TABLE_NAME, INDEX_NAME ORDER BY TABLE_NAME, INDEX_NAME;"
+
+# 执行 + 自动登记（重复执行会被登记表挡掉，不会跑第二遍）
+bash run-sql.sh docs/sql/db-indexes-2026-09-23.sql
+bash run-sql.sh --status      # 确认这一份显示 [已执行]
+```
+
+这份 SQL 做的事（全部是索引，**不动任何数据行**）：
+
+| 语句 | 作用 |
+| --- | --- |
+| `user_events ADD (name, created_at)` | 后台所有埋点分析查询走范围扫，不再扫全索引（实测 30064 → 557 行） |
+| `user_events ADD (user_id, created_at)` | 留存分析的相关子查询能把 created_at 当范围用 |
+| `user_events DROP (user_id, name, created_at)` | 上面两个已完全覆盖它，最快的表上不留冗余索引 |
+| `records / photos / users ADD (created_at)` | 看板按时间段的聚合从全表扫变范围扫 |
+| `notification_deliveries ADD (template_id, created_at)` | 疫苗漏斗的趋势与错误码分布 |
+
+预期与异常处理：
+
+- `ALTER TABLE ... ADD INDEX` 是 INPLACE 在线 DDL，**不锁写**；当前最大的表是 `user_events`，
+  量级几万行，秒级完成
+- 报 `Duplicate key name` = 库里已经有了，`run-sql.sh --mark docs/sql/db-indexes-2026-09-23.sql` 登记即可
+- `DROP INDEX idx_user_events_user_name_created` 若报 `check that column/key exists`，
+  说明生产上这个索引名不一样：`SHOW INDEX FROM user_events` 看真名再 DROP，**别放着不管**
+  （否则最快的表上会挂三个索引）
+- `user_events.user_id` 上没有外键（实体里只是个普通列），所以 DROP 那个索引不会碰到 FK 依赖
+
+#### ② 部署顺序
+
+```bash
+# 1) 先跑上面的 SQL（旧代码在新索引下也照常工作，不会半死不活）
+# 2) 再发服务端
+bash server.sh
+```
+
+无先后硬约束，但**建议 SQL 在前**：新代码里的半开区间写法要靠这些索引才拿得到收益。
+小程序**这一轮不用发**（`bash mini.sh` 不需要跑）。
+
+#### ③ 需要留意的行为变化（发布后自测点）
+
+1. **后台看板数字最长滞后 60 秒**（`stats/*` 九个端点加了进程内缓存）。
+   最明显的场景：在后台点「测试推送」后立刻刷疫苗漏斗，数字不会马上动，等 1 分钟。
+   `/admin/users`（用户列表/搜索）**没有**缓存，仍然实时。
+2. **pm2 日志里会开始出现 `query is slow` 警告**（超过 1 秒的 SQL）。这是 6.6 故意打开的雷达，
+   不是故障；看到就去 `admin-stats.service.ts` 里找那条 SQL。
+   `logging` 只有 `['error','warn']`，不会把每条 SQL 都灌进日志。
+3. `users.last_seen_at` 变成 **5 分钟粒度**（原来每次埋点都写）。
+   目前没有任何功能读它做判断，只是少写盘；后台也不展示这一列。
+4. `GET /api/record/baby/:babyId` 不带 `date` 时**最多返回 500 条**（原来是全量）。
+   小程序端没有任何页面调这个分支（列表数据走 `/record/summary`），所以真机不受影响。
+5. 疫苗定时任务的**发送行为完全没变**，只是把每轮的 SQL 从 1294 条压到 628 条
+   （固定开销 627 → 6 条）。额度扣减、dedupe、43101 拒收清零都用独立参考实现对拍过。
+
+#### ④ 服务器上的验收命令
+
+```bash
+# 索引都在（应看到 idx_user_events_name_created / idx_user_events_user_created，
+# 且 idx_user_events_user_name_created 已消失）
+mysql -u root -p baby_time -e "SHOW INDEX FROM user_events;"
+
+# 服务起来了
+curl -s https://baby-cheese.jimmyxuexue.top/api/health
+#   期望：{"status":"ok",...}
+
+# 看板接口通（把 TOKEN 换成后台登录拿到的 accessToken）
+curl -s -H "Authorization: Bearer $TOKEN" \
+  https://baby-cheese.jimmyxuexue.top/api/admin/stats/overview | head -c 300
+#   期望：{"code":0,"message":"success","data":{"totalUsers":...}}
+#   连打两次，第二次应明显更快（缓存生效）
+
+# 慢查询雷达是活的（故意跑一条 1.5 秒的语句，然后看日志有没有 query is slow）
+mysql -u root -p baby_time -e "SELECT SLEEP(1.5);"
+pm2 logs baby-time --lines 50 --nostream | grep -i "query is slow"
+#   期望：能看到一条 query is slow 警告；grep 不到就是 logging 配置没生效
+```
+
+#### 真机回归检查项
+
+**本轮不需要真机回归** —— 小程序端一个文件都没改，接口载荷格式也没变
+（只有 `/record/baby/:babyId` 不带 date 时多了 500 条上限，而客户端不走这个分支）。
+后台网页打开确认九个看板页都能出数即可。
+
+#### 本地已验证
+
+```
+$ bash /tmp/verify-section6-explain.sh   → 19/20（唯一一条 ❌ 是断言写法太窄：
+    预期看到 skip scan，实测优化器选的是全索引扫，结论一样 —— 加索引前扫 30064 行、加完 557 行）
+    6.1/6.7 六条查询的 EXPLAIN 前后对比，全部 type:ALL/skip → type:range
+    6.2 两种写法在 5 张表上计数逐表相同，含 3 条边界行（昨天 23:59:59.999999 排除、今天两端计入）
+    迁移文件重复执行在第一条 ALTER 就报 Duplicate key name 并中止，库里索引不变
+$ bash /tmp/verify-section6-retention.sh → 9/9
+    getRetention 新旧 SQL 在 7 组 (offset, safeDays) 下 eligible/returned 逐值相同
+$ bash /tmp/verify-section6-analyze.sh   → 4.8 万行埋点下 EXPLAIN ANALYZE + 墙钟：
+    offset=1  4338ms → 796ms   offset=7  3930ms → 720ms   offset=30 2233ms → 466ms
+    新旧顺序对调复测结果一致（排除冷缓存偏向）
+$ node /tmp/verify-section6-n1.js        → 29/29
+    6.6 maxQueryExecutionTime=1000 + logging=['error','warn'] 已生效，SLEEP(1.4) 被报成慢查询、SELECT 1 不报
+    6.5 预加载固定开销 627 → 6 条（babies/vaccine_plans/family_members/users/subscription_grants/records 各 1 条）
+        循环内的 records.count 归零；整轮 1294 → 628 条
+        与独立参考实现对拍：45 条 dedupe_key 完全一致、额度逐用户对账 0 处不符、
+        43101 拒收后额度清零、无 openId 与额度耗尽的用户都跳过、第二轮 dedupe 语义不变
+$ node /tmp/verify-section6-http.js      → 51/51（真库真 HTTP，本地 dist/main.js + OPS_DISABLE_SCHEDULER=1）
+    6.4 Innodb_rows_updated：第 1 次埋点 1 行 → 5 分钟内第 2 次 0 行 → 回拨 6 分钟后第 3 次 1 行；
+        埋点本身 3 条都照常入库
+    6.8 605 条记录的宝宝不带 date → 500 条且是最近的 500 条、仍倒序；带 date → 当天 49 条不受影响；无 token 仍 401
+    6.3 overview 21ms → 3ms；缓存窗口内插新用户看板不变、61 秒后 +1；days=7/8/9999 三个缓存键互不串台；
+        /admin/users 未缓存、立刻反映新用户
+    6.2 接口返回的 todayUsers/todayBabies/todayRecords/aiAnalysisToday 同时等于「半开区间」与「旧 DATE() 写法」的直查结果
+$ pnpm run build:server                  → nest build 通过
+$ 三个脚本结束时都复核过：users 1 / babies 5 / records 3 / photos 1 / user_events 261 /
+  family_members 0 / vaccine_plans 0 / subscription_grants 3 / notification_deliveries 4
+  —— 与验证前逐表一致，TMPSEC6* 临时行残留 0
+```
+
+#### 本轮没动（避免误会）
+
+- **6.9 `family_members` 复合索引：评估后决定不加。** 库里 `user_id` / `baby_id` / `inviter_id`
+  三个 FK 单列索引已经在，候选行本就压到个位数（一个用户在 ≤2 个家庭、一个宝宝 ≤5 个成员），
+  `status` 只有 3 个取值，再叠 `(xxx_id, status)` 只省掉几行过滤；
+  而 `status` 会从 pending 翻成 accepted，每次翻都要多维护一个索引。收益≈0、成本>0。
+  理由同时写在 `docs/sql/db-indexes-2026-09-23.sql` 末尾，免得下次重复评估。
+- `getRetention` 里 `COALESCE(r.actor_user_id, b.user_id) = u.id` 这个连接条件本身不可索引化，
+  改成半开区间后 records 那一支仍是逐行判（EXPLAIN 里的 `Range checked for each record`）。
+  要再快就得给 records 加 `actor_user_id` 索引或改查询结构，属于另一件事，本轮没碰。
+- 疫苗定时任务**发送环节**的 SQL 没动：每个候选一次 dedupe 点查、发送后 `save()` 触发的
+  SELECT+UPDATE 各一次。剩下那 622 条基本都在这儿，真要压得把 `save()` 换成 `insert()/update()`，
+  风险收益不划算，留给下一轮判断。
+- `admin.controller.ts` 没加 `?refresh=1` 强制刷新开关：60 秒的滞后对看板可接受，
+  真要看得等一分钟或重启进程。需要的话照 `ops/https` 的写法加一个就行。
+
+
 
 

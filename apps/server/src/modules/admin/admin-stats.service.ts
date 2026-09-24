@@ -8,25 +8,57 @@ const ACTIVE_USER_FROM = `
 `;
 const ACTIVE_USER_ID = 'COALESCE(r.actor_user_id, b.user_id)';
 
+/**
+ * 「今天」一律写成半开区间。DATE(created_at) = CURDATE() 把列包进了函数，
+ * created_at 上的索引会直接失效，看板上每一个今日指标都变成全表扫。
+ */
+const isToday = (column = 'created_at') =>
+  `${column} >= CURDATE() AND ${column} < CURDATE() + INTERVAL 1 DAY`;
+
+/** 看板数据分钟级新鲜度就够看，但每个端点每次都要重跑十几个聚合子查询 */
+const STATS_CACHE_TTL_MS = 60 * 1000;
+
 @Injectable()
 export class AdminStatsService {
+  /**
+   * 进程内 TTL 缓存（照抄 OpsHealthService 的做法）。存的是 Promise 而不是结果：
+   * 看板打开时并发打来的同一端点只会真正查一次库，失败则立刻丢弃、不缓存 60 秒的错误。
+   * 只缓存聚合端点，/admin/users 那类带分页与搜索的不缓存。
+   */
+  private readonly cache = new Map<string, { at: number; pending: Promise<unknown> }>();
+
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
-  async getOverview() {
+  private cached<T>(key: string, loader: () => Promise<T>): Promise<T> {
+    const hit = this.cache.get(key);
+    if (hit && Date.now() - hit.at < STATS_CACHE_TTL_MS) return hit.pending as Promise<T>;
+    const pending = loader().catch((error) => {
+      this.cache.delete(key);
+      throw error;
+    });
+    this.cache.set(key, { at: Date.now(), pending });
+    return pending;
+  }
+
+  getOverview() {
+    return this.cached('overview', () => this.loadOverview());
+  }
+
+  private async loadOverview() {
     // 疫苗订阅模板未配置时，模板 ID 用空串匹配不到任何行，统计自然为 0。
     const vaccineTemplateId = process.env.WECHAT_SUBSCRIBE_VACCINE_TEMPLATE_ID || '';
     const [row] = await this.dataSource.query(
       `SELECT
         (SELECT COUNT(*) FROM users) AS totalUsers,
-        (SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURDATE()) AS todayUsers,
+        (SELECT COUNT(*) FROM users WHERE ${isToday()}) AS todayUsers,
         (SELECT COUNT(*) FROM babies) AS totalBabies,
-        (SELECT COUNT(*) FROM babies WHERE DATE(created_at) = CURDATE()) AS todayBabies,
+        (SELECT COUNT(*) FROM babies WHERE ${isToday()}) AS todayBabies,
         (SELECT COUNT(*) FROM records) AS totalRecords,
-        (SELECT COUNT(*) FROM records WHERE DATE(created_at) = CURDATE()) AS todayRecords,
-        (SELECT COUNT(DISTINCT ${ACTIVE_USER_ID}) ${ACTIVE_USER_FROM} WHERE DATE(r.created_at) = CURDATE()) AS todayActiveUsers,
+        (SELECT COUNT(*) FROM records WHERE ${isToday()}) AS todayRecords,
+        (SELECT COUNT(DISTINCT ${ACTIVE_USER_ID}) ${ACTIVE_USER_FROM} WHERE ${isToday('r.created_at')}) AS todayActiveUsers,
         (SELECT COUNT(DISTINCT ${ACTIVE_USER_ID}) ${ACTIVE_USER_FROM} WHERE r.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS weekActiveUsers,
         (SELECT COUNT(*) FROM records WHERE diaper_analysis IS NOT NULL) AS aiAnalysisTotal,
-        (SELECT COUNT(*) FROM records WHERE diaper_analysis IS NOT NULL AND DATE(created_at) = CURDATE()) AS aiAnalysisToday,
+        (SELECT COUNT(*) FROM records WHERE diaper_analysis IS NOT NULL AND ${isToday()}) AS aiAnalysisToday,
         (SELECT COUNT(*) FROM photos) AS totalPhotos,
         (SELECT COUNT(*) FROM family_members WHERE status = 'accepted') AS familyMembers,
         (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS weekNewUsers,
@@ -57,9 +89,13 @@ export class AdminStatsService {
     };
   }
 
-  async getTrends(days: number) {
+  getTrends(days: number) {
+    // 先归一再当缓存键：否则 days 是任意数字，Map 会被无界的键撑大
     const safeDays = Math.min(Math.max(Math.floor(days) || 30, 1), 90);
+    return this.cached(`trends:${safeDays}`, () => this.loadTrends(safeDays));
+  }
 
+  private async loadTrends(safeDays: number) {
     // 日期轴以本地时区的自然日为准，缺失的日期补 0。
     const dateList: string[] = [];
     const today = new Date();
@@ -100,7 +136,11 @@ export class AdminStatsService {
     };
   }
 
-  async getDistribution() {
+  getDistribution() {
+    return this.cached('distribution', () => this.loadDistribution());
+  }
+
+  private async loadDistribution() {
     const [recordTypes, babyGenders] = await Promise.all([
       this.dataSource.query(`SELECT type, COUNT(*) AS count FROM records GROUP BY type`),
       this.dataSource.query(`SELECT gender, COUNT(*) AS count FROM babies GROUP BY gender`),
@@ -189,7 +229,11 @@ export class AdminStatsService {
   }
 
   // 转化漏斗：注册 → 创建宝宝档案 → 产生首条记录
-  async getFunnel() {
+  getFunnel() {
+    return this.cached('funnel', () => this.loadFunnel());
+  }
+
+  private async loadFunnel() {
     const [row] = await this.dataSource.query(
       `SELECT
         (SELECT COUNT(*) FROM users) AS totalUsers,
@@ -206,24 +250,33 @@ export class AdminStatsService {
   }
 
   // 新用户活跃情况：注册后 N 天内是否产生过记录
-  async getRetention(days: number) {
+  getRetention(days: number) {
     const safeDays = Math.min(Math.max(Math.floor(days) || 90, 7), 365);
+    return this.cached(`retention:${safeDays}`, () => this.loadRetention(safeDays));
+  }
+
+  private async loadRetention(safeDays: number) {
     const getExactDay = async (offset: number) => {
+      // 三处 DATE(列) = ... 全部换成半开区间，理由同 isToday：包了函数索引就用不上。
+      // 这里尤其值：user_events 新建的 (user_id, created_at) 就是为这条相关子查询准备的，
+      // 写成 DATE(e.created_at) 的话它只剩 user_id 前缀能用，等于白建。
       const [row] = await this.dataSource.query(
         `SELECT COUNT(*) AS eligible,
           COALESCE(SUM(CASE WHEN
             EXISTS(
               SELECT 1 FROM records r INNER JOIN babies b ON b.id = r.baby_id
               WHERE COALESCE(r.actor_user_id, b.user_id) = u.id
-                AND DATE(r.created_at) = DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)
+                AND r.created_at >= DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)
+                AND r.created_at < DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)
             ) OR EXISTS(
               SELECT 1 FROM user_events e WHERE e.user_id = u.id
-                AND DATE(e.created_at) = DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)
+                AND e.created_at >= DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)
+                AND e.created_at < DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)
             ) THEN 1 ELSE 0 END), 0) AS returned
          FROM users u
          WHERE u.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-           AND DATE(u.created_at) <= DATE_SUB(CURDATE(), INTERVAL ? DAY)`,
-        [offset, offset, safeDays, offset],
+           AND u.created_at < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL ? DAY), INTERVAL 1 DAY)`,
+        [offset, offset + 1, offset, offset + 1, safeDays, offset],
       );
       return { eligible: Number(row.eligible), returned: Number(row.returned) };
     };
@@ -241,7 +294,11 @@ export class AdminStatsService {
     };
   }
 
-  async getEngagement() {
+  getEngagement() {
+    return this.cached('engagement', () => this.loadEngagement());
+  }
+
+  private async loadEngagement() {
     const [row] = await this.dataSource.query(
       `SELECT
         (SELECT COUNT(DISTINCT user_id) FROM subscription_grants WHERE accepted_count > 0) AS subscribedUsers,
@@ -264,7 +321,11 @@ export class AdminStatsService {
   }
 
   // 疫苗提醒漏斗：授权 → 发送 → 点击，含错误码分布与近 7 天发送趋势
-  async getVaccineFunnel() {
+  getVaccineFunnel() {
+    return this.cached('vaccine-funnel', () => this.loadVaccineFunnel());
+  }
+
+  private async loadVaccineFunnel() {
     const templateId = process.env.WECHAT_SUBSCRIBE_VACCINE_TEMPLATE_ID || '';
     if (!templateId) {
       return {
@@ -375,7 +436,11 @@ export class AdminStatsService {
   }
 
   // 相册模块指标：总量、人均、近 7 天趋势、入口点击与上传成功率
-  async getAlbumMetrics() {
+  getAlbumMetrics() {
+    return this.cached('album', () => this.loadAlbumMetrics());
+  }
+
+  private async loadAlbumMetrics() {
     const [row] = await this.dataSource.query(
       `SELECT
         (SELECT COUNT(*) FROM photos) AS totalPhotos,
@@ -438,7 +503,11 @@ export class AdminStatsService {
   // tool_click（宫格点击，properties.name）、tool_view（工具页到达，properties.name）、
   // stool_analyze_click（发起便便识别）。按 properties.name 分组聚合，
   // 后续新增小应用不需要改这里就会自动出现在列表中。
-  async getToolsMetrics() {
+  getToolsMetrics() {
+    return this.cached('tools', () => this.loadToolsMetrics());
+  }
+
+  private async loadToolsMetrics() {
     const [summary] = await this.dataSource.query(
       `SELECT
         (SELECT COUNT(*) FROM user_events WHERE name = 'tools_hub_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS hubViews7,

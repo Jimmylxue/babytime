@@ -12,6 +12,8 @@ import { Baby } from '../../baby/entities/baby.entity';
 // 相册列表固定按 babyId 过滤 + photoDate 倒序分页，缺这个索引会随照片量增长变慢
 @Entity('photos')
 @Index('idx_photos_baby_photo_date', ['babyId', 'photoDate'])
+// 后台相册指标的「近 7/30 天上传量」只按 created_at 取范围
+@Index('idx_photos_created_at', ['createdAt'])
 export class Photo {
   @PrimaryGeneratedColumn('uuid')
   id: string;
