@@ -16,6 +16,7 @@ import { AdminAnnouncementService } from './admin-announcement.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminBabyService } from './admin-baby.service';
 import { AdminStatsService } from './admin-stats.service';
+import { AdminUserDeletionService } from './admin-user-deletion.service';
 import { OpsHealthService } from './ops-health.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
@@ -24,6 +25,12 @@ import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import { NotificationService } from '../notification/notification.service';
 import { secretsEqual } from '../../common/secrets';
 
+/** 经 nginx 反代时 req.ip 是回环地址，真实来源在转发链的第一段 */
+const clientIpOf = (req: any): string | null => {
+  const forwarded = (req.headers?.['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
+  return forwarded || req.ip || null;
+};
+
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -31,6 +38,7 @@ export class AdminController {
     private readonly adminStatsService: AdminStatsService,
     private readonly adminAnnouncementService: AdminAnnouncementService,
     private readonly adminBabyService: AdminBabyService,
+    private readonly adminUserDeletionService: AdminUserDeletionService,
     private readonly notificationService: NotificationService,
     private readonly opsHealthService: OpsHealthService,
   ) {}
@@ -157,14 +165,12 @@ export class AdminController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
-    // 经 nginx 反代时 req.ip 是回环地址，优先取转发链里的真实来源 IP
-    const forwarded = (req.headers?.['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
     const data = await this.adminBabyService.getBabyPhotos(
       id,
       Number(page) || 1,
       Number(pageSize) || 24,
       req.user?.username || 'admin',
-      forwarded || req.ip || null,
+      clientIpOf(req),
     );
     return data;
   }
@@ -188,6 +194,31 @@ export class AdminController {
   @Get('users/:userId/babies')
   async getUserBabies(@Param('userId') userId: string) {
     const data = await this.adminStatsService.getUserBabies(userId);
+    return data;
+  }
+
+  /** 注销预览：列出会删掉多少条数据、会牵连到哪些家庭，不可逆操作先看这个再决定 */
+  @UseGuards(AdminJwtGuard)
+  @Get('users/:userId/deletion-preview')
+  async getUserDeletionPreview(@Param('userId') userId: string) {
+    const data = await this.adminUserDeletionService.getPlan(userId);
+    return data;
+  }
+
+  /** 注销账号：删掉他名下的全部数据（含又拍云图片），仅用于用户主动申请，每次执行落审计日志 */
+  @UseGuards(AdminJwtGuard)
+  @Post('users/:userId/delete')
+  async deleteUser(
+    @Request() req,
+    @Param('userId') userId: string,
+    @Body() body: { confirm?: string },
+  ) {
+    const data = await this.adminUserDeletionService.delete(
+      userId,
+      req.user?.username || 'admin',
+      clientIpOf(req),
+      body?.confirm,
+    );
     return data;
   }
 

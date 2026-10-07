@@ -1368,6 +1368,139 @@ $ 三个脚本结束时都复核过：users 1 / babies 5 / records 3 / photos 1 
 - `admin.controller.ts` 没加 `?refresh=1` 强制刷新开关：60 秒的滞后对看板可接受，
   真要看得等一分钟或重启进程。需要的话照 `ops/https` 的写法加一个就行。
 
+---
+
+### 19. 追加（2026-10-02）：管理后台「注销账号」· 服务端 + admin 前端
+
+用户端没有注销入口，C 端有用户申请注销 → 先在后台代操作。改动文件：
+
+- 新增 `apps/server/src/modules/admin/admin-user-deletion.service.ts`
+- `apps/server/src/modules/admin/admin.controller.ts`：`GET /api/admin/users/:userId/deletion-preview`、
+  `POST /api/admin/users/:userId/delete`，顺手把两处重复的取真实 IP 逻辑抽成 `clientIpOf`
+- `apps/server/src/modules/admin/admin.module.ts`：注册服务 + 引入 `UploadModule`（复用图片清理）
+- `apps/admin/src/pages/Users.tsx`、`apps/admin/src/types.ts`：用户列表加「注销」列 + 二次确认弹窗
+
+**无 SQL、无实体改动、无新增环境变量**（生产 `DB_SYNCHRONIZE=false` 不受影响）。
+
+#### ① 【阻塞】第一次真删之前必须先备份
+
+删除是硬删、不可恢复，后台没有回收站；DB 只能回档 `backup-db.sh` 的 dump，
+又拍云上的图片对象删掉就找不回来。
+
+```bash
+cd ~/babytime && bash backup-db.sh pre-deploy
+ls -lh backups/ | head -3     # 必须看到刚才那个 pre-deploy-db-baby_time-<时间>.sql.gz
+```
+
+#### ② 部署
+
+```bash
+cd ~/babytime && git pull origin main
+bash server.sh        # 同时发服务端与 admin 静态页，无需单独构建
+```
+
+小程序这一轮不用发（`apps/client` 零改动）。
+
+#### ③ 后台操作路径
+
+用户列表 →（按昵称搜到目标用户）→ 行尾红色「注销」→ 弹窗自动列出**删除量与影响面** →
+在输入框里敲 `注销` → 点「确认注销并删除数据」。接口侧同样校验这个确认词，
+不带或写错一律 400，脚本误调删不掉人。
+
+#### ④ 删什么、不删什么
+
+删除范围（一个事务内按外键依赖顺序执行，共 12 张表）：
+`records` / `photos` / `baby_milestones` / `vaccine_plans`（他名下宝宝的）→
+`family_invites` / `family_members` / `family_member_aliases` → `babies` →
+`notification_deliveries` / `subscription_grants` / `user_events` → `users`。
+`users.open_id` 的唯一索引随删释放，本人日后能注册一个全新的空账号（预期行为）。
+
+**不会碰别人的数据**：其他用户名下的宝宝/记录/相册一律不动。特别两条：
+
+- 他记在**别人家宝宝**上的记录和打卡**保留**（那是那个家庭的数据），只把 `actor_user_id` 置空。
+  不置空的话 `COALESCE(r.actor_user_id, b.user_id)` 会把已注销用户算成一个活跃用户，污染看板。
+- 他加入的他人家庭里那条成员行会删掉（他不再是家人），别人给他起的备注名
+  （`family_member_aliases.target_user_id`）一并删。
+- `admin_audit_logs` 里历史审计行保留（自证用途），本次注销本身也会写一条
+  `action=delete_user`，detail 里是删除量与 openId 前 6 位。
+
+图片：事务提交后交给现成的 `CdnCleanupService`，只认 uuid 形状的文件名 + 全库引用回查，
+被他人复用的图自动保留（本地已实测这一条），失败只记 warn、不影响注销结果。
+
+#### ⑤ 已知限制（不是 bug）
+
+1. **旧 token 最长还能用 7 天**：客户端 JWT 7 天有效且 `JwtStrategy` 不查库。注销后他手上
+   已登录的会话里 `/api/user/profile` 会拿不到数据、大部分页面回登录页，但
+   `/api/user/events` 这类写接口仍可能落下指向已删 ID 的埋点行。要立刻切断只能等过期，
+   或给 `JwtStrategy.validate` 加一次用户存在性查询（每个请求多一条 SQL，本轮没做）。
+2. 已发出的微信订阅消息、已授权的订阅额度无法撤回，只能连带删掉本地记录。
+3. 没有「已注销账号」列表页，事后追溯看 `admin_audit_logs` 和 pm2 日志。
+4. 删除跑在单个事务里。生产最大的是 `user_events`（单用户量级几十~几百行），锁行范围很小，
+   不需要分批；真遇到超大账号（几万条埋点）可以先 `DELETE FROM user_events WHERE user_id=...`
+   再点注销。
+
+#### ⑥ 生产验收命令
+
+```bash
+# 端点已注册：未登录应 401（不是 404）
+curl -s -o /dev/null -w "%{http_code}\n" \
+  https://baby-cheese.jimmyxuexue.top/api/admin/users/00000000-0000-4000-8000-000000000000/deletion-preview
+#   期望：401
+```
+
+第一次真实注销之后，用真实 userId 复核残留与审计：
+
+```bash
+ID='<刚注销的用户ID>'
+mysql -u root -p baby_time -e "
+SELECT (SELECT COUNT(*) FROM users WHERE id='$ID') u,
+       (SELECT COUNT(*) FROM babies WHERE user_id='$ID') b,
+       (SELECT COUNT(*) FROM records WHERE baby_id IN (SELECT id FROM babies WHERE user_id='$ID') OR actor_user_id='$ID') r,
+       (SELECT COUNT(*) FROM family_members WHERE user_id='$ID' OR inviter_id='$ID') fm,
+       (SELECT COUNT(*) FROM family_member_aliases WHERE family_owner_id='$ID' OR target_user_id='$ID') fa,
+       (SELECT COUNT(*) FROM notification_deliveries WHERE user_id='$ID') nd,
+       (SELECT COUNT(*) FROM subscription_grants WHERE user_id='$ID') sg,
+       (SELECT COUNT(*) FROM user_events WHERE user_id='$ID') ue;"
+#   期望：八列全 0
+
+mysql -u root -p baby_time -e "
+SELECT admin_username, target_id, detail, client_ip, created_at
+FROM admin_audit_logs WHERE action='delete_user' ORDER BY created_at DESC LIMIT 3;"
+pm2 logs baby-time --lines 200 --nostream | grep -E "图片 .*\.(jpg|png|webp|gif) (清理|仍被其他记录引用)"
+```
+
+#### 管理后台回归检查项（本轮改了 admin 页面）
+
+- 用户列表：新增「操作」列固定在右侧，表格加了 `scroll={{ x: 1030 }}`，窄屏会横向滚动；
+  翻页、按昵称搜索、点「宝宝数」弹窗三条老路径不受影响
+- 注销弹窗：打开就自动请求 preview，确认按钮在未敲「注销」前是灰的
+- 只注销**有家庭关系**的账号时，注意弹窗里的两条黄色提示（其他家人失去访问 / 他加入了他人家庭）
+  是否符合预期，再确认
+- 「按宝宝查看照片」的审计写入仍正常（`clientIpOf` 是两处共用的新函数，IP 记的还是真实来源）
+
+#### 本地已验证
+
+```
+$ bash /tmp/verify-user-deletion.sh   → 全通过（真库真 HTTP：本地 dist/main.js:3999，
+  UPLOAD_DRIVER=local 起的，全程没碰生产又拍云桶）
+    preview 数字与真库逐表计数一致：babies 1 / records 2 / photos 2 / milestones 1 /
+      vaccinePlans 1 / invites 1 / familyMembers 1 / joinedFamilies 1 / aliases 2 /
+      deliveries 1 / grants 1 / events 1 / externalActorRows 3 / images 7
+    影响面：sharedMemberUsers 1（他人家庭里的已加入家人）、joinedFamilies 列出「对照测试号的 宝留」
+    不带确认词 → 400；确认词写「确认」→ 400；用户不存在 → 404；未登录 → 401；
+    重复注销同一个用户 → 404（不是 500）
+    正式注销后 12 张表残留复查全 0；对照账号 11 项逐表未变
+    他在别人家宝宝上的 2 条记录 + 1 条里程碑保留、actor_user_id 已置 NULL
+$ 边界两轮：
+    空账号（只有 users 一行）→ preview 全 0、删除成功 201，没有 IN () 语法错
+    同一张 uuid 图片被另一用户的记录引用 → 日志「仍被其他记录引用，保留」，图没删、对方数据完好
+$ 审计：admin_audit_logs 写入 delete_user，detail 含全部计数 + openId 前 6 位
+$ 图片清理链路：4 个 uuid 对象逐个走清理（本机 uploads 没有这些文件 → missing），
+  logo.png / baby-avatar.png / xxx.jpg-thumb 这些非 uuid 名一律不动
+$ nest build / tsc --noEmit（admin）/ vite build 全通过
+$ 测试数据已全部回收：users 1 / babies 5 与验证前一致，zxtest* 与 delete_user 测试审计残留 0
+```
+
 
 
 

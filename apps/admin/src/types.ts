@@ -145,6 +145,45 @@ export interface UserBabiesResult {
 	list: UserBabyItem[];
 }
 
+// 账号注销预览（不可逆，删前先看清楚会动到哪些数据）
+export interface UserDeletionCounts {
+	babies: number;
+	records: number;
+	photos: number;
+	milestones: number;
+	vaccinePlans: number;
+	invites: number;
+	/** 他创建的家庭里已加入的家人数 */
+	familyMembers: number;
+	/** 他作为成员加入的他人家庭数 */
+	joinedFamilies: number;
+	aliases: number;
+	deliveries: number;
+	grants: number;
+	events: number;
+	/** 记在别人家宝宝上、注销后只清空作者不删除的行数 */
+	externalActorRows: number;
+	images: number;
+}
+
+export interface UserDeletionPlan {
+	/** 服务端要求的确认词，输入框按它校验 */
+	confirmWord: string;
+	user: { id: string; nickname: string; openId: string | null; createdAt: string };
+	babies: { id: string; name: string; birthday: string | null }[];
+	counts: UserDeletionCounts;
+	impact: {
+		sharedMemberUsers: number;
+		joinedFamilies: { babyName: string; ownerNickname: string }[];
+	};
+}
+
+export interface UserDeletionResult {
+	success: boolean;
+	nickname: string;
+	counts: UserDeletionCounts;
+}
+
 // 宝宝列表
 export interface BabyParent {
 	id: string;
