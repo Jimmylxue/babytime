@@ -84,7 +84,7 @@ export default function PrivacyPage() {
 				</Text>
 				<Text className="section-text">
 					3.
-					注销账号：您可以通过「我的 → 帮助与反馈」中的“意见反馈”或“联系客服”申请注销账号，这两处均为微信内置入口。我们核实您的身份后，会在合理期限内删除您的账号及全部个人信息，注销后数据无法恢复。
+					注销账号：您可以在「我的」页面底部点击「注销账号」，按页面提示确认后，我们会删除您的账号及全部个人信息，注销后数据无法恢复。
 				</Text>
 				<Text className="section-text">
 					4.

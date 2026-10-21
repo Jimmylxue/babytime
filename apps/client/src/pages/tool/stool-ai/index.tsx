@@ -1,3 +1,5 @@
+// 已下线（2026-10-19）：入口已从发现页移除，页面也不再注册到 app.config。
+// 恢复前先确认小程序 AI 服务类目、算法备案及医疗健康内容合规要求。
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro'
 import { useState } from 'react'

@@ -4,7 +4,7 @@
 .mine-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #FBF5F8 0%, #FDF8FA 42%, #FDFDFD 100%);
-  padding: 24px 32px 160px;
+  padding: 24px 32px calc(160px + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -531,4 +531,129 @@
   position: fixed;
   top: 0;
   left: -9999px;
+}
+
+// 注销账号入口
+.delete-account-card {
+  margin-top: 16px;
+}
+
+.delete-account-item {
+  height: 118px;
+}
+
+.mine-delete-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+  color: #B8A9A6;
+}
+
+// 注销账号确认弹层
+.delete-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+
+.delete-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+}
+
+.delete-warning {
+  padding: 24px;
+  background: #FFF3F2;
+  border: 1px solid #FBE0DE;
+  border-radius: 20px;
+}
+
+.delete-warning-title {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #D9534F;
+}
+
+.delete-warning-text {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+  line-height: 1.6;
+  color: #8C6B68;
+}
+
+.delete-stats {
+  display: flex;
+  margin-top: 24px;
+  padding: 22px 8px;
+  background: #FAF8F6;
+  border-radius: 20px;
+}
+
+.delete-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.delete-stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #3A383E;
+}
+
+.delete-stat-label {
+  margin-top: 6px;
+  font-size: 22px;
+  color: #9C9792;
+}
+
+.delete-impact {
+  display: block;
+  margin-top: 18px;
+  padding: 16px 20px;
+  background: #FFF8EC;
+  border-radius: 16px;
+  font-size: 23px;
+  line-height: 1.6;
+  color: #A17B45;
+}
+
+.delete-confirm-label {
+  display: block;
+  margin-top: 28px;
+  font-size: 25px;
+  font-weight: 600;
+  color: #3A383E;
+}
+
+.delete-confirm-input {
+  box-sizing: border-box;
+  height: 84px;
+  margin-top: 14px;
+  padding: 0 24px;
+  background: #FAF8F6;
+  border: 1px solid #EFE9E5;
+  border-radius: 16px;
+  font-size: 28px;
+  color: #2E2D2E;
+}
+
+.delete-actions {
+  margin-top: 28px;
+}
+
+.delete-submit {
+  background: linear-gradient(135deg, #F56B6B 0%, #E84F55 100%);
+  color: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(232, 79, 85, 0.25);
+
+  &.disabled {
+    opacity: 0.45;
+    box-shadow: none;
+  }
 }

@@ -1501,6 +1501,282 @@ $ nest build / tsc --noEmit（admin）/ vite build 全通过
 $ 测试数据已全部回收：users 1 / babies 5 与验证前一致，zxtest* 与 delete_user 测试审计残留 0
 ```
 
+### 20. 追加（2026-10-19）：统计页「身高体重 · 怎么看」弹层定位修复（仅小程序前端）
+
+问题：WHO 成长曲线卡片 `.who-section` 的 `fadeUp` 动画（`animation-fill-mode: both`）结束后仍保留 `transform: translateY(0)`，使卡片成为 `position: fixed` 的包含块——「怎么看」说明弹层的遮罩只盖住卡片区域、且随页面滚动，样式异常。
+修复：弹层移出动画卡片渲染；遮罩加 `catchMove` 阻止背景滚动；弹层卡片 `stopPropagation`，点内容不会误关闭。
+
+#### 部署步骤
+
+```bash
+bash mini.sh <版本号> "修复统计页 WHO 成长曲线说明弹层样式异常"
+```
+
+仅小程序前端改动，服务端 / 管理后台无需重新部署。
+
+#### 真机回归检查项
+
+- [ ] 统计页 → 身高（或体重）→ 「怎么看」：遮罩全屏覆盖、弹层居中、不随页面滚动
+- [ ] 弹层内容可滚动到底部「我知道了」；点卡片文字不关闭，点遮罩或「我知道了」关闭
+- [ ] 关闭后页面滚动位置正常，WHO 曲线缩放/点选、海报分享不受影响
+
+#### 本地已验证
+
+```
+$ cd apps/client && npx taro build --type weapp   → Compiled successfully
+```
+
+### 21. 追加（2026-10-19）：Tab 页底部预留 iPhone 安全区（仅小程序前端）
+
+问题：自定义 TabBar 为 `height: 120px + padding-bottom: env(safe-area-inset-bottom)`，但页面底部只预留固定值，iPhone 全面屏上会被 TabBar 多遮住一个安全区（约 68rpx）；Android 安全区为 0 所以正常。表现：统计页身高/体重 tab 的「查看完整明细」滚不到底。
+修复：四个 Tab 页底部 padding 改为 `calc(原值 + env(safe-area-inset-bottom))`（统计 / 首页 / 发现 / 我的）。
+
+#### 部署步骤
+
+```bash
+bash mini.sh <版本号> "修复 iPhone 全面屏 TabBar 遮挡页面底部内容"
+```
+
+仅小程序前端改动，服务端 / 管理后台无需重新部署。
+
+#### 真机回归检查项
+
+- [ ] iPhone 全面屏（真机或模拟器）：统计 → 身高/体重，滚到底能完整看到「查看完整明细」，不被 TabBar 遮挡
+- [ ] iPhone：首页 / 发现 / 我的滚到底，最后一项内容完整可见
+- [ ] Android：四个 Tab 页底部间距与改动前一致（env 为 0，不应出现多余留白）
+
+#### 本地已验证
+
+```
+$ cd apps/client && npx taro build --type weapp   → Compiled successfully
+  dist/pages/stats/index.wxss  → padding: 32rpx 24rpx calc(140rpx + env(safe-area-inset-bottom))
+```
+
+### 22. 追加（2026-10-19）：喂奶记录保存后提示拍嗝（仅小程序前端）
+
+> 已被第 23 节升级：独立喂奶页改为 5 分钟拍嗝倒计时，不再只弹 toast；通用记录页的 feeding 类型仍保留本条 toast 兜底。
+
+新增：喂奶记录保存成功后，成功 toast 改为「已记录，记得给小宝宝拍嗝哦」（2 秒，非阻塞）。仅新增记录时触发，编辑已有记录仍显示「更新成功」；订阅预告卡命中时提示与半屏卡同时出现（toast 在上层，2 秒后自动消失）。
+
+#### 部署步骤
+
+```bash
+bash mini.sh <版本号> "喂奶记录后提示拍嗝"
+```
+
+仅小程序前端改动，服务端 / 管理后台无需重新部署。
+
+#### 真机回归检查项
+
+- [ ] 首页 → 喂奶 → 保存记录：出现「已记录，记得给小宝宝拍嗝哦」，随后正常返回首页
+- [ ] 记录明细 → 编辑一条喂奶记录 → 保存修改：仍提示「更新成功」，不出现拍嗝提示
+- [ ] 其他类型记录（尿布/睡眠/辅食等）保存提示不变
+- [ ] 触发订阅预告卡时：拍嗝提示正常出现，半屏卡可正常操作
+
+#### 本地已验证
+
+```
+$ cd apps/client && npx taro build --type weapp   → Compiled successfully
+```
 
 
 
+
+### 23. 追加（2026-10-19）：喂奶计时器 + 拍嗝倒计时（仅小程序前端）
+
+新增：
+- 喂奶页新增「喂奶计时」卡片：开始/暂停/继续/结束，母乳与混合喂养可切换左侧/右侧并分别累计；结束时把总分钟数自动填入「时长」输入框。保存时若计时还在跑，会自动结束并采用计时结果。
+- 保存成功后弹出 5 分钟拍嗝倒计时半屏卡：按结束时间戳计算，退后台再回来按真实时间校正；到点震动 + toast，2 秒后自动收尾。可提前「完成拍嗝」或「先不拍了」。
+- 订阅预告卡的展示顺序改为：拍嗝倒计时关闭后，再弹订阅预告卡，避免两个弹层叠加。
+
+> 构建修复（2026-10-19）：新组件里的变量 `visible` 被 Tailwind 内容扫描当成类名 `!visible`，生成了 `.\!visible` 转义选择器，微信开发者工具 WXSS 编译报 `unexpected \`。已将 prop 改名为 `show`，并扫描全部 `dist/*.wxss` 确认无转义选择器。
+
+无数据库 / 环境变量改动，仅小程序前端。
+
+#### 部署步骤
+
+```bash
+bash mini.sh <版本号> "喂奶计时器 + 拍嗝倒计时"
+```
+
+#### 真机回归检查项
+
+- [ ] 母乳/混合：开始计时 → 左右侧切换 → 暂停/继续 → 结束并填入，时长自动写入；左右两侧时间分别累计
+- [ ] 奶粉：计时器不显示左右侧，计时/填入正常
+- [ ] 计时中直接保存：自动结束计时，保存的 duration 为计时分钟数
+- [ ] 退后台 1~2 分钟再回前台：计时显示按真实时间校正，没有从 0 重新开始
+- [ ] 新增喂奶保存后：出现拍嗝半屏卡，倒计时从 05:00 开始；点「先不拍了」正常返回
+- [ ] 拍嗝倒计时走完：震动 + toast「拍嗝时间到」，2 秒后自动返回/弹订阅预告卡
+- [ ] 编辑已有喂奶记录：不显示计时卡片，保存仍为「更新成功」
+- [ ] iOS / Android 各验证一遍（重点：震动、退后台校正、半屏卡安全区）
+
+#### 本地已验证
+
+```
+$ cd apps/client && npx taro build --type weapp   → Compiled successfully
+$ npx tsc --noEmit（仅过滤 feeding）→ 无新增错误（两条 Textarea/params 旧错误仍在）
+```
+### 24. 追加（2026-10-19）：下线 AI 便便识别（合规风险）
+
+背景：个人主体小程序提供 AI 生成内容需要对应的 AI 服务类目与算法备案；医疗健康类 AI 还叠加内容安全风险。功能实际使用量也很低，按用户决定整体下线。
+
+改动：
+- 小程序：发现页移除「AI 识别便便」入口；`pages/tool/stool-ai/index` 从 `app.config.ts` 移除，页面代码保留但不再打包/可访问。
+- 服务端：`StoolAnalysisModule` 不再注册到 `AppModule`，`POST /api/stool-analysis` 返回 404；停止自动写入「AI 分析便便」公告。
+- 生产公告：新增 `docs/sql/disable-ai-stool-announcement-2026-10.sql`，停用已上线的 AI 公告。
+- `ZHIPU_API_KEY` / `ZHIPU_VISION_MODEL` 已不再使用，生产 `.env` 可保留，不影响启动；恢复功能前先评估类目与备案。
+
+#### 部署步骤与顺序
+
+```bash
+# 1) 先停用生产公告（对老版本客户端立即生效）
+bash run-sql.sh docs/sql/disable-ai-stool-announcement-2026-10.sql
+
+# 2) 再部署服务端（接口下线）
+bash server.sh
+
+# 3) 最后发布小程序（入口与路由下线）
+bash mini.sh <版本号> "下线 AI 便便识别功能"
+```
+
+#### 生产验收命令（服务器上执行）
+
+```bash
+# 公告已停用，期望 is_active = 0
+set -a; source .env; set +a
+MYSQL_PWD="${DB_PASSWORD:-}" mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" \
+  -u "${DB_USERNAME:-root}" "${DB_DATABASE:-baby_time}" \
+  -e "SELECT id, is_active FROM announcements WHERE id='ai-stool-analysis-v1';"
+
+# SQL 已登记，期望 disable-ai-stool-announcement-2026-10.sql 为 [已执行]
+bash run-sql.sh --status | grep disable-ai-stool
+
+# 接口已移除，期望 404（改造前未登录是 401）
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:3000/api/stool-analysis \
+  -H 'Content-Type: application/json' -d '{}'
+```
+
+#### 真机回归检查项
+
+- [ ] 发现页工具宫格只剩月龄计算器 / 疫苗时间表 / 奶量估算器 / 成长里程碑，无 AI 入口
+- [ ] 点击历史分享的「AI 识别便便」卡片，页面无法打开（未注册路由）
+- [ ] 首页公告不再弹「AI 分析便便」（可用未读过该公告的账号或清缓存验证）
+- [ ] 尿布记录、记录详情、统计页、其他工具不受影响
+
+#### 本地已验证
+
+```
+$ npm run build:server → nest build 通过；dist/app.module.js 不再引用 StoolAnalysisModule
+$ cd apps/client && npx taro build --type weapp → Compiled successfully
+$ dist/app.json 与 dist/pages/tool 均无 stool-ai
+$ node dist/main.js + curl POST http://127.0.0.1:3000/api/stool-analysis → 404
+$ bash run-sql.sh --yes docs/sql/disable-ai-stool-announcement-2026-10.sql
+  本地公告 ai-stool-analysis-v1 的 is_active 已从 1 变为 0
+```
+### 25. 追加（2026-10-19）：小程序端开放「注销账号」
+
+背景：此前注销只能由管理员在后台操作，C 端用户无法自助删除账号。本次把删除逻辑抽成共享服务，新增仅能注销当前登录用户的接口；后台注销接口与行为保持不变。
+
+改动：
+- 服务端：`AdminUserDeletionService` 抽为共享的 `modules/user-deletion/user-deletion.service.ts`，后台与用户端共用；新增 `UserDeletionModule`。
+- 新增接口（均需小程序 JWT）：
+  - `GET /api/user/deletion-preview`：返回当前用户自己的删除范围、家庭影响和确认词，不返回 openId。
+  - `POST /api/user/delete`：body `{ "confirm": "注销" }`，只注销 `req.user.id`；审计动作 `delete_user_self`。
+- 小程序：「我的」页新增「注销账号」入口（退出登录下方）；弹层展示宝宝/记录/照片/里程碑数量、家庭影响警告，要求输入「注销」确认；点「继续注销」后再弹一次系统「最后一次确认」（按钮「仍要注销 / 再想想」），确认后才发删除请求；成功后清空登录态与本地 store，回到登录页。
+- 隐私政策同步改为「我的 → 注销账号」自助注销。
+- 无数据库结构变更、无新增环境变量。
+
+#### 部署步骤
+
+```bash
+bash server.sh
+bash mini.sh <版本号> "新增小程序端注销账号"
+```
+
+后台无需单独部署；生产公告 SQL 与本功能无关。
+
+#### 生产验收命令（服务器上，使用测试账号 token）
+
+```bash
+# 预览：只返回当前 token 用户的数据，不返回 openId
+curl -s http://127.0.0.1:3000/api/user/deletion-preview \
+  -H "Authorization: Bearer $TOKEN"
+
+# 错误确认词：期望 400
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:3000/api/user/delete \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"confirm":"错误"}'
+
+# 用测试账号确认注销后，查审计（期望 delete_user_self）
+set -a; source .env; set +a
+MYSQL_PWD="${DB_PASSWORD:-}" mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" \
+  -u "${DB_USERNAME:-root}" "${DB_DATABASE:-baby_time}" \
+  -e "SELECT action, admin_username, target_id, created_at FROM admin_audit_logs WHERE action='delete_user_self' ORDER BY created_at DESC LIMIT 5;"
+```
+
+⚠️ 不要在生产用真实用户账号做删除验证；用专门的测试微信号注册的账号。
+
+#### 真机回归检查项
+
+- [ ] 我的 → 注销账号：弹层展示宝宝/记录/照片/里程碑数量；无数据时显示 0
+- [ ] 退出登录入口仍正常；注销账号入口与它视觉上能区分
+- [ ] 输入错误确认词时「继续注销」置灰；绕过 UI 直接调接口返回 400
+- [ ] 输入「注销」→ 点「继续注销」：先出现系统「最后一次确认」；点「再想想」不删除、弹层保留
+- [ ] 在「最后一次确认」点「仍要注销」后：账号删除、自动退出登录并回到登录页
+- [ ] 用同一微信号重新登录：创建的是全新空账号，看不到注销前的任何数据
+- [ ] 有家庭共享时：预览能看到「其他家人会失去访问权限」；注销后家人列表不再出现该用户
+- [ ] 取消 / 点击遮罩：不发起删除请求
+- [ ] 后台「用户列表 → 注销」仍可正常使用（共享服务改造回归）
+- [ ] 隐私政策「注销账号」文案与实际入口一致
+
+#### 本地已验证
+
+```
+$ npm run build:server → 通过
+$ npx taro build --type weapp → Compiled successfully
+$ cd apps/server && set -a; source ../../.env; set +a
+  NODE_PATH="$PWD/node_modules" node /tmp/verify-self-deletion.cjs
+  临时用户 + 真 HTTP（本地 :3000，不碰生产）：
+  PASS GET /user/deletion-preview → 200（不返回 openId/user 内部字段）
+  PASS preview 返回确认词「注销」、counts 为 0
+  PASS 错误确认词 → 400
+  PASS 正确确认词 → 200 且 code=0
+  PASS users 行已删除
+  PASS 注销后同一 token 再访问 → 404
+  PASS 审计日志落库 delete_user_self
+  临时用户与审计行已清理
+$ npx tsc --noEmit（过滤 pages/mine / stores / request）→ 无新增错误（仅原有 mine 配置项报错）
+```
+
+已知限制：JWT 无状态，注销后旧 token 在过期前仍能通过签名校验；但用户已不存在，`/user/deletion-preview` 等接口返回 404，客户端注销成功后会清除本地 token。若后续要求“注销即吊销 token”，需要额外的 token 版本/黑名单机制。
+### 26. 追加（2026-10-19）：统计页 14/30 天日统计改为日历格子（仅小程序前端）
+
+背景：14/30 天继续用横向滚动柱状图时柱子拥挤、需要左右拖动才能看全。改为 7 列日历热力格：每格显示 `月/日 + 当天数值`，颜色按数值深浅变化；点格子仍会切换选中日期并联动上方日期导航/明细。7 天继续保留柱状图。
+
+范围：喂奶次数、奶量、尿布次数、睡眠时长四张日统计图共用，14/30 天自动切换为日历；海报分享仍按原逻辑使用折线图，不受影响。
+
+#### 部署步骤
+
+```bash
+bash mini.sh <版本号> "统计页 14/30 天日历视图"
+```
+
+仅小程序前端改动，服务端 / 管理后台无需重新部署。
+
+#### 真机回归检查项
+
+- [ ] 统计 → 喂奶/奶量/尿布/睡眠：7 天仍为柱状图，14/30 天变为日历格子，不再需要横向滚动
+- [ ] 日历每格能直接读出日期和数值；奶量单位 ml、睡眠显示小时、次数显示整数
+- [ ] 无记录的日子显示「—」且底色为中性灰，不误显示为 0
+- [ ] 点任意日期格子：高亮选中，日期导航和上方明细同步切换
+- [ ] 跨月份的 14/30 天：日期显示为 `月/日`，星期对齐正确
+- [ ] 30 天完整显示在卡片内（允许页面纵向滚动，不允许图表横向滚动）
+- [ ] 分享/保存该图表的 PDF/海报仍正常（14/30 天海报仍为折线）
+- [ ] iOS / Android 各验证一遍格子布局与文字大小
+
+#### 本地已验证
+
+```
+$ cd apps/client && npx taro build --type weapp → Compiled successfully
+$ 扫描 dist/**/*.wxss → 无 Tailwind 转义选择器/反斜杠
+```

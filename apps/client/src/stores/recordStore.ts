@@ -120,6 +120,7 @@ interface RecordState {
   updateRecord: (id: string, data: any) => Promise<void>;
   // babyId 由调用方给：明细页删记录时 store 的 records 里没有那条，反查不到就没法刷新
   deleteRecord: (id: string, babyId?: string) => Promise<void>;
+  reset: () => void;
 }
 
 export const useRecordStore = create<RecordState>((set, get) => ({
@@ -234,5 +235,22 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     if (!babyId) return;
     const { fetchSummary, fetchStats } = get();
     await Promise.all([fetchSummary(babyId), fetchStats(babyId)]);
+  },
+
+  reset: () => {
+    set({
+      records: [],
+      summary: null,
+      dailyStats: [],
+      heightWeightTrend: [],
+      temperatureTrend: [],
+      latestHeightWeight: null,
+      latestTemperature: null,
+      detailItems: [],
+      detailSummary: null,
+      detailPagination: null,
+      detailLoading: false,
+      loading: false,
+    });
   },
 }));

@@ -1,8 +1,9 @@
 import { View, Text, Image, Input, Button, Canvas } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
+import { useRecordStore } from '../../stores/recordStore'
 import { userApi, notificationApi, trackEvent } from '../../utils/request'
 import { chooseAndUploadImage } from '../../utils/upload'
 import { fetchAlbumData } from '../../utils/albumData'
@@ -15,6 +16,7 @@ import privacyFilledIcon from '../../assets/icons/privacy-filled.svg'
 import feedbackFilledIcon from '../../assets/icons/feedback-filled.svg'
 import headsetPurpleIcon from '../../assets/icons/headset-purple.svg'
 import logoutCoralIcon from '../../assets/icons/logout-coral.svg'
+import trashCoralIcon from '../../assets/icons/trash-coral.svg'
 import heartPinkIcon from '../../assets/icons/heart-pink.svg'
 import gridBlueIcon from '../../assets/icons/grid-blue.svg'
 import cloudIcon from '../../assets/icons/cloud.svg'
@@ -29,6 +31,22 @@ import { fetchPosterQrCode } from '../../utils/posterQr'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
+interface AccountDeletionPlan {
+	confirmWord: string
+	babies: Array<{ id: string; name: string }>
+	counts: {
+		babies: number
+		records: number
+		photos: number
+		milestones: number
+		externalActorRows: number
+	}
+	impact: {
+		sharedMemberUsers: number
+		joinedFamilies: Array<{ babyName: string; ownerNickname: string }>
+	}
+}
+
 export default function MinePage() {
 	const { isLoggedIn, userInfo, setUserInfo } = useAuthStore()
 	const { currentBaby, fetchBabies } = useBabyStore()
@@ -41,6 +59,13 @@ export default function MinePage() {
 	const [reviewState, setReviewState] = useState<'never' | 'active' | 'exhausted'>('never')
 	// 生成纪念册期间置忙，避免连点造成重复绘制同一个画布
 	const [albumBusy, setAlbumBusy] = useState(false)
+	// 注销账号：先拉取删除范围，再要求输入确认词
+	const [deletePlan, setDeletePlan] = useState<AccountDeletionPlan | null>(null)
+	const [deleteConfirm, setDeleteConfirm] = useState('')
+	const [deleteBusy, setDeleteBusy] = useState(false)
+	const deleteSubmittingRef = useRef(false)
+	const deletePreviewLoadingRef = useRef(false)
+	const deleteConfirmingRef = useRef(false)
 
 	useDidShow(() => {
 		if (isLoggedIn) {
@@ -184,8 +209,90 @@ export default function MinePage() {
 			success: res => {
 				if (res.confirm) {
 					useAuthStore.getState().logout()
+					useBabyStore.getState().reset()
+					useRecordStore.getState().reset()
 					Taro.redirectTo({ url: '/pages/login/index' })
 				}
+			},
+		})
+	}
+
+	// 注销入口：先拿服务端的删除范围，弹层里展示会删掉什么、会影响谁
+	const handleOpenDelete = async () => {
+		if (deleteSubmittingRef.current || deletePreviewLoadingRef.current) return
+		deletePreviewLoadingRef.current = true
+		try {
+			const res = await userApi.getDeletionPreview()
+			if (res.data) {
+				setDeleteConfirm('')
+				setDeletePlan(res.data)
+			}
+		} catch (error) {
+			// 错误提示由全局拦截器统一 toast
+		} finally {
+			deletePreviewLoadingRef.current = false
+		}
+	}
+
+	const closeDeleteSheet = () => {
+		if (deleteBusy) return
+		setDeletePlan(null)
+		setDeleteConfirm('')
+	}
+
+	const performDelete = async (confirm: string) => {
+		deleteSubmittingRef.current = true
+		setDeleteBusy(true)
+		try {
+			await userApi.deleteAccount(confirm)
+			setDeletePlan(null)
+			useAuthStore.getState().logout()
+			useBabyStore.getState().reset()
+			useRecordStore.getState().reset()
+			Taro.showToast({ title: '账号已注销', icon: 'none', duration: 2000 })
+			setTimeout(() => Taro.reLaunch({ url: '/pages/login/index' }), 1200)
+		} catch (error) {
+			deleteSubmittingRef.current = false
+			setDeleteBusy(false)
+			// 错误提示由全局拦截器统一 toast
+		}
+	}
+
+	const handleConfirmDelete = () => {
+		if (!deletePlan || deleteSubmittingRef.current || deleteConfirmingRef.current)
+			return
+		const confirm = deleteConfirm.trim()
+		if (confirm !== deletePlan.confirmWord) {
+			Taro.showToast({
+				title: `请输入「${deletePlan.confirmWord}」确认`,
+				icon: 'none',
+			})
+			return
+		}
+		// 二次强提醒：输入确认词后，再经过一个独立系统弹窗才会真正发删除请求
+		const { counts, impact } = deletePlan
+		const familyWarning = [
+			impact.sharedMemberUsers > 0
+				? '你创建的宝宝还有其他家人，他们也会失去访问权限。'
+				: '',
+			impact.joinedFamilies.length > 0
+				? '你将失去已加入家庭的访问权限。'
+				: '',
+		]
+			.filter(Boolean)
+			.join('')
+		deleteConfirmingRef.current = true
+		Taro.showModal({
+			title: '最后一次确认',
+			content: `账号及名下宝宝的全部数据将被永久删除（${counts.records} 条记录、${counts.photos} 张照片）。${familyWarning}注销后无法恢复，确定继续吗？`,
+			confirmText: '仍要注销',
+			cancelText: '再想想',
+			confirmColor: '#E84F55',
+			success: res => {
+				if (res.confirm) void performDelete(confirm)
+			},
+			complete: () => {
+				deleteConfirmingRef.current = false
 			},
 		})
 	}
@@ -476,6 +583,22 @@ export default function MinePage() {
 				</View>
 			</View>
 
+			{/* 注销账号 */}
+			<View className="mine-card delete-account-card">
+				<View className="mine-item delete-account-item" onClick={handleOpenDelete}>
+					<View className="mi-icon mi-icon-danger">
+						<Image className="mi-icon-img" src={trashCoralIcon} />
+					</View>
+					<View className="mi-copy">
+						<Text className="mi-title mi-title-danger">注销账号</Text>
+						<Text className="mine-delete-sub">删除账号及全部数据，不可恢复</Text>
+					</View>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</View>
+			</View>
+
 			{/* 页脚 */}
 			<View className="mine-footer">
 				<Text className="mine-footer-text">育娃手记 v1.0</Text>
@@ -559,6 +682,111 @@ export default function MinePage() {
 									onClick={handleSaveProfile}
 								>
 									<Text>保存</Text>
+								</View>
+							</View>
+						</View>
+					</View>
+				</View>
+			)}
+
+			{/* 注销账号确认弹层 */}
+			{deletePlan && (
+				<View className="sheet-overlay" catchMove onClick={closeDeleteSheet}>
+					<View
+						className="sheet-panel delete-sheet"
+						onClick={e => e.stopPropagation()}
+					>
+						<View className="sheet-handle" />
+						<View className="sheet-header">
+							<Text className="sheet-title">注销账号</Text>
+						</View>
+						<View className="sheet-body delete-sheet-body">
+							<View className="delete-warning">
+								<Text className="delete-warning-title">此操作不可恢复</Text>
+								<Text className="delete-warning-text">
+									注销后将删除你的账号及名下宝宝的全部数据，且无法恢复。
+								</Text>
+							</View>
+
+							<View className="delete-stats">
+								<View className="delete-stat">
+									<Text className="delete-stat-value">
+										{deletePlan.counts.babies}
+									</Text>
+									<Text className="delete-stat-label">宝宝档案</Text>
+								</View>
+								<View className="delete-stat">
+									<Text className="delete-stat-value">
+										{deletePlan.counts.records}
+									</Text>
+									<Text className="delete-stat-label">成长记录</Text>
+								</View>
+								<View className="delete-stat">
+									<Text className="delete-stat-value">
+										{deletePlan.counts.photos}
+									</Text>
+									<Text className="delete-stat-label">照片</Text>
+								</View>
+								<View className="delete-stat">
+									<Text className="delete-stat-value">
+										{deletePlan.counts.milestones}
+									</Text>
+									<Text className="delete-stat-label">里程碑</Text>
+								</View>
+							</View>
+
+							{deletePlan.impact.sharedMemberUsers > 0 && (
+								<Text className="delete-impact">
+									你创建的宝宝还有 {deletePlan.impact.sharedMemberUsers}{' '}
+									位家人，注销后他们将失去访问权限。
+								</Text>
+							)}
+							{deletePlan.impact.joinedFamilies.length > 0 && (
+								<Text className="delete-impact">
+									你加入了 {deletePlan.impact.joinedFamilies.length}{' '}
+									个家庭，注销后将失去对这些宝宝的访问权限。
+								</Text>
+							)}
+							{deletePlan.counts.externalActorRows > 0 && (
+								<Text className="delete-impact">
+									你在其他家庭代记的 {deletePlan.counts.externalActorRows}{' '}
+									条记录会保留，但不再关联你的账号。
+								</Text>
+							)}
+
+							<Text className="delete-confirm-label">
+								请输入「{deletePlan.confirmWord}」确认
+							</Text>
+							<Input
+								className="delete-confirm-input"
+								value={deleteConfirm}
+								onInput={e => setDeleteConfirm(e.detail.value)}
+								placeholder={`请输入「${deletePlan.confirmWord}」`}
+								maxlength={8}
+							/>
+
+							<View className="sheet-actions delete-actions">
+								<View
+									className="sheet-btn sheet-btn-cancel"
+									onClick={closeDeleteSheet}
+								>
+									<Text>取消</Text>
+								</View>
+								<View
+									className={`sheet-btn delete-submit${
+										deleteConfirm.trim() === deletePlan.confirmWord &&
+										!deleteBusy
+											? ''
+											: ' disabled'
+									}`}
+									onClick={
+										deleteConfirm.trim() === deletePlan.confirmWord &&
+										!deleteBusy
+											? handleConfirmDelete
+											: undefined
+									}
+								>
+									<Text>{deleteBusy ? '注销中…' : '继续注销'}</Text>
 								</View>
 							</View>
 						</View>

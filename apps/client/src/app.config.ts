@@ -7,7 +7,6 @@ export default defineAppConfig({
 		'pages/tool/age-calc/index',
 		'pages/tool/vaccine-table/index',
 		'pages/tool/milk-calc/index',
-		'pages/tool/stool-ai/index',
 		'pages/mine/index',
 		'pages/login/index',
 		'pages/record/index',

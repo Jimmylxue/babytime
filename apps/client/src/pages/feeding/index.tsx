@@ -24,6 +24,10 @@ import clockSolidIcon from '../../assets/icons/feed-clock-solid.svg'
 import saveWhiteIcon from '../../assets/icons/feed-save-white.svg'
 import statsCoralIcon from '../../assets/icons/feed-stats-coral.svg'
 import chevronGrayIcon from '../../assets/icons/chevron-gray.svg'
+import FeedingTimerCard, {
+	useFeedingTimer,
+} from './components/FeedingTimerCard'
+import BurpCountdownSheet from './components/BurpCountdownSheet'
 import './index.scss'
 
 const METHOD_OPTIONS = [
@@ -262,6 +266,35 @@ export default function FeedingPage() {
 		summary: string
 		time: string
 	} | null>(null)
+	// 保存后的 5 分钟拍嗝倒计时
+	const [burpVisible, setBurpVisible] = useState(false)
+	// 订阅预告卡要等拍嗝倒计时关闭后再弹，避免两个弹层叠在一起
+	const postSaveRef = useRef<{
+		burpClosed: boolean
+		planReady: boolean
+		plan: SubscriptionPromptPlan | null
+	} | null>(null)
+	// 记录计时器自动填入的时长，重置时只清掉这一份，不动用户手输的值
+	const timerFilledRef = useRef<string | null>(null)
+	// 时长是否被用户手动改过：手动值优先于计时器，避免「按上次来」的预填值把计时结果盖掉
+	const durationEditedRef = useRef(false)
+	const feedingTimer = useFeedingTimer({
+		onStart: () => {
+			durationEditedRef.current = false
+		},
+		onFinish: minutes => {
+			const value = String(minutes)
+			timerFilledRef.current = value
+			durationEditedRef.current = false
+			setDuration(value)
+			void trackEvent('feeding_timer_finish', { minutes })
+		},
+		onReset: () => {
+			setDuration(prev => (prev === timerFilledRef.current ? '' : prev))
+			timerFilledRef.current = null
+			durationEditedRef.current = false
+		},
+	})
 
 	// 生成「上次」摘要（如：奶粉 · 140ml / 混合 · 母60ml+奶80ml）
 	const buildLastSummary = (last: any): string => {
@@ -353,8 +386,33 @@ export default function FeedingPage() {
 
 	const handleDateChange = e => setRecordDate(e.detail.value)
 	const handleTimeChange = e => setStartTime(e.detail.value)
-	const handleDurationInput = e => setDuration(e.detail.value.replace(/\D/g, ''))
+	const handleDurationInput = e => {
+		durationEditedRef.current = true
+		setDuration(e.detail.value.replace(/\D/g, ''))
+	}
 	const handleNoteInput = e => setNote(e.detail.value)
+
+	// 拍嗝倒计时与订阅预告卡都结束后，才真正离开本页
+	const finishPostSave = () => {
+		const pending = postSaveRef.current
+		if (!pending || !pending.burpClosed || !pending.planReady) return
+		postSaveRef.current = null
+		if (pending.plan) {
+			markPromptShown()
+			setPromptPlan(pending.plan)
+			return
+		}
+		Taro.navigateBack()
+	}
+
+	const handleBurpClose = (result: 'done' | 'skip') => {
+		void trackEvent('feeding_burp_timer', { result })
+		setBurpVisible(false)
+		if (postSaveRef.current) {
+			postSaveRef.current.burpClosed = true
+			finishPostSave()
+		}
+	}
 
 	const handleSubmit = async () => {
 		if (submittingRef.current) return
@@ -369,6 +427,18 @@ export default function FeedingPage() {
 			? null
 			: startSilentRenew(silentPlanRef.current)
 		silentPlanRef.current = null
+		// 正在计时就顺手结束；计时结果优先，但用户手输过的时长优先于计时器
+		const durationWasEdited = durationEditedRef.current
+		if (feedingTimer.running) {
+			// 手输过时长就只停表，不覆盖用户输入；否则结束计时并回填
+			if (durationWasEdited) feedingTimer.pause()
+			else feedingTimer.finish()
+		}
+		const timerMinutes = feedingTimer.runningMinutes()
+		let durationForSave = duration
+		if (timerMinutes && !durationWasEdited) {
+			durationForSave = String(timerMinutes)
+		}
 		try {
 			const data: any = {
 				babyId,
@@ -382,7 +452,7 @@ export default function FeedingPage() {
 			} else if (amount > 0) {
 				data.amount = amount
 			}
-			if (duration) data.duration = parseInt(duration)
+			if (durationForSave) data.duration = parseInt(durationForSave)
 			if (note) data.note = note
 
 			if (isEdit) {
@@ -396,16 +466,23 @@ export default function FeedingPage() {
 				// 累计记录数 +1，用于「添加到我的小程序」引导（记满 3 条弹一次）
 				const cumulative = (Taro.getStorageSync('stats:cumulativeRecords') || 0) + 1
 				Taro.setStorageSync('stats:cumulativeRecords', cumulative)
-				Taro.showToast({ title: '已记录', icon: 'success' })
+				// 保存成功后先展示拍嗝倒计时；订阅预告卡等倒计时关闭后再弹
+				postSaveRef.current = {
+					burpClosed: false,
+					planReady: false,
+					plan: null,
+				}
+				setBurpVisible(true)
 				// 先收掉静默续期：额度落库后再判预告卡，已续上的用户不会再被问一次
 				await settleSilentRenew?.()
 				// 价值时刻：满足频控则暂缓返回，盖出订阅预告卡（7 天/30 天冷却在工具内部判定）
 				const plan = await getSubscriptionPromptPlan()
-				if (plan) {
-					markPromptShown()
-					setPromptPlan(plan)
-					return
+				if (postSaveRef.current) {
+					postSaveRef.current.plan = plan
+					postSaveRef.current.planReady = true
 				}
+				finishPostSave()
+				return
 			}
 			setTimeout(() => Taro.navigateBack(), 1500)
 		} catch (error) {
@@ -512,6 +589,10 @@ export default function FeedingPage() {
 					))}
 				</View>
 
+				{!isEdit && (
+					<FeedingTimerCard method={feedingMethod} timer={feedingTimer} />
+				)}
+
 				{feedingMethod !== 'mixed' ? (
 					<>
 						<View className='section-header'>
@@ -585,6 +666,11 @@ export default function FeedingPage() {
 					<Text className='stats-label'>喂养统计</Text>
 				</View>
 			</View>
+
+			<BurpCountdownSheet
+				show={burpVisible}
+				onClose={handleBurpClose}
+			/>
 
 			{promptPlan && (
 				<SubscriptionPromptSheet

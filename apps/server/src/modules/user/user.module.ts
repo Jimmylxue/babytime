@@ -12,6 +12,7 @@ import { UserController } from './user.controller';
 import { JwtStrategy } from '../../common/strategies/jwt.strategy';
 import { ContentSecurityModule } from '../content-security/content-security.module';
 import { UploadModule } from '../upload/upload.module';
+import { UserDeletionModule } from '../user-deletion/user-deletion.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { UploadModule } from '../upload/upload.module';
     HttpModule,
     ContentSecurityModule,
     UploadModule,
+    UserDeletionModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

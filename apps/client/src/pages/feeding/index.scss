@@ -524,3 +524,292 @@
   color: #8A8A8E;
   line-height: 1.2;
 }
+
+/* ---------- 喂奶计时 ---------- */
+
+.feed-timer {
+  margin-top: 24rpx;
+  padding: 22rpx 24rpx 20rpx;
+  background: #FDF8F7;
+  border: 2rpx solid #F7E4E2;
+  border-radius: 18rpx;
+}
+
+.feed-timer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feed-timer-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.feed-timer-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #3A3A3E;
+}
+
+.feed-timer-live {
+  display: flex;
+  align-items: center;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  background: #FDEDEE;
+}
+
+.feed-timer-live-dot {
+  width: 10rpx;
+  height: 10rpx;
+  margin-right: 8rpx;
+  border-radius: 50%;
+  background: #F4868C;
+  animation: timerPulse 1.2s ease-in-out infinite;
+}
+
+.feed-timer-live-text {
+  font-size: 20rpx;
+  color: #D87982;
+}
+
+.feed-timer-state {
+  font-size: 22rpx;
+  color: #B29A9C;
+}
+
+.feed-timer-main {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-top: 16rpx;
+}
+
+.feed-timer-clock {
+  flex-shrink: 0;
+  min-width: 150rpx;
+  font-size: 56rpx;
+  font-weight: 600;
+  color: #2F3238;
+  line-height: 1.1;
+  letter-spacing: 1rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-timer-sides {
+  flex: 1;
+  display: flex;
+  gap: 12rpx;
+}
+
+.feed-timer-side {
+  flex: 1;
+  min-width: 0;
+  padding: 10rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFFFFF;
+  border: 2rpx solid #F4EDEC;
+  border-radius: 14rpx;
+
+  &.active {
+    background: #FDF1F1;
+    border-color: #F6AEB7;
+
+    .feed-timer-side-label {
+      color: #C85F6A;
+      font-weight: 600;
+    }
+
+    .feed-timer-side-time {
+      color: #D98890;
+    }
+  }
+
+  &.disabled {
+    opacity: 0.75;
+  }
+}
+
+.feed-timer-side-label {
+  font-size: 22rpx;
+  color: #7A686B;
+  line-height: 1.3;
+}
+
+.feed-timer-side-time {
+  margin-top: 2rpx;
+  font-size: 22rpx;
+  color: #B9A3A5;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-timer-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.feed-timer-btn {
+  flex: 1;
+  height: 72rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.ghost {
+    background: #FFFFFF;
+    border: 2rpx solid #F1DADB;
+  }
+
+  &.primary {
+    background: linear-gradient(180deg, #FAB6C0, #F5A3B2);
+    box-shadow: 0 8rpx 18rpx rgba(244, 158, 173, 0.20);
+  }
+
+  &:active {
+    opacity: 0.82;
+  }
+}
+
+.feed-timer-btn-text {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #A87178;
+
+  &.primary {
+    font-weight: 600;
+    color: #FFFFFF;
+  }
+}
+
+.feed-timer-hint {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  color: #B8A9AA;
+  line-height: 1.4;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------- 保存后的拍嗝倒计时 ---------- */
+
+.burp-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.burp-card {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36rpx 40rpx calc(32rpx + env(safe-area-inset-bottom));
+  background: #FFFFFF;
+  border-radius: 32rpx 32rpx 0 0;
+}
+
+.burp-saved {
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background: #EAF7F1;
+}
+
+.burp-saved-text {
+  font-size: 22rpx;
+  color: #4E9A78;
+}
+
+.burp-title {
+  margin-top: 18rpx;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #35322F;
+}
+
+.burp-desc {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: #8B8187;
+  text-align: center;
+}
+
+.burp-clock {
+  margin-top: 24rpx;
+  font-size: 96rpx;
+  font-weight: 700;
+  color: #F4868C;
+  line-height: 1;
+  letter-spacing: 4rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.burp-progress {
+  width: 100%;
+  height: 12rpx;
+  margin-top: 28rpx;
+  border-radius: 999rpx;
+  background: #FBE9EA;
+  overflow: hidden;
+}
+
+.burp-progress-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #FAB6C0, #F4868C);
+  transition: width 0.5s linear;
+}
+
+.burp-actions {
+  width: 100%;
+  margin-top: 36rpx;
+}
+
+.burp-primary {
+  height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FF9DB3, #FD7FA0);
+  box-shadow: 0 10rpx 24rpx rgba(244, 158, 173, 0.24);
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.burp-primary-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.burp-skip {
+  margin-top: 16rpx;
+  padding: 12rpx;
+  text-align: center;
+}
+
+.burp-skip-text {
+  font-size: 26rpx;
+  color: #98928C;
+}

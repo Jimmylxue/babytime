@@ -5,6 +5,7 @@ import { formatDurationLong, formatDate } from '../../../utils/date'
 import { ChartPosterOptions } from '../../../utils/chartExport'
 import { fmtShort } from '../utils'
 import ChartActions from './ChartActions'
+import DailyCalendarChart from './DailyCalendarChart'
 
 interface DailyBarChartProps {
 	stats: DailyStat[]
@@ -150,18 +151,29 @@ export default function DailyBarChart({
 					onSave={() => exportPoster(posterOpts, 'save')}
 				/>
 			</View>
-			<ScrollView scrollX className="chart-scroll-view" showScrollbar={false}>
-				<BarChart
-					canvasId={`bar-${statKey}-chart`}
-					points={points}
-					highlightIndex={activeIndex >= 0 ? activeIndex : null}
-					onSelectIndex={index => {
-						if (index == null) return
-						const stat = stats[index]
-						if (stat?.date) onDateChange(stat.date)
-					}}
+			{days <= 7 ? (
+				<ScrollView scrollX className="chart-scroll-view" showScrollbar={false}>
+					<BarChart
+						canvasId={`bar-${statKey}-chart`}
+						points={points}
+						highlightIndex={activeIndex >= 0 ? activeIndex : null}
+						onSelectIndex={index => {
+							if (index == null) return
+							const stat = stats[index]
+							if (stat?.date) onDateChange(stat.date)
+						}}
+					/>
+				</ScrollView>
+			) : (
+				<DailyCalendarChart
+					stats={stats}
+					statKey={statKey}
+					unit={unit}
+					selectedDate={selectedDate}
+					onDateChange={onDateChange}
+					rangeText={dataRangeText}
 				/>
-			</ScrollView>
+			)}
 		</View>
 	)
 }

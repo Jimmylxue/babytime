@@ -2,7 +2,7 @@
 .tools-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #FBF5F8 0%, #FDF8FA 42%, #FDFDFD 100%);
-  padding: 36px 28px 180px;
+  padding: 36px 28px calc(180px + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 

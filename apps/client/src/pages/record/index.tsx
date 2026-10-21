@@ -235,7 +235,16 @@ export default function RecordPage() {
 				Taro.setStorageSync('stats:cumulativeRecords', cumulative)
 
 				// 保存成功后直接返回（与编辑态一致）：再次进入时「按上次来」会预填上次值
-				Taro.showToast({ title: '已记录', icon: 'success' })
+				// 喂奶后的拍嗝提醒合并进成功反馈，避免连续弹两个 toast 互相覆盖
+				if (type === 'feeding') {
+					Taro.showToast({
+						title: '已记录，记得给小宝宝拍嗝哦',
+						icon: 'none',
+						duration: 2000,
+					})
+				} else {
+					Taro.showToast({ title: '已记录', icon: 'success' })
+				}
 				// 先收掉静默续期：额度落库后再判预告卡，已续上的用户不会再被问一次
 				await settleSilentRenew?.()
 				// 价值时刻：满足频控则暂缓返回，盖出订阅预告卡（7 天/30 天冷却在工具内部判定）

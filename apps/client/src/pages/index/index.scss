@@ -4,8 +4,8 @@
   // border-box：min-height 含内边距，否则页面恒比视口高 320rpx（空状态会露出多余滚动）
   box-sizing: border-box;
   background: #FFFAF9;
-  // 顶部栏为 fixed，给页面内容预留状态栏和导航栏高度。
-  padding: 180px 26px 140px;
+  // 顶部栏为 fixed，给页面内容预留状态栏和导航栏高度；底部避开 TabBar + iPhone 安全区。
+  padding: 180px 26px calc(140px + env(safe-area-inset-bottom));
 }
 
 .home-topbar {

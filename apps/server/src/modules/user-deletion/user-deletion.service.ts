@@ -7,6 +7,7 @@ import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 const CONFIRM_WORD = '注销';
 
 /**
+ * 账号注销：后台管理员与用户自助共用同一套删除逻辑。
  * 「他名下的宝宝」统一用这个子查询表达：带 baby_id 外键的表都用它界定范围，
  * 顺带绕开「一个宝宝都没有」时 `IN ()` 的语法错误。
  */
@@ -20,7 +21,7 @@ const scoped = (sql: string, userId: string) =>
   new Array((sql.match(/\?/g) || []).length).fill(userId);
 
 @Injectable()
-export class AdminUserDeletionService {
+export class UserDeletionService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly cleanup: CdnCleanupService,
@@ -57,9 +58,10 @@ export class AdminUserDeletionService {
 
   async delete(
     userId: string,
-    adminUsername: string,
+    actor: string,
     clientIp: string | null,
     confirm?: string,
+    action: 'delete_user' | 'delete_user_self' = 'delete_user',
   ) {
     if (confirm !== CONFIRM_WORD) {
       throw new BadRequestException(`请在确认框中输入「${CONFIRM_WORD}」`);
@@ -132,8 +134,8 @@ export class AdminUserDeletionService {
         (id, admin_username, action, target_type, target_id, detail, client_ip, created_at)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, NOW())`,
       [
-        adminUsername,
-        'delete_user',
+        actor,
+        action,
         'user',
         userId,
         JSON.stringify({

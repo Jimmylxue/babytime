@@ -13,17 +13,8 @@ interface ToolItem {
 	path?: string
 }
 
-// 便便识别是独立工具页（自带登录/建档门禁），其余工具均为纯前端页面
-// 宫格一行四个，新应用直接往数组里追加，满四个自动换行
+// 工具均为纯前端页面；宫格一行四个，新应用直接往数组里追加，满四个自动换行
 const tools: ToolItem[] = [
-	{
-		key: 'stool_ai',
-		icon: '💩',
-		title: 'AI 识别便便',
-		tint: 'sand',
-		badge: 'AI',
-		path: '/pages/tool/stool-ai/index',
-	},
 	{
 		key: 'age_calc',
 		icon: '🎂',

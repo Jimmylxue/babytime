@@ -158,6 +158,9 @@ export const userApi = {
 	getProfile: () => request<any>({ url: '/user/profile' }),
 	updateProfile: (data: { nickname?: string; avatar?: string; role?: string }) =>
 		request<any>({ url: '/user/update', method: 'POST', data }),
+	getDeletionPreview: () => request<any>({ url: '/user/deletion-preview' }),
+	deleteAccount: (confirm: string) =>
+		request<any>({ url: '/user/delete', method: 'POST', data: { confirm } }),
 }
 
 // 宝贝相关 API

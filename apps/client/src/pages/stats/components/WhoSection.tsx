@@ -125,100 +125,107 @@ export default function WhoSection({
 	}
 
 	return (
-		<View className="who-section">
-			<View className="who-section-head">
-				<View className="section-heading">
-					<View className="section-heading-icon growth-heading-icon">
-						<View className="who-icon-bar who-icon-bar-top" />
-						<View className="who-icon-bar who-icon-bar-mid" />
-						<View className="who-icon-bar who-icon-bar-bottom" />
+		<>
+			<View className="who-section">
+				<View className="who-section-head">
+					<View className="section-heading">
+						<View className="section-heading-icon growth-heading-icon">
+							<View className="who-icon-bar who-icon-bar-top" />
+							<View className="who-icon-bar who-icon-bar-mid" />
+							<View className="who-icon-bar who-icon-bar-bottom" />
+						</View>
+						<Text className="section-heading-title">WHO 成长曲线</Text>
 					</View>
-					<Text className="section-heading-title">WHO 成长曲线</Text>
+					<View className="who-scope">
+						<Text className="who-scope-text">0-36 月龄</Text>
+					</View>
 				</View>
-				<View className="who-scope">
-					<Text className="who-scope-text">0-36 月龄</Text>
+				<View className="who-hint-row">
+					<Text className="who-section-hint">
+						按出生月龄对照 WHO 生长标准，取全部历史记录，不随时间范围筛选变化
+					</Text>
+					<View className="who-help-entry" onClick={() => setHelpVisible(true)}>
+						<Text className="who-help-entry-text">怎么看</Text>
+					</View>
 				</View>
-			</View>
-			<View className="who-hint-row">
-				<Text className="who-section-hint">
-					按出生月龄对照 WHO 生长标准，取全部历史记录，不随时间范围筛选变化
-				</Text>
-				<View className="who-help-entry" onClick={() => setHelpVisible(true)}>
-					<Text className="who-help-entry-text">怎么看</Text>
-				</View>
-			</View>
-			{babyCurvePoints.length > 0 ? (
-				<View className="chart-card growth-chart-card">
-					<View className="growth-chart-header">
-						<Text className="chart-title">
-							{metric === 'height' ? '身高' : '体重'}成长曲线
-						</Text>
-						<ChartActions
-							onShare={() => exportPoster(posterOpts, 'share')}
-							onSave={() => exportPoster(posterOpts, 'save')}
+				{babyCurvePoints.length > 0 ? (
+					<View className="chart-card growth-chart-card">
+						<View className="growth-chart-header">
+							<Text className="chart-title">
+								{metric === 'height' ? '身高' : '体重'}成长曲线
+							</Text>
+							<ChartActions
+								onShare={() => exportPoster(posterOpts, 'share')}
+								onSave={() => exportPoster(posterOpts, 'save')}
+							/>
+						</View>
+						<GrowthCurveChart
+							canvasId="growth-who-chart"
+							metric={metric}
+							gender={gender}
+							babyName={babyName}
+							points={babyCurvePoints}
+							showTitle={false}
+							view={view}
+							onViewChange={setViewOverride}
+							onSelectPoint={setSelected}
 						/>
-					</View>
-					<GrowthCurveChart
-						canvasId="growth-who-chart"
-						metric={metric}
-						gender={gender}
-						babyName={babyName}
-						points={babyCurvePoints}
-						showTitle={false}
-						view={view}
-						onViewChange={setViewOverride}
-						onSelectPoint={setSelected}
-					/>
-					<View className="who-zoom-bar">
-						<Text className="who-zoom-hint">双指缩放 · 拖动平移</Text>
-						<View className="who-zoom-actions">
-							<View className="who-zoom-btn" onClick={() => zoom(1 / 1.5)}>
-								<Text className="who-zoom-btn-text">−</Text>
-							</View>
-							<View
-								className="who-zoom-range"
-								onClick={() => setViewOverride(null)}
-							>
-								<Text className="who-zoom-range-text">{viewLabel}</Text>
-							</View>
-							<View className="who-zoom-btn" onClick={() => zoom(1.5)}>
-								<Text className="who-zoom-btn-text">+</Text>
+						<View className="who-zoom-bar">
+							<Text className="who-zoom-hint">双指缩放 · 拖动平移</Text>
+							<View className="who-zoom-actions">
+								<View className="who-zoom-btn" onClick={() => zoom(1 / 1.5)}>
+									<Text className="who-zoom-btn-text">−</Text>
+								</View>
+								<View
+									className="who-zoom-range"
+									onClick={() => setViewOverride(null)}
+								>
+									<Text className="who-zoom-range-text">{viewLabel}</Text>
+								</View>
+								<View className="who-zoom-btn" onClick={() => zoom(1.5)}>
+									<Text className="who-zoom-btn-text">+</Text>
+								</View>
 							</View>
 						</View>
-					</View>
-					<View className="who-readout">
-						{selected && selectedBand ? (
-							<View className="who-readout-body">
-								<Text className="who-readout-main">
-									{`${selected.ageMonths.toFixed(1)} 月龄 · ${formatMeasurement(selected.value)}${metric === 'height' ? 'cm' : 'kg'}`}
+						<View className="who-readout">
+							{selected && selectedBand ? (
+								<View className="who-readout-body">
+									<Text className="who-readout-main">
+										{`${selected.ageMonths.toFixed(1)} 月龄 · ${formatMeasurement(selected.value)}${metric === 'height' ? 'cm' : 'kg'}`}
+									</Text>
+									<Text className="who-readout-sub">
+										{`落在 ${selectedBand.band} · ${
+											selectedBand.diffFromP50 >= 0 ? '高于' : '低于'
+										}中位数 ${Math.abs(selectedBand.diffFromP50).toFixed(1)}${metric === 'height' ? 'cm' : 'kg'}`}
+									</Text>
+								</View>
+							) : (
+								<Text className="who-readout-hint">
+									点一下曲线上的点，看看当时在同龄人里的位置
 								</Text>
-								<Text className="who-readout-sub">
-									{`落在 ${selectedBand.band} · ${
-										selectedBand.diffFromP50 >= 0 ? '高于' : '低于'
-									}中位数 ${Math.abs(selectedBand.diffFromP50).toFixed(1)}${metric === 'height' ? 'cm' : 'kg'}`}
-								</Text>
-							</View>
-						) : (
-							<Text className="who-readout-hint">
-								点一下曲线上的点，看看当时在同龄人里的位置
-							</Text>
-						)}
+							)}
+						</View>
+						<Text className="who-disclaimer">
+							参考线为
+							WHO《儿童生长标准》P3~P97，仅供日常参考，具体以儿保医生评估为准
+						</Text>
 					</View>
-					<Text className="who-disclaimer">
-						参考线为
-						WHO《儿童生长标准》P3~P97，仅供日常参考，具体以儿保医生评估为准
-					</Text>
-				</View>
-			) : (
-				<View className="chart-card growth-empty">
-					<Text>记录身高体重后，这里会画出宝宝的成长曲线</Text>
-				</View>
-			)}
+				) : (
+					<View className="chart-card growth-empty">
+						<Text>记录身高体重后，这里会画出宝宝的成长曲线</Text>
+					</View>
+				)}
+			</View>
 
-			{/* 「怎么看」说明弹层 */}
+			{/* 「怎么看」说明弹层：放在 .who-section 外，卡片 fadeUp 动画残留的 transform
+			    会让 position: fixed 相对卡片定位，遮罩只盖住卡片 */}
 			{helpVisible && (
-				<View className="who-help-mask" onClick={() => setHelpVisible(false)}>
-					<View className="who-help-card">
+				<View
+					className="who-help-mask"
+					catchMove
+					onClick={() => setHelpVisible(false)}
+				>
+					<View className="who-help-card" onClick={e => e.stopPropagation()}>
 						<Text className="who-help-title">WHO 成长曲线怎么看</Text>
 						{WHO_HELP_ITEMS.map(item => (
 							<View className="who-help-item" key={item.title}>
@@ -235,6 +242,6 @@ export default function WhoSection({
 					</View>
 				</View>
 			)}
-		</View>
+		</>
 	)
 }

@@ -16,20 +16,15 @@ import { AdminAnnouncementService } from './admin-announcement.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminBabyService } from './admin-baby.service';
 import { AdminStatsService } from './admin-stats.service';
-import { AdminUserDeletionService } from './admin-user-deletion.service';
 import { OpsHealthService } from './ops-health.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import { NotificationService } from '../notification/notification.service';
+import { UserDeletionService } from '../user-deletion/user-deletion.service';
 import { secretsEqual } from '../../common/secrets';
-
-/** 经 nginx 反代时 req.ip 是回环地址，真实来源在转发链的第一段 */
-const clientIpOf = (req: any): string | null => {
-  const forwarded = (req.headers?.['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
-  return forwarded || req.ip || null;
-};
+import { clientIpOf } from '../../common/client-ip';
 
 @Controller('admin')
 export class AdminController {
@@ -38,7 +33,7 @@ export class AdminController {
     private readonly adminStatsService: AdminStatsService,
     private readonly adminAnnouncementService: AdminAnnouncementService,
     private readonly adminBabyService: AdminBabyService,
-    private readonly adminUserDeletionService: AdminUserDeletionService,
+    private readonly userDeletionService: UserDeletionService,
     private readonly notificationService: NotificationService,
     private readonly opsHealthService: OpsHealthService,
   ) {}
@@ -201,7 +196,7 @@ export class AdminController {
   @UseGuards(AdminJwtGuard)
   @Get('users/:userId/deletion-preview')
   async getUserDeletionPreview(@Param('userId') userId: string) {
-    const data = await this.adminUserDeletionService.getPlan(userId);
+    const data = await this.userDeletionService.getPlan(userId);
     return data;
   }
 
@@ -213,7 +208,7 @@ export class AdminController {
     @Param('userId') userId: string,
     @Body() body: { confirm?: string },
   ) {
-    const data = await this.adminUserDeletionService.delete(
+    const data = await this.userDeletionService.delete(
       userId,
       req.user?.username || 'admin',
       clientIpOf(req),

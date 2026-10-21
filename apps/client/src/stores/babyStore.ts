@@ -25,6 +25,7 @@ interface BabyState {
   }) => Promise<Baby>;
   updateBaby: (id: string, data: Partial<Baby>) => Promise<void>;
   deleteBaby: (id: string) => Promise<void>;
+  reset: () => void;
 }
 
 export const useBabyStore = create<BabyState>((set, get) => ({
@@ -86,5 +87,9 @@ export const useBabyStore = create<BabyState>((set, get) => ({
         currentBaby: state.currentBaby?.id === id ? babies[0] || null : state.currentBaby,
       };
     });
+  },
+
+  reset: () => {
+    set({ babies: [], currentBaby: null, loading: false });
   },
 }));
