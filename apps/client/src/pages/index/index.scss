@@ -230,6 +230,115 @@
   color: #B8B5AE;
 }
 
+// 新用户「记下第一条」引导卡（已建档但零记录时出现，记过一条即消失）
+.first-record-guide {
+  position: relative;
+  padding: 26px 26px 20px;
+  margin-bottom: 30px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, #fff8f2 0%, #fff1f4 100%);
+  box-shadow: 0 12px 28px rgba(218, 161, 175, 0.12);
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.frg-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.frg-badge {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: #fe9aa7;
+  flex-shrink: 0;
+}
+
+.frg-badge-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.frg-title {
+  flex: 1;
+  font-size: 32px;
+  font-weight: 800;
+  color: #3a3a3c;
+}
+
+.frg-close {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.frg-close-icon {
+  font-size: 26px;
+  color: #c4c0ba;
+}
+
+.frg-desc {
+  display: block;
+  margin-top: 16px;
+  font-size: 24px;
+  line-height: 1.7;
+  color: #8c8780;
+}
+
+.frg-primary {
+  margin-top: 22px;
+  height: 84px;
+  padding: 0 24px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #ffa8b4 0%, #fe94a3 100%);
+  box-shadow: 0 10px 22px rgba(254, 154, 167, 0.32);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: transform 0.15s;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.frg-primary-emoji {
+  font-size: 34px;
+}
+
+.frg-primary-text {
+  flex: 1;
+  font-size: 30px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.frg-primary-arrow {
+  font-size: 34px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.frg-secondary {
+  margin-top: 14px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.frg-secondary-text {
+  font-size: 24px;
+  color: #b08a92;
+  text-decoration: underline;
+}
+
 // 宝宝档案（渐变 Hero 卡）
 .baby-card {
   position: relative;

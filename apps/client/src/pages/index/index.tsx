@@ -26,6 +26,7 @@ import TabBar from '../../components/TabBar'
 import BabyCard from './components/BabyCard'
 import VaccineReminderCard from './components/VaccineReminderCard'
 import QuickRecord from './components/QuickRecord'
+import FirstRecordGuide from './components/FirstRecordGuide'
 import MomentsSection, { RecentPhoto } from './components/MomentsSection'
 import TipsSheet from './components/TipsSheet'
 import { buildDailyPosterData } from './dailyReportData'
@@ -39,9 +40,12 @@ export default function Index() {
 		fetchSummary,
 		latestHeightWeight,
 		latestTemperature,
+		hasAnyRecord,
 	} = useRecordStore()
 	const [showTips, setShowTips] = useState(false)
 	const [showAddGuide, setShowAddGuide] = useState(false)
+	// 新用户引导卡是否已被手动关掉（关掉后本次会话内不再出现，换设备/重进小程序仍可见）
+	const [firstGuideDismissed, setFirstGuideDismissed] = useState(false)
 	const [now, setNow] = useState(() => Date.now())
 	// 疫苗卡与「本月关注」面板开关随页面展示刷新（原逻辑在 useDidShow 直接请求）
 	const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0)
@@ -215,6 +219,41 @@ export default function Index() {
 				: ''
 		: ''
 
+	// 调试开关：验收「新手引导卡」样式用。真实账号已有记录时 hasAnyRecord 为 true，
+	// 引导卡本来不会出现，这里允许强制打开。
+	//   wx.setStorageSync('debug:forceFirstGuide', true)   打开
+	//   wx.removeStorageSync('debug:forceFirstGuide')      关闭
+	// 只在页面首次显示时读一次，默认关闭，不影响线上任何逻辑。
+	const [forceFirstGuide] = useState(() => {
+		try {
+			return Boolean(Taro.getStorageSync('debug:forceFirstGuide'))
+		} catch {
+			return false
+		}
+	})
+
+	// 新用户引导：已登录、已建档、且这个宝宝一条记录都没有。
+	// hasAnyRecord 为 null（未取到）时不显示，避免加载瞬间闪一下引导卡。
+	const showFirstGuide =
+		isLoggedIn &&
+		Boolean(currentBaby) &&
+		(hasAnyRecord === false || forceFirstGuide) &&
+		!firstGuideDismissed
+
+	// 曝光只在真正展示时上报一次，用于计算「看到引导 → 记下第一条」的转化。
+	// 强制打开的调试态不上报，避免污染转化率分母。
+	const firstGuideTrackedRef = useRef(false)
+	useEffect(() => {
+		if (!showFirstGuide || firstGuideTrackedRef.current) return
+		firstGuideTrackedRef.current = true
+		if (!forceFirstGuide) void trackEvent('first_record_guide_show')
+	}, [showFirstGuide, forceFirstGuide])
+
+	const dismissFirstGuide = () => {
+		setFirstGuideDismissed(true)
+		void trackEvent('first_record_guide_dismiss')
+	}
+
 	const navigateToRecord = async (type: string, metric?: string) => {
 		if (!isLoggedIn) {
 			needLogin()
@@ -251,6 +290,27 @@ export default function Index() {
 				}`,
 			})
 		}
+	}
+
+	// 引导卡的两个入口：主按钮喂奶，次级入口用原生 ActionSheet 让用户自己挑
+	const startFirstRecord = (type: string) => {
+		void trackEvent('first_record_guide_click', { type })
+		void navigateToRecord(type)
+	}
+
+	const startFirstRecordOther = () => {
+		const options: { label: string; type: string }[] = [
+			{ label: '记尿布', type: 'diaper' },
+			{ label: '记睡眠', type: 'sleep' },
+			{ label: '记辅食', type: 'food' },
+		]
+		Taro.showActionSheet({
+			itemList: options.map(item => item.label),
+			success: res => {
+				const picked = options[res.tapIndex]
+				if (picked) startFirstRecord(picked.type)
+			},
+		})
 	}
 
 	// 未登录时使用 mock 数据
@@ -370,6 +430,16 @@ export default function Index() {
 				babyId={currentBaby?.id}
 				refreshKey={vaccineRefreshKey}
 			/>
+
+			{/* 新用户「记下第一条」引导：已建档且零记录时出现 */}
+			{showFirstGuide && (
+				<FirstRecordGuide
+					babyName={currentBaby?.name || ''}
+					onPrimary={() => startFirstRecord('feeding')}
+					onSecondary={startFirstRecordOther}
+					onDismiss={dismissFirstGuide}
+				/>
+			)}
 
 			{/* 快速记录 */}
 			{displayBaby && (

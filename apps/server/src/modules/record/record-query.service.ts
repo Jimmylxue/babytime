@@ -95,26 +95,37 @@ export class RecordQueryService {
       }
     });
 
-    // 最后一条喂奶/睡眠 + 最近一次身高/体重/体温：全是 (babyId,type,start_time) 索引上的
-    // ORDER BY start_time DESC LIMIT 1，七条并成一个 Promise.all，不多一次往返。
+    // 最后一条喂奶/睡眠 + 最近一次身高/体重/体温 + 「是否从未记录过」：全是
+    // (babyId,type,start_time) 索引上的 ORDER BY start_time DESC LIMIT 1 / EXISTS，
+    // 八条并成一个 Promise.all，不多一次往返。
     // 后三条原本由首页单独打 /record/stats 才拿到（见 getStats 注释），并进这里后首页只需两个请求。
-    const [lastFeeding, lastSleep, latestHeightRecord, latestWeightRecord, latestTempRecord] =
-      await Promise.all([
-        this.recordRepository.findOne({ where: { babyId, type: RecordType.FEEDING }, order: { startTime: 'DESC' } }),
-        this.recordRepository.findOne({ where: { babyId, type: RecordType.SLEEP }, order: { startTime: 'DESC' } }),
-        this.recordRepository.findOne({
-          where: { babyId, type: RecordType.HEIGHT_WEIGHT, height: Not(IsNull()) },
-          order: { startTime: 'DESC' },
-        }),
-        this.recordRepository.findOne({
-          where: { babyId, type: RecordType.HEIGHT_WEIGHT, weight: Not(IsNull()) },
-          order: { startTime: 'DESC' },
-        }),
-        this.recordRepository.findOne({
-          where: { babyId, type: RecordType.TEMPERATURE },
-          order: { startTime: 'DESC' },
-        }),
-      ]);
+    // hasAnyRecord 给首页的新手引导用：summary 只统计「今天」，全为 0 可能是今天还没记，
+    // 也可能是从没记过，两者要给的引导完全不同，所以单独探一次全表是否存在。
+    const [
+      lastFeeding,
+      lastSleep,
+      latestHeightRecord,
+      latestWeightRecord,
+      latestTempRecord,
+      hasAnyRecord,
+    ] = await Promise.all([
+      this.recordRepository.findOne({ where: { babyId, type: RecordType.FEEDING }, order: { startTime: 'DESC' } }),
+      this.recordRepository.findOne({ where: { babyId, type: RecordType.SLEEP }, order: { startTime: 'DESC' } }),
+      this.recordRepository.findOne({
+        where: { babyId, type: RecordType.HEIGHT_WEIGHT, height: Not(IsNull()) },
+        order: { startTime: 'DESC' },
+      }),
+      this.recordRepository.findOne({
+        where: { babyId, type: RecordType.HEIGHT_WEIGHT, weight: Not(IsNull()) },
+        order: { startTime: 'DESC' },
+      }),
+      this.recordRepository.findOne({
+        where: { babyId, type: RecordType.TEMPERATURE },
+        order: { startTime: 'DESC' },
+      }),
+      // exist() 走 SELECT 1 ... LIMIT 1，命中 idx_records_baby_type_start_time 的最左前缀
+      this.recordRepository.exist({ where: { babyId } }),
+    ]);
 
     return {
       records,
@@ -124,6 +135,8 @@ export class RecordQueryService {
         lastSleepAt: lastSleep?.startTime || null,
         lastSleepEndAt: lastSleep?.endTime || null,
       },
+      // 该宝宝是否一条记录都没有。首页据此区分「今天还没记」和「从没记过」
+      hasAnyRecord,
       // 与 getStats 的同名字段同一形状、同一算法，两处共用 toLatestHeightWeight
       latestHeightWeight: this.toLatestHeightWeight(latestHeightRecord, latestWeightRecord),
       latestTemperature: latestTempRecord

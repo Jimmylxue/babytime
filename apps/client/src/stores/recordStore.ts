@@ -104,6 +104,12 @@ interface RecordState {
   temperatureTrend: TemperatureTrendPoint[];
   latestHeightWeight: { height: number; weight: number; date: string } | null;
   latestTemperature: { temperature: number; date: string } | null;
+  /**
+   * 当前宝宝是否一条记录都没有（服务端全表 EXISTS 得出）。
+   * summary 只统计「今天」，全为 0 分不清「今天还没记」和「从没记过」，
+   * 首页的新手引导靠这个字段判断，null 表示还没取到。
+   */
+  hasAnyRecord: boolean | null;
   detailItems: DetailRecord[];
   detailSummary: DetailSummary | null;
   detailPagination: DetailPagination | null;
@@ -131,6 +137,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   temperatureTrend: [],
   latestHeightWeight: null,
   latestTemperature: null,
+  hasAnyRecord: null,
   detailItems: [],
   detailSummary: null,
   detailPagination: null,
@@ -157,6 +164,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
         summary: res.data?.summary || null,
         latestHeightWeight: res.data?.latestHeightWeight || null,
         latestTemperature: res.data?.latestTemperature || null,
+        hasAnyRecord: res.data?.hasAnyRecord ?? null,
       });
     } catch (error) {
       console.error('获取统计失败', error);
@@ -246,6 +254,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       temperatureTrend: [],
       latestHeightWeight: null,
       latestTemperature: null,
+      hasAnyRecord: null,
       detailItems: [],
       detailSummary: null,
       detailPagination: null,
