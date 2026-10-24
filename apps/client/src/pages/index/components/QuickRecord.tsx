@@ -1,41 +1,54 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import { useState } from 'react'
+import soundWaveIcon from '../../../assets/ui-icons/sound-wave.svg'
+import iconFeeding from '../../../assets/ui-icons/grid/icon-feeding.svg'
+import iconDiaper from '../../../assets/ui-icons/grid/icon-diaper.svg'
+import iconSleep from '../../../assets/ui-icons/grid/icon-sleep.svg'
+import iconFood from '../../../assets/ui-icons/grid/icon-food.svg'
+import iconVaccine from '../../../assets/ui-icons/grid/icon-vaccine.svg'
+import iconTemperature from '../../../assets/ui-icons/grid/icon-temperature.svg'
+import iconPhoto from '../../../assets/ui-icons/grid/icon-photo.svg'
+import iconWeight from '../../../assets/ui-icons/grid/icon-weight.svg'
+import iconHeight from '../../../assets/ui-icons/grid/icon-height.svg'
+import iconMore from '../../../assets/ui-icons/grid/icon-more.svg'
+import iconWater from '../../../assets/ui-icons/grid/icon-water.svg'
+import iconBath from '../../../assets/ui-icons/grid/icon-bath.svg'
+import iconMedicine from '../../../assets/ui-icons/grid/icon-medicine.svg'
+import iconOutdoor from '../../../assets/ui-icons/grid/icon-outdoor.svg'
+import noteEditDarkIcon from '../../../assets/icons/note-edit-dark.svg'
 
-const quickActions = [
-	{ type: 'feeding', icon: '🍼', label: '喂奶' },
-	{ type: 'diaper', icon: '💩', label: '尿布' },
-	{ type: 'sleep', icon: '😴', label: '睡觉' },
-	{ type: 'food', icon: '🍚', label: '辅食' },
-	{ type: 'vaccine', icon: '💉', label: '疫苗' },
-	{ type: 'temperature', icon: '🌡️', label: '体温' },
-	{ type: 'photo', icon: '📷', label: '时光' },
-	{ type: 'height_weight', metric: 'weight', icon: '⚖️', label: '体重' },
-	{ type: 'height_weight', metric: 'height', icon: '📏', label: '身高' },
+interface QuickAction {
+	type: string
+	metric?: string
+	icon: string
+	label: string
+}
+
+const quickActions: QuickAction[] = [
+	{ type: 'feeding', icon: iconFeeding, label: '喂奶' },
+	{ type: 'diaper', icon: iconDiaper, label: '尿布' },
+	{ type: 'sleep', icon: iconSleep, label: '睡觉' },
+	{ type: 'food', icon: iconFood, label: '辅食' },
+	{ type: 'vaccine', icon: iconVaccine, label: '疫苗' },
+	{ type: 'temperature', icon: iconTemperature, label: '体温' },
+	{ type: 'photo', icon: iconPhoto, label: '时光' },
+	{ type: 'height_weight', metric: 'weight', icon: iconWeight, label: '体重' },
+	{ type: 'height_weight', metric: 'height', icon: iconHeight, label: '身高' },
 ]
 
 const moreActions = [
-	{ type: 'water', icon: '💧', label: '喝水' },
-	{ type: 'bath', icon: '🛁', label: '洗澡' },
-	{ type: 'medicine', icon: '💊', label: '用药' },
-	{ type: 'outdoor', icon: '🌳', label: '户外活动' },
+	{ type: 'water', icon: iconWater, label: '喝水' },
+	{ type: 'bath', icon: iconBath, label: '洗澡' },
+	{ type: 'medicine', icon: iconMedicine, label: '用药' },
+	{ type: 'outdoor', icon: iconOutdoor, label: '户外活动' },
 ]
 
 interface QuickRecordProps {
-	isLoggedIn: boolean
-	hasBaby: boolean
-	feedingElapsed: string
-	sleepElapsed: string
 	onNavigate: (type: string, metric?: string) => void
 }
 
 // 快速记录宫格 + 「更多记录」底部弹窗
-export default function QuickRecord({
-	isLoggedIn,
-	hasBaby,
-	feedingElapsed,
-	sleepElapsed,
-	onNavigate,
-}: QuickRecordProps) {
+export default function QuickRecord({ onNavigate }: QuickRecordProps) {
 	const [showMore, setShowMore] = useState(false)
 
 	// 弹层要与 .quick-section 平级：该区块的 fadeUp 动画结束仍保留 translateY(0) 的
@@ -46,40 +59,28 @@ export default function QuickRecord({
 				<View className="section-head">
 					<View className="section-accent" />
 					<Text className="section-label">快速记录</Text>
-				</View>
-				{/* 喂养/睡眠状态提示：标题下方、宫格卡片外 */}
-				{isLoggedIn && hasBaby && (feedingElapsed || sleepElapsed) && (
-					<View className="return-cue-row return-cue-row-outer">
-						{feedingElapsed && (
-							<Text className="return-cue">距上次喂奶 {feedingElapsed}</Text>
-						)}
-						{sleepElapsed && <Text className="return-cue">{sleepElapsed}</Text>}
+					<View className="section-side">
+						<Image className="section-side-icon" src={soundWaveIcon} />
+						<Text className="section-side-text">轻点一下，记录宝宝的日常</Text>
 					</View>
-				)}
+				</View>
 				<View className="quick-card">
 					<View className="action-grid">
 						{quickActions.map(action => (
 							<View
-								key={action.type}
+								key={`${action.type}-${action.metric || ''}`}
 								className="action-item"
-								onClick={() =>
-									onNavigate(
-										action.type,
-										'metric' in action
-											? (action as { metric?: string }).metric
-											: undefined,
-									)
-								}
+								onClick={() => onNavigate(action.type, action.metric)}
 							>
 								<View className={`action-icon ${action.type}`}>
-									<Text>{action.icon}</Text>
+									<Image className="action-icon-img" src={action.icon} />
 								</View>
 								<Text className="action-text">{action.label}</Text>
 							</View>
 						))}
 						<View className="action-item" onClick={() => setShowMore(true)}>
 							<View className="action-icon more">
-								<Text>···</Text>
+								<Image className="action-icon-img" src={iconMore} />
 							</View>
 							<Text className="action-text">更多</Text>
 						</View>
@@ -93,7 +94,8 @@ export default function QuickRecord({
 					<View className="sheet-panel" onClick={e => e.stopPropagation()}>
 						<View className="sheet-handle" />
 						<View className="sheet-header">
-							<Text className="sheet-title">📝 更多记录</Text>
+							<Image className="sheet-title-icon" src={noteEditDarkIcon} />
+							<Text className="sheet-title">更多记录</Text>
 						</View>
 						<View className="sheet-body">
 							<View className="sheet-grid">
@@ -107,7 +109,7 @@ export default function QuickRecord({
 										}}
 									>
 										<View className="sheet-item-icon">
-											<Text>{action.icon}</Text>
+											<Image className="sheet-item-icon-img" src={action.icon} />
 										</View>
 										<Text className="sheet-item-label">{action.label}</Text>
 									</View>

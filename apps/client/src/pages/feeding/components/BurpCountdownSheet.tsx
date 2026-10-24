@@ -1,9 +1,16 @@
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
-import { formatClock } from './FeedingTimerCard'
 
 const BURP_DURATION_MS = 5 * 60 * 1000
+
+const formatClock = (ms: number) => {
+	const total = Math.max(0, Math.floor(ms / 1000))
+	const minutes = Math.floor(total / 60)
+	const seconds = total % 60
+	const pad = (n: number) => String(n).padStart(2, '0')
+	return `${pad(minutes)}:${pad(seconds)}`
+}
 
 interface BurpCountdownSheetProps {
 	show: boolean

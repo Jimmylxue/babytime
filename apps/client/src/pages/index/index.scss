@@ -1,11 +1,44 @@
-// 首页 —— 按参考稿高保真还原（粉白底 + 渐变 Hero 卡 + 绿色疫苗卡 + 五列快速入口）
+// 首页 —— 按参考稿高保真还原（粉渐变底 + 装饰爱心 + 白卡层次 + 绿色疫苗卡 + 五列快速入口）
 .page {
+  position: relative;
+  z-index: 0;
   min-height: 100vh;
   // border-box：min-height 含内边距，否则页面恒比视口高 320rpx（空状态会露出多余滚动）
   box-sizing: border-box;
-  background: #FFFAF9;
+  background: linear-gradient(180deg, #FBE4E9 0%, #FCEFEF 220px, #FDF4F2 100%);
   // 顶部栏为 fixed，给页面内容预留状态栏和导航栏高度；底部避开 TabBar + iPhone 安全区。
-  padding: 180px 26px calc(140px + env(safe-area-inset-bottom));
+  padding: 236px 26px calc(140px + env(safe-area-inset-bottom));
+}
+
+// 背景装饰爱心：z-index -1 使其垫在白卡之下、页面渐变之上
+.bg-heart {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+
+  &.bg-heart-1 {
+    top: 100px;
+    right: -36px;
+    width: 200px;
+    height: 200px;
+    opacity: 0.55;
+  }
+
+  &.bg-heart-2 {
+    top: 330px;
+    right: 8px;
+    width: 110px;
+    height: 110px;
+    opacity: 0.5;
+  }
+
+  &.bg-heart-3 {
+    top: 1180px;
+    right: -20px;
+    width: 130px;
+    height: 130px;
+    opacity: 0.45;
+  }
 }
 
 .home-topbar {
@@ -13,62 +46,74 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 96px;
+  height: 168px;
   margin: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   box-sizing: content-box;
-  background: rgba(255, 251, 250, 0.96);
+  background: linear-gradient(180deg, rgba(251, 228, 233, 0.96) 62%, rgba(251, 228, 233, 0));
   z-index: 100;
 }
 
-.home-topbar-title {
+.home-topbar-titles {
   align-self: flex-start;
   margin-left: 30px;
-  color: #2D2A2E;
+}
+
+.home-topbar-title-row {
+  display: flex;
+  align-items: center;
+}
+
+.home-topbar-title {
+  color: #33272B;
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 1px;
 }
 
-// 一键生成今日日报：导航栏胶囊按钮（顶部偏移/高度/右边距由 JS 按微信胶囊实时对齐）
+.home-topbar-heart {
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+}
+
+.home-topbar-subtitle {
+  display: block;
+  margin-top: 4px;
+  color: #BCA4AC;
+  font-size: 23px;
+  letter-spacing: 1px;
+}
+
+// 今日日报：白底胶囊，粉色文字 + 纸飞机
 .daily-pill {
-  position: relative;
   align-self: flex-start;
-  margin-left: auto;
-  padding: 0 16px 0 5px;
-  border-radius: 999px;
-  background: #FFEEF2;
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: transform 0.2s;
+  margin-left: auto;
+  padding: 0 20px 0 26px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(233, 150, 168, 0.22);
 
   &:active {
-    transform: scale(0.95);
+    opacity: 0.75;
+    transform: scale(0.97);
   }
 }
 
-.daily-pill-icon {
-  width: 48px;
-  height: 48px;
-  background: #FFFFFF;
-  border-radius: 13px;
-}
-
 .daily-pill-text {
-  font-size: 25px;
+  color: #F25E7E;
+  font-size: 24px;
   font-weight: 600;
-  color: #FC2E7D;
 }
 
-.daily-pill-sparkle {
-  position: absolute;
-  top: -10px;
-  right: -4px;
-  width: 20px;
-  height: 20px;
+.daily-pill-plane {
+  width: 28px;
+  height: 28px;
 }
 
 // 未登录：示例数据提示横幅
@@ -112,12 +157,12 @@
 
 // 已登录未建档：全屏空状态（按 UI 稿 1:1 还原）
 // 布局实测（750 设计稿）：插画顶 ~380、标题顶 ~672、CTA 330×76 @841、功能区 @1064
-// 高度 = 视口减去 .page 的上下内边距（180+140），刚好一屏不出现滚动
+// 高度 = 视口减去 .page 的上下内边距（236+140），刚好一屏不出现滚动
 .empty-baby-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: calc(100vh - 320px);
+  height: calc(100vh - 376px);
   padding: 196px 40px 0;
   box-sizing: border-box;
 }
@@ -339,54 +384,48 @@
   text-decoration: underline;
 }
 
-// 宝宝档案（渐变 Hero 卡）
+// 宝宝信息：白色圆卡，姓名 / 月龄 / 体重身高一览
 .baby-card {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  border-radius: 34px;
-  padding: 30px 26px 26px;
-  margin-bottom: 34px;
-  background: linear-gradient(135deg, #fffdfc 0%, #fff0f3 52%, #f7f3ff 100%);
-  box-shadow: 0 14px 32px rgba(218, 161, 175, 0.14);
-  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  padding: 24px 26px;
+  margin-bottom: 26px;
+  border-radius: 36px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(226, 146, 168, 0.10);
+  animation: fadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-// 首屏骨架屏：复用 baby-card 的容器和内层布局，只把内容换成占位块，
-// 这样数据回来时卡片尺寸不变，不会有跳版
 .baby-skeleton {
   .sk-avatar {
-    background: rgba(255, 255, 255, 0.82);
-    border-color: rgba(255, 255, 255, 0.55);
+    border-color: transparent;
+    background: #f4e9e9;
     box-shadow: none;
   }
 
-  .sk-bar {
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.86);
+  .sk-bar,
+  .sk-tile {
+    border-radius: 8px;
+    background: #f4e9e9;
+    animation: skPulse 1.4s ease-in-out infinite;
   }
 
   .sk-bar-name {
-    width: 72%;
-    height: 34px;
+    width: 58%;
+    height: 32px;
   }
 
   .sk-bar-age {
-    width: 52%;
-    height: 26px;
+    width: 42%;
+    height: 24px;
     margin-top: 12px;
   }
 
-  .sk-tile {
-    background: rgba(255, 255, 255, 0.7);
-    box-shadow: none;
+  .baby-metrics {
+    gap: 24px;
   }
 
-  // 只让占位块呼吸，卡片容器本身保持稳定
-  .sk-avatar,
-  .sk-bar,
   .sk-tile {
-    animation: skPulse 1.4s ease-in-out infinite;
+    width: 110px;
+    height: 54px;
   }
 }
 
@@ -400,73 +439,26 @@
   }
 }
 
-// 柔光装饰
-.baby-deco {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-
-  &.baby-deco-a {
-    top: -90px;
-    right: -60px;
-    width: 280px;
-    height: 280px;
-    background: radial-gradient(
-      circle,
-      rgba(255, 186, 200, 0.55) 0%,
-      rgba(255, 186, 200, 0) 70%
-    );
-  }
-
-  &.baby-deco-b {
-    bottom: -110px;
-    left: -70px;
-    width: 260px;
-    height: 260px;
-    background: radial-gradient(
-      circle,
-      rgba(188, 195, 250, 0.4) 0%,
-      rgba(188, 195, 250, 0) 70%
-    );
-  }
-}
-
-// 宝宝插画：完整展示在右上角，不超出卡片、不被指标卡遮挡
-.baby-illustration {
-  position: absolute;
-  z-index: 1;
-  top: -10px;
-  right: 2px;
-  width: 245px;
-  height: 260px;
-  opacity: 0.98;
-  mix-blend-mode: multiply;
-  pointer-events: none;
-}
-
 .baby-main {
-  position: relative;
-  z-index: 2;
-  width: 62%;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
-// 圆形渐变头像（白描边圆环）
 .baby-avatar {
   box-sizing: border-box;
-  width: 88px;
-  height: 88px;
-  margin-right: 18px;
-  background: linear-gradient(135deg, #ffe7ef, #dfe7fd);
-  border: 5px solid rgba(255, 255, 255, 0.9);
+  width: 96px;
+  height: 96px;
+  margin-right: 20px;
+  flex-shrink: 0;
+  border: 5px solid #ffffff;
   border-radius: 50%;
-  box-shadow: 0 10px 20px rgba(214, 106, 130, 0.16);
+  background: #f9e8eb;
+  box-shadow: 0 8px 18px rgba(214, 106, 130, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  flex-shrink: 0;
 
   .avatar-img {
     width: 100%;
@@ -488,14 +480,15 @@
 .baby-name-row {
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
 .baby-name {
-  font-size: 34px;
-  font-weight: 800;
-  color: #33272B;
-  letter-spacing: 1px;
   overflow: hidden;
+  color: #33272B;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -536,24 +529,35 @@
 
 .baby-age {
   display: block;
-  margin-top: 8px;
-  color: #E0678C;
-  font-size: 27px;
+  margin-top: 6px;
+  color: #F0607E;
+  font-size: 26px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
-// 宝宝名字旁的示例徽章
-.baby-demo-badge {
-  background: rgba(45, 42, 46, 0.1);
-  border-radius: 10px;
-  padding: 4px 12px;
-  margin-left: 12px;
+.baby-temp-inline {
+  display: block;
+  margin-top: 5px;
+  color: #9C948D;
+  font-size: 20px;
+
+  &.fever-low {
+    color: #D98A36;
+  }
+
+  &.fever-high {
+    color: #D94B50;
+  }
 }
 
-.baby-demo-badge-text {
-  font-size: 20px;
+.baby-demo-badge {
+  margin-left: 12px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(45, 42, 46, 0.07);
   color: #8E8B82;
+  font-size: 19px;
 }
 
 // 未建档时的「去创建」按钮
@@ -571,56 +575,25 @@
   color: #FFFFFF;
 }
 
-// 最新体重 / 身高 / 体温指标（参考稿：两卡不撑满整行，右侧留给宝宝插画）
+// 体重 / 身高：与姓名同一行右侧，像档案摘要而不是两张指标卡
 .baby-metrics {
-  position: relative;
-  z-index: 3;
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
-  width: 66%;
-
-  &.has-temp {
-    width: 100%;
-  }
-}
-
-// 参考稿里体重卡比身高卡宽（数值更长）
-.baby-metrics:not(.has-temp) .baby-metric.m-weight {
-  flex: 1.35;
+  flex-shrink: 0;
+  align-items: stretch;
+  margin-left: 12px;
 }
 
 .baby-metric {
-  flex: 1;
-  min-width: 0;
-  min-height: 92px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  border-radius: 24px;
-  padding: 12px;
-  box-shadow: 0 8px 18px rgba(213, 146, 160, 0.1);
-}
-
-.baby-metric-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  margin-right: 10px;
-  flex-shrink: 0;
-}
-
-.baby-metric-copy {
-  flex: 1;
-  min-width: 0;
+  min-width: 106px;
+  padding-left: 24px;
+  border-left: 1px solid #f1e8ea;
   display: flex;
   flex-direction: column;
+
+  &:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
 }
 
 .baby-metric-label {
@@ -634,174 +607,46 @@
   margin-top: 4px;
 }
 
-// 数值不做宽度截断，保证「59.0」完整显示
 .baby-metric-num {
   white-space: nowrap;
+  color: #33272B;
   font-size: 34px;
   font-weight: 700;
 }
 
 .baby-metric-unit {
-  margin-left: 4px;
+  margin-left: 3px;
   color: #A99AA3;
   font-size: 20px;
   font-weight: 600;
 }
 
-// 空状态幽灵卡：引导记录第一笔身高体重
 .baby-metric.ghost {
-  background: rgba(255, 255, 255, 0.45);
-  border: 2px dashed #F0D6DD;
-  box-shadow: none;
-
   &:active {
-    opacity: 0.7;
-  }
-
-  .baby-metric-icon {
-    background: rgba(255, 255, 255, 0.9);
-    filter: grayscale(1);
-    opacity: 0.7;
-  }
-
-  .baby-metric-label {
-    color: #B9AAB1;
+    opacity: 0.6;
   }
 }
 
 .ghost-add {
+  display: block;
+  margin-top: 5px;
   color: #E0678C;
   font-size: 22px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-// 指标卡的类型色（图标底、数值），与今日记录配色呼应
-.baby-metric.m-weight .baby-metric-icon {
-  background: linear-gradient(135deg, #ffe9e5, #ffd8df);
-}
-
-.baby-metric.m-weight .baby-metric-num {
-  color: #F2698E;
-}
-
-.baby-metric.m-height .baby-metric-icon {
-  background: linear-gradient(135deg, #e8f3fc, #daebfa);
-}
-
-.baby-metric.m-height .baby-metric-num {
-  color: #5E9FE8;
-}
-
-.baby-metric.m-temp .baby-metric-icon {
-  background: linear-gradient(135deg, #ffecea, #ffd9d7);
-}
-
-// 体温数值按发烧状态着色：正常中性、≥37.3 低热橙、≥38.5 高热红
-.baby-metric.m-temp .baby-metric-num {
-  color: #5B5760;
-}
-
-.baby-metric.m-temp.fever-low .baby-metric-num {
-  color: #F0A44A;
-}
-
-.baby-metric.m-temp.fever-high .baby-metric-num {
-  color: #E5484D;
-}
-
-// 体温卡的标签行：「体温」+ 测量时间并排，不再给卡片增高
-.baby-metric-label-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-// 测量时间小字（如「昨天20:14」），提示这是某次读数而非当前状态
-.baby-metric-time {
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: #A99AA3;
-  font-size: 17px;
-  white-space: nowrap;
-}
-
-// 本月关注：一行贴士入口，点击展开完整面板
-.baby-tip {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  margin-top: 26px;
-
-  &:active {
-    opacity: 0.7;
-  }
-}
-
-.baby-tip-badge {
-  width: 58px;
-  height: 58px;
-  flex-shrink: 0;
-  margin-right: 16px;
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #E9F3DC;
-  color: #7E975C;
-  font-size: 30px;
-}
-
-.baby-tip-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-.baby-tip-tag {
-  display: block;
-  color: #7E975C;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
-.baby-tip-content {
-  display: block;
-  overflow: hidden;
-  color: #4E4A4D;
-  font-size: 25px;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.baby-tip-arrow {
-  margin-left: 12px;
-  flex-shrink: 0;
-  color: #C9B3BD;
-  font-family: Arial, sans-serif;
-  font-size: 36px;
-}
-
-// 疫苗提醒卡（绿色渐变 + 盾牌插画 + 查看计划胶囊）
+// 疫苗提醒：白圆注射器图标 + 下一针信息 + 绿色胶囊按钮
 .vaccine-reminder-card {
-  position: relative;
   width: 100%;
-  min-height: 252px;
   box-sizing: border-box;
-  margin: 0 0 34px;
-  padding: 26px 26px 24px;
-  border: 2px solid #CBE6CB;
-  border-radius: 30px;
-  background: linear-gradient(135deg, #F3FAEE 0%, #E3F3E0 100%);
-  box-shadow: 0 12px 26px rgba(110, 166, 121, 0.12);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  margin: 0 0 40px;
+  padding: 24px 22px;
   overflow: hidden;
+  border-radius: 30px;
+  background: #eef6e4;
   line-height: normal;
   text-align: left;
 }
@@ -810,22 +655,26 @@
   border: 0;
 }
 
-.vaccine-safety-art {
-  position: absolute;
-  z-index: 1;
-  right: -8px;
-  bottom: 36px;
-  width: 250px;
-  height: 220px;
-  opacity: 0.96;
-  mix-blend-mode: multiply;
-  pointer-events: none;
+.vaccine-reminder-icon {
+  width: 74px;
+  height: 74px;
+  margin-right: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vaccine-reminder-icon-img {
+  width: 38px;
+  height: 38px;
 }
 
 .vaccine-reminder-copy {
-  position: relative;
-  z-index: 3;
-  width: 56%;
+  flex: 1;
+  min-width: 0;
 }
 
 .vaccine-title-row {
@@ -833,161 +682,297 @@
   align-items: center;
 }
 
-.vaccine-bell {
-  margin-right: 10px;
-  font-size: 36px;
-  filter: grayscale(1) brightness(0.48);
-}
-
 .vaccine-reminder-title {
-  color: #2E3830;
-  font-size: 32px;
-  font-weight: 800;
+  color: #6f7d66;
+  font-size: 22px;
+  font-weight: 500;
 }
 
-.vaccine-state-badge {
+.vaccine-days {
   margin-left: 12px;
-  padding: 4px 14px;
-  border-radius: 12px;
-  background: #DCEFD0;
-  display: flex;
-}
+  color: #4c9b57;
+  font-size: 21px;
+  font-weight: 600;
 
-.vaccine-state-badge-text {
-  color: #589A47;
-  font-size: 20px;
-  font-weight: 700;
+  &.off {
+    color: #a3979e;
+  }
+
+  &.expired {
+    color: #a87b3f;
+  }
 }
 
 .vaccine-next-line {
   display: block;
-  margin-top: 20px;
-  color: #46523F;
-  font-size: 26px;
-}
-
-.vaccine-count {
-  display: flex;
-  align-items: baseline;
-  margin-top: 6px;
-}
-
-.vaccine-count-prefix {
-  color: #46523F;
-  font-size: 26px;
-}
-
-.vaccine-count-number {
-  margin: 0 6px;
-  color: #43A55F;
-  font-size: 84px;
-  font-weight: 800;
-  line-height: 1.05;
-}
-
-.vaccine-count-unit {
-  color: #46523F;
-  font-size: 26px;
-}
-
-.vaccine-date-line {
-  display: block;
-  margin-top: 10px;
-  color: #6E7C6B;
-  font-size: 24px;
+  margin-top: 7px;
+  overflow: hidden;
+  color: #39432f;
+  font-size: 23px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vaccine-reminder-desc {
   display: block;
-  margin-top: 18px;
-  color: #6E7C6B;
-  font-size: 24px;
-  line-height: 1.5;
+  margin-top: 7px;
+  color: #657161;
+  font-size: 22px;
+  line-height: 1.4;
 }
 
 .vaccine-plan-btn {
-  position: absolute;
-  z-index: 4;
-  right: 22px;
-  bottom: 20px;
   display: flex;
   align-items: center;
-  padding: 14px 26px;
-  border-radius: 34px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 8px 18px rgba(70, 135, 83, 0.14);
+  flex-shrink: 0;
+  margin-left: 14px;
+  padding: 14px 24px;
+  border-radius: 999px;
+  background: #d5ecbd;
 
   &:active {
-    opacity: 0.8;
+    opacity: 0.7;
   }
 }
 
 .vaccine-plan-btn-text {
-  color: #4E9C5F;
-  font-size: 25px;
-  font-weight: 700;
+  color: #3f7c33;
+  font-size: 21px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .vaccine-plan-btn-arrow {
-  margin-left: 6px;
-  color: #4E9C5F;
+  margin-left: 4px;
+  color: #3f7c33;
   font-family: Arial, sans-serif;
-  font-size: 30px;
+  font-size: 25px;
+  font-weight: 600;
 }
 
-// 未订阅态：粉白底 + 灰色「未开启」徽章 + 粉色 CTA（与已订阅的绿色形成状态对比）
 .vaccine-reminder-card.unsubscribed {
-  border-color: #F3D9DE;
-  background: linear-gradient(135deg, #fffdfc 0%, #fff1f3 100%);
-  box-shadow: 0 12px 26px rgba(218, 161, 175, 0.12);
+  background: #fff0f4;
+
+  .vaccine-reminder-title {
+    color: #a88891;
+  }
 }
 
-.vaccine-state-badge.off {
-  background: #F1EDEE;
+.vaccine-reminder-card.unsubscribed .vaccine-plan-btn {
+  background: #fbdce3;
 }
 
-.vaccine-state-badge-text.off {
-  color: #9B949A;
-}
-
-.vaccine-plan-btn.cta {
-  background: linear-gradient(135deg, #FF9FB0, #FFC4A3);
-  box-shadow: 0 8px 18px rgba(255, 165, 180, 0.35);
-}
-
-.vaccine-plan-btn-text.cta {
-  color: #FFFFFF;
-}
-
+.vaccine-plan-btn-text.cta,
 .vaccine-plan-btn-arrow.cta {
-  color: #FFFFFF;
+  color: #d56f83;
 }
 
-// 已过期（订阅次数耗尽）：琥珀色系——曾订阅过但需再次订阅，
-// 与未订阅的粉白、已订阅的绿色形成三态区分
 .vaccine-reminder-card.expired {
-  border-color: #F3DFC4;
-  background: linear-gradient(135deg, #fffdf8 0%, #fff3e3 100%);
-  box-shadow: 0 12px 26px rgba(190, 150, 90, 0.1);
+  background: #fff7e9;
+
+  .vaccine-reminder-title {
+    color: #ab9878;
+  }
 }
 
-.vaccine-state-badge.expired {
-  background: #FBEFD9;
+.vaccine-reminder-card.expired .vaccine-plan-btn {
+  background: #f7e8c8;
 }
 
-.vaccine-state-badge-text.expired {
-  color: #B8863B;
+.vaccine-reminder-card.expired .vaccine-plan-btn-text.cta,
+.vaccine-reminder-card.expired .vaccine-plan-btn-arrow.cta {
+  color: #a87b3f;
 }
 
-.vaccine-reminder-card.expired .vaccine-plan-btn.cta {
-  background: linear-gradient(135deg, #FFC69B, #FFAD78);
-  box-shadow: 0 8px 18px rgba(240, 164, 74, 0.3);
+// 「现在」：一条明确、可执行的当下提示
+.now-card {
+  display: flex;
+  align-items: center;
+  margin-bottom: 40px;
+  padding: 26px 24px;
+  border-radius: 34px;
+  background: #fff6f7;
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+
+  &.warm {
+    background: #fff0f3;
+  }
+}
+
+.now-card-icon {
+  width: 84px;
+  height: 84px;
+  margin-right: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fba8bc, #f27e9b);
+  box-shadow: 0 8px 18px rgba(242, 126, 155, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.now-card-icon-img {
+  width: 42px;
+  height: 42px;
+}
+
+.now-card-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.now-insight {
+  display: block;
+  color: #3a2e33;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.now-insight-detail {
+  display: block;
+  margin-top: 7px;
+  color: #a38b92;
+  font-size: 22px;
+  line-height: 1.5;
+}
+
+.now-handoff {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 8px 0 8px 10px;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.now-handoff-text {
+  color: #F0607E;
+  font-size: 23px;
+  font-weight: 600;
+}
+
+.now-handoff-arrow {
+  margin-left: 4px;
+  color: #F0607E;
+  font-family: Arial, sans-serif;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+// 交接班底部面板
+.handoff-panel {
+  max-height: 82vh;
+}
+
+.handoff-head {
+  padding: 18px 32px 0;
+}
+
+.handoff-title {
+  font-size: 34px;
+  font-weight: 700;
+  color: #2d2a2e;
+}
+
+.handoff-desc {
+  display: block;
+  margin-top: 8px;
+  font-size: 22px;
+  color: #a8a59e;
+}
+
+.handoff-list {
+  max-height: 48vh;
+  padding: 8px 32px 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.handoff-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 22px 0;
+  border-bottom: 1px solid #f4eee9;
+}
+
+.handoff-row-label {
+  flex-shrink: 0;
+  font-size: 24px;
+  color: #9c948d;
+}
+
+.handoff-row-value {
+  flex: 1;
+  text-align: right;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #33272b;
+}
+
+.handoff-note {
+  display: block;
+  padding: 20px 0 8px;
+  font-size: 20px;
+  color: #b7ada6;
+}
+
+.handoff-actions {
+  display: flex;
+  gap: 20px;
+  padding: 20px 32px calc(28px + env(safe-area-inset-bottom));
+}
+
+.handoff-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 84px;
+  margin: 0;
+  padding: 0;
+  border-radius: 24px;
+  line-height: 1;
+
+  &::after {
+    border: none;
+  }
+
+  &.ghost {
+    background: #fff4f1;
+    border: 1px solid #f6d9d2;
+  }
+
+  &.primary {
+    background: linear-gradient(135deg, #ffb6c4, #f78ca6);
+    box-shadow: 0 10px 22px rgba(247, 140, 166, 0.3);
+  }
+}
+
+.handoff-btn-text {
+  font-size: 28px;
+
+  &.ghost {
+    font-weight: 600;
+    color: #c4705f;
+  }
+
+  &.primary {
+    font-weight: 700;
+    color: #ffffff;
+  }
 }
 
 // 区块（快速记录 / 今日记录）
 .quick-section {
-  margin-bottom: 40px;
-  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  margin-bottom: 28px;
+  animation: fadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 .stats-section {
@@ -995,43 +980,63 @@
   margin-bottom: 40px;
 }
 
-// 区块标题（渐变色条点缀）
+// 区块标题
 .section-head {
   display: flex;
   align-items: center;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .section-accent {
-  width: 8px;
+  width: 7px;
   height: 30px;
-  margin-right: 14px;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #FFB6C4, #F78CA6);
-  box-shadow: 0 4px 10px rgba(247, 140, 166, 0.35);
+  margin-right: 12px;
+  border-radius: 4px;
+  background: #F7839D;
 }
 
 .section-label {
-  font-size: 32px;
-  font-weight: 700;
   color: #33272B;
+  font-size: 30px;
+  font-weight: 600;
   letter-spacing: 0.5px;
 }
 
-// 快速记录：五列大图标
+// 区块标题右侧的轻提示（声波 + 文案）
+.section-side {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.section-side-icon {
+  width: 30px;
+  height: 30px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.section-side-text {
+  overflow: hidden;
+  color: #BCA4AC;
+  font-size: 22px;
+  white-space: nowrap;
+}
+
+// 快速记录：首屏主操作区
 .quick-card {
   position: relative;
-  border-radius: 32px;
-  padding: 32px 10px 24px;
-  background: linear-gradient(165deg, #ffffff 0%, #fffafa 100%);
-  box-shadow: 0 12px 28px rgba(213, 146, 160, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  padding: 32px 12px 26px;
+  border-radius: 36px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(226, 146, 168, 0.10);
 }
 
 .action-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 30px 6px;
+  gap: 34px 6px;
 }
 
 .action-item {
@@ -1048,16 +1053,14 @@
 
 .action-icon {
   box-sizing: border-box;
-  width: 96px;
-  height: 96px;
-  border-radius: 34px;
+  width: 100px;
+  height: 100px;
+  margin-bottom: 12px;
+  border-radius: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 46px;
-  margin-bottom: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 8px 18px rgba(180, 140, 140, 0.1);
+  box-shadow: none;
 
   &.feeding { background: linear-gradient(135deg, #ffe9e5, #ffd8df); color: #ff8b98; }
   &.diaper { background: linear-gradient(135deg, #eef6e1, #ddeedc); color: #96bb86; }
@@ -1069,42 +1072,23 @@
   &.temperature { background: linear-gradient(135deg, #ffecea, #ffd9d7); color: #ff7875; }
   &.height_weight { background: linear-gradient(135deg, #f2eefe, #e2dcfa); color: #9a8ce8; }
   &.more {
-    background: linear-gradient(135deg, #faf9f5, #efeee8);
-    color: #a8a59e;
-    font-size: 40px;
-    letter-spacing: 2px;
+    background: linear-gradient(135deg, #f7f6f2, #eeede8);
     box-shadow: none;
   }
 }
 
+.action-icon-img {
+  width: 52px;
+  height: 52px;
+}
+
 .action-text {
+  color: #4A4247;
   font-size: 24px;
-  font-weight: 600;
-  color: #55525A;
+  font-weight: 400;
 }
 
 // 今日记录标题行的「生成日报」迷你图标
-// 喂奶节奏提示胶囊
-.return-cue-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 0 28px 18px;
-}
-
-// 状态提示在快速记录标题下、宫格卡片外的边距
-.return-cue-row-outer {
-  margin: 0 4px 18px;
-}
-
-.return-cue {
-  padding: 8px 16px;
-  border-radius: 18px;
-  background: #fff7e8;
-  color: #9a7040;
-  font-size: 22px;
-}
-
 // 晚间回顾订阅入口
 .review-reminder-entry {
   display: flex;
@@ -1310,10 +1294,6 @@
   max-height: 70vh;
 }
 
-.tips-sheet-panel {
-  max-height: 78vh;
-}
-
 .sheet-handle {
   width: 36px;
   height: 4px;
@@ -1323,13 +1303,21 @@
 }
 
 .sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   padding: 16px 32px 8px;
-  text-align: center;
+}
+
+.sheet-title-icon {
+  width: 32px;
+  height: 32px;
 }
 
 .sheet-title {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 30px;
+  font-weight: 600;
   color: #2D2A2E;
 }
 
@@ -1364,97 +1352,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
   margin-bottom: 8px;
+}
+
+.sheet-item-icon-img {
+  width: 44px;
+  height: 44px;
 }
 
 .sheet-item-label {
   font-size: 24px;
   color: #2D2A2E;
-}
-
-.tips-sheet-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 24px 32px 18px;
-  border-bottom: 1px solid #F1F0EB;
-}
-
-.tips-sheet-title {
-  display: block;
-  color: #2D2A2E;
-  font-size: 34px;
-  font-weight: 700;
-}
-
-.tips-sheet-desc {
-  display: block;
-  margin-top: 8px;
-  color: #98958D;
-  font-size: 23px;
-}
-
-.tips-sheet-count {
-  padding: 7px 12px;
-  border-radius: 12px;
-  background: #F3F6E8;
-  color: #788F57;
-  font-size: 21px;
-  font-weight: 600;
-}
-
-.tips-sheet-list {
-  max-height: 56vh;
-  padding: 8px 32px 40px;
-  overflow-y: auto;
-}
-
-.tips-sheet-item {
-  display: flex;
-  padding: 24px 0;
-  border-bottom: 1px solid #F3F2EE;
-
-  &:last-of-type {
-    border-bottom: none;
-  }
-}
-
-.tips-sheet-index {
-  width: 46px;
-  flex-shrink: 0;
-  color: #A4B089;
-  font-family: Arial, sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.55;
-}
-
-.tips-sheet-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-.tips-sheet-category {
-  display: block;
-  margin-bottom: 6px;
-  color: #52613E;
-  font-size: 25px;
-  font-weight: 700;
-}
-
-.tips-sheet-content {
-  color: #68655F;
-  font-size: 25px;
-  line-height: 1.6;
-}
-
-.tips-sheet-disclaimer {
-  display: block;
-  padding-top: 24px;
-  color: #A8A59E;
-  font-size: 21px;
-  line-height: 1.55;
 }
 
 // 「添加到我的小程序」引导浮层
@@ -1560,15 +1468,21 @@
 }
 
 .moments-album-entry {
+  display: flex;
+  align-items: center;
   margin-left: auto;
-  padding: 8px 22px;
-  background: rgba(255, 240, 244, 0.9);
-  border-radius: 24px;
+  padding: 10px 24px;
+  background: #fbd9e2;
+  border-radius: 999px;
+
+  &:active {
+    opacity: 0.7;
+  }
 }
 
 .moments-album-entry-text {
-  font-size: 24px;
-  color: #F78CA6;
+  font-size: 22px;
+  color: #F0607E;
   font-weight: 600;
 }
 
@@ -1583,12 +1497,27 @@
   padding: 4px 2px 12px;
 }
 
+.moments-photo-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+}
+
 .moments-photo {
   width: 200px;
   height: 200px;
-  border-radius: 24px;
+  border-radius: 22px;
   background: #FFF3F0;
   flex-shrink: 0;
+}
+
+.moments-photo-sticker {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 40px;
+  height: 40px;
 }
 
 // 照片区的首屏骨架：与照片同尺寸，加载完成时不会跳版；超出屏幕的部分裁掉

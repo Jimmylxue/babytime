@@ -1,4 +1,4 @@
-import { View, Text, Canvas } from '@tarojs/components'
+import { View, Text, Canvas, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../stores/authStore'
@@ -315,7 +315,7 @@ export default function StatsPage() {
 							setActiveMetric(tab.metric ?? null)
 						}}
 					>
-						<Text className="type-tab-icon">{tab.icon}</Text>
+						<Image className="type-tab-icon" src={tab.icon} />
 						<Text className="type-tab-label">{tab.label}</Text>
 						<View className="type-tab-indicator" />
 					</View>

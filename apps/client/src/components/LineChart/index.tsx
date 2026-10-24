@@ -1,6 +1,6 @@
 /** 折线图组件：屏幕渲染（带生长动画 + 点按选中），绘制逻辑在 painter.ts 与海报共用 */
 import { Canvas, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useRef } from 'react'
 import { paintLineChart, LineChartPoint, LINE_PAD } from './painter'
 import './index.scss'
@@ -37,6 +37,7 @@ export default function LineChart({
   const animRef = useRef<{ cancelled: boolean } | null>(null)
   const lastPointKeyRef = useRef('')
   const pendingAnimRef = useRef(false)
+  const drawRef = useRef<(animate: boolean) => void>(() => {})
 
   useEffect(() => {
     // 与 BarChart 同理：用 pending 标记，effect 因 highlightIndex 重跑时不会跳过生长动画
@@ -68,6 +69,16 @@ export default function LineChart({
         paint(node, ctx, width, height, animate)
       })
   }
+
+  useEffect(() => {
+    drawRef.current = draw
+  })
+
+  // 同 BarChart：页面隐藏期间的绘制会因查不到当前页节点而落空，
+  // 回来时数据未变又不会触发重绘，这里在每次页面显示后补一次无动画重绘。
+  useDidShow(() => {
+    setTimeout(() => drawRef.current(false), 100)
+  })
 
   const paint = (node, ctx, W: number, H: number, animate: boolean) => {
     const data = { points, unit, minSpan, color, formatValue, highlightIndex }

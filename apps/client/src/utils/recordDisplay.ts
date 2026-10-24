@@ -1,32 +1,45 @@
 import { formatDuration, formatDurationLong } from './date'
+import iconFeeding from '../assets/ui-icons/grid/icon-feeding.svg'
+import iconDiaper from '../assets/ui-icons/grid/icon-diaper.svg'
+import iconSleep from '../assets/ui-icons/grid/icon-sleep.svg'
+import iconFood from '../assets/ui-icons/grid/icon-food.svg'
+import iconWater from '../assets/ui-icons/grid/icon-water.svg'
+import iconTemperature from '../assets/ui-icons/grid/icon-temperature.svg'
+import iconWeight from '../assets/ui-icons/grid/icon-weight.svg'
+import iconHeight from '../assets/ui-icons/grid/icon-height.svg'
+import iconMedicine from '../assets/ui-icons/grid/icon-medicine.svg'
+import iconVaccine from '../assets/ui-icons/grid/icon-vaccine.svg'
+import iconBath from '../assets/ui-icons/grid/icon-bath.svg'
+import iconOutdoor from '../assets/ui-icons/grid/icon-outdoor.svg'
 
 // 支持"明细+间隔"展示的记录类型；身高/体重为独立入口，用 metric 区分（type 同为 height_weight）
 export interface DetailTypeTab {
 	type: string
 	metric?: 'height' | 'weight'
 	label: string
+	/** SVG 图标资源（由 Taro 编译为图片地址） */
 	icon: string
 }
 
 // 统计页 tab 用的类型列表（保持原有 6 类，新类型不上统计页 tab）
 export const detailTypeTabs: DetailTypeTab[] = [
-	{ type: 'feeding', label: '喂奶', icon: '🍼' },
-	{ type: 'diaper', label: '尿布', icon: '💩' },
-	{ type: 'sleep', label: '睡觉', icon: '😴' },
-	{ type: 'height_weight', metric: 'height', label: '身高', icon: '📏' },
-	{ type: 'height_weight', metric: 'weight', label: '体重', icon: '⚖️' },
-	{ type: 'temperature', label: '体温', icon: '🌡️' },
-	{ type: 'vaccine', label: '疫苗', icon: '💉' },
+	{ type: 'feeding', label: '喂奶', icon: iconFeeding },
+	{ type: 'diaper', label: '尿布', icon: iconDiaper },
+	{ type: 'sleep', label: '睡觉', icon: iconSleep },
+	{ type: 'height_weight', metric: 'height', label: '身高', icon: iconHeight },
+	{ type: 'height_weight', metric: 'weight', label: '体重', icon: iconWeight },
+	{ type: 'temperature', label: '体温', icon: iconTemperature },
+	{ type: 'vaccine', label: '疫苗', icon: iconVaccine },
 ]
 
 // 记录明细页标题用的全量类型信息（含所有可记录类型；height/weight 共用 height_weight 类型、按 metric 区分）
 export const detailTypeInfo: DetailTypeTab[] = [
 	...detailTypeTabs,
-	{ type: 'food', label: '辅食', icon: '🍚' },
-	{ type: 'water', label: '喝水', icon: '💧' },
-	{ type: 'medicine', label: '用药', icon: '💊' },
-	{ type: 'bath', label: '洗澡', icon: '🛁' },
-	{ type: 'outdoor', label: '户外活动', icon: '🌳' },
+	{ type: 'food', label: '辅食', icon: iconFood },
+	{ type: 'water', label: '喝水', icon: iconWater },
+	{ type: 'medicine', label: '用药', icon: iconMedicine },
+	{ type: 'bath', label: '洗澡', icon: iconBath },
+	{ type: 'outdoor', label: '户外活动', icon: iconOutdoor },
 ]
 
 export const feedingMethodLabel: Record<string, string> = {

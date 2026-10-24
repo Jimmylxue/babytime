@@ -1,9 +1,6 @@
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Fragment } from 'react'
 import { CDN_ASSETS } from '../../../config/assets'
-const babyIllustration = CDN_ASSETS.babyIllustration
-const babyIllustrationGirl = CDN_ASSETS.babyIllustrationGirl
 const emptyBabyIllustration = CDN_ASSETS.emptyBabyIllustration
 
 import plusCircleIcon from '../../../assets/icons/plus-circle-white.svg'
@@ -31,8 +28,6 @@ interface BabyCardProps {
 	temperature: { temperature: number } | null
 	tempFeverClass: string
 	tempTimeText: string
-	featuredTip: { category: string; content: string } | null
-	onOpenTips: () => void
 	onGhostRecord: (type: string, metric: string) => void
 }
 
@@ -47,8 +42,6 @@ export default function BabyCard({
 	temperature,
 	tempFeverClass,
 	tempTimeText,
-	featuredTip,
-	onOpenTips,
 	onGhostRecord,
 }: BabyCardProps) {
 	// 首屏宝宝数据未回来时显示骨架屏（避免闪「还没有宝宝信息」）
@@ -61,10 +54,10 @@ export default function BabyCard({
 						<View className="sk-bar sk-bar-name" />
 						<View className="sk-bar sk-bar-age" />
 					</View>
-				</View>
-				<View className="baby-metrics">
-					<View className="baby-metric sk-tile" />
-					<View className="baby-metric sk-tile" />
+					<View className="baby-metrics">
+						<View className="sk-tile" />
+						<View className="sk-tile" />
+					</View>
 				</View>
 			</View>
 		)
@@ -122,17 +115,6 @@ export default function BabyCard({
 
 	return (
 		<View className="baby-card">
-			<View className="baby-deco baby-deco-a" />
-			<View className="baby-deco baby-deco-b" />
-			<Image
-				className="baby-illustration"
-				src={
-					displayBaby?.gender === 'female'
-						? babyIllustrationGirl
-						: babyIllustration
-				}
-				mode="aspectFit"
-			/>
 			<View className="baby-main">
 				<View className="baby-avatar">
 					{displayBaby?.avatar ? (
@@ -144,24 +126,17 @@ export default function BabyCard({
 					) : (
 						<Image
 							className="avatar-baby-icon"
-							src={
-								displayBaby?.gender === 'male' ? babyFaceBlue : babyFacePink
-							}
+							src={displayBaby?.gender === 'male' ? babyFaceBlue : babyFacePink}
 						/>
 					)}
 				</View>
 				<View className="baby-info">
 					<View className="baby-name-row">
 						<Text className="baby-name">
-							{displayBaby?.name ||
-								(isLoggedIn && !currentBaby
-									? '为宝宝建立专属档案'
-									: '未添加宝贝')}
+							{displayBaby?.name || '未添加宝贝'}
 						</Text>
 						{!isLoggedIn && displayBaby && (
-							<View className="baby-demo-badge">
-								<Text className="baby-demo-badge-text">示例</Text>
-							</View>
+							<Text className="baby-demo-badge">示例</Text>
 						)}
 						{displayBaby && (
 							<View className={`baby-gender ${displayBaby.gender}`}>
@@ -172,123 +147,54 @@ export default function BabyCard({
 						)}
 					</View>
 					<Text className="baby-age">
-						{isLoggedIn && !currentBaby
-							? '记录吃奶、睡觉、换尿布，解锁成长统计'
-							: displayAge
-								? `${displayAge.months}个月 ${displayAge.days}天`
-								: '添加宝宝档案后开始记录'}
+						{displayAge
+							? `${displayAge.months}个月 ${displayAge.days}天`
+							: '添加宝宝档案后开始记录'}
 					</Text>
+					{temperature && (
+						<Text className={`baby-temp-inline${tempFeverClass}`}>
+							体温 {temperature.temperature}°C · {tempTimeText}
+						</Text>
+					)}
 				</View>
-				{isLoggedIn && !currentBaby && (
-					<View className="baby-create-btn">
-						<Text className="baby-create-btn-text">去创建</Text>
-					</View>
-				)}
-			</View>
-
-			{(heightWeight || temperature || isLoggedIn) && (
-				<View className={`baby-metrics${temperature ? ' has-temp' : ''}`}>
+				<View className="baby-metrics">
 					{heightWeight ? (
-						<Fragment>
+						<>
 							<View className="baby-metric m-weight">
-								<View className="baby-metric-icon">
-									<Text>⚖️</Text>
-								</View>
-								<View className="baby-metric-copy">
-									<Text className="baby-metric-label">体重</Text>
-									<View className="baby-metric-value">
-										<Text className="baby-metric-num">
-											{heightWeight.weight}
-										</Text>
-										<Text className="baby-metric-unit">kg</Text>
-									</View>
+								<Text className="baby-metric-label">体重</Text>
+								<View className="baby-metric-value">
+									<Text className="baby-metric-num">{heightWeight.weight}</Text>
+									<Text className="baby-metric-unit">kg</Text>
 								</View>
 							</View>
 							<View className="baby-metric m-height">
-								<View className="baby-metric-icon">
-									<Text>📏</Text>
-								</View>
-								<View className="baby-metric-copy">
-									<Text className="baby-metric-label">身高</Text>
-									<View className="baby-metric-value">
-										<Text className="baby-metric-num">
-											{heightWeight.height}
-										</Text>
-										<Text className="baby-metric-unit">cm</Text>
-									</View>
+								<Text className="baby-metric-label">身高</Text>
+								<View className="baby-metric-value">
+									<Text className="baby-metric-num">{heightWeight.height}</Text>
+									<Text className="baby-metric-unit">cm</Text>
 								</View>
 							</View>
-						</Fragment>
+						</>
 					) : (
-						<Fragment>
-							{/* 空状态：虚线幽灵卡引导记录第一笔身高体重 */}
+						<>
 							<View
 								className="baby-metric ghost"
 								onClick={() => onGhostRecord('height_weight', 'weight')}
 							>
-								<View className="baby-metric-icon">
-									<Text>⚖️</Text>
-								</View>
-								<View className="baby-metric-copy">
-									<Text className="baby-metric-label">体重</Text>
-									<View className="baby-metric-value">
-										<Text className="ghost-add">＋ 记录</Text>
-									</View>
-								</View>
+								<Text className="baby-metric-label">体重</Text>
+								<Text className="ghost-add">＋ 记录</Text>
 							</View>
 							<View
 								className="baby-metric ghost"
 								onClick={() => onGhostRecord('height_weight', 'height')}
 							>
-								<View className="baby-metric-icon">
-									<Text>📏</Text>
-								</View>
-								<View className="baby-metric-copy">
-									<Text className="baby-metric-label">身高</Text>
-									<View className="baby-metric-value">
-										<Text className="ghost-add">＋ 记录</Text>
-									</View>
-								</View>
+								<Text className="baby-metric-label">身高</Text>
+								<Text className="ghost-add">＋ 记录</Text>
 							</View>
-						</Fragment>
-					)}
-					{temperature && (
-						<View className={`baby-metric m-temp${tempFeverClass}`}>
-							<View className="baby-metric-icon">
-								<Text>🌡️</Text>
-							</View>
-							<View className="baby-metric-copy">
-								<View className="baby-metric-label-row">
-									<Text className="baby-metric-label">体温</Text>
-									<Text className="baby-metric-time">{tempTimeText}</Text>
-								</View>
-								<View className="baby-metric-value">
-									<Text className="baby-metric-num">
-										{temperature.temperature}
-									</Text>
-									<Text className="baby-metric-unit">°C</Text>
-								</View>
-							</View>
-						</View>
+						</>
 					)}
 				</View>
-			)}
-
-			{/* 本月关注：一行入口，完整内容通过底部面板查看 */}
-			{featuredTip && (
-				<View className="baby-tip" onClick={onOpenTips}>
-					<View className="baby-tip-badge">
-						<Text>✦</Text>
-					</View>
-					<View className="baby-tip-copy">
-						<Text className="baby-tip-tag">
-							本月关注 · {featuredTip.category}
-						</Text>
-						<Text className="baby-tip-content">{featuredTip.content}</Text>
-					</View>
-					<Text className="baby-tip-arrow">›</Text>
-				</View>
-			)}
+			</View>
 		</View>
 	)
 }

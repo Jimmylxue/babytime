@@ -1,5 +1,6 @@
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import { thumbUrl, THUMB_W } from '../../../utils/imageThumb'
+import heartStickerIcon from '../../../assets/ui-icons/heart-sticker.svg'
 
 interface RecentPhoto {
 	id: string
@@ -45,15 +46,25 @@ export default function MomentsSection({
 					showScrollbar={false}
 				>
 					<View className="moments-row">
-						{photos.map(photo => (
-							<Image
+						{photos.map((photo, index) => (
+							<View
 								key={photo.id}
-								className="moments-photo"
-								src={thumbUrl(photo.thumbnail || photo.url, THUMB_W.grid)}
-								mode="aspectFill"
-								lazyLoad
+								className="moments-photo-wrap"
 								onClick={() => onPreview(photo)}
-							/>
+							>
+								<Image
+									className="moments-photo"
+									src={thumbUrl(photo.thumbnail || photo.url, THUMB_W.grid)}
+									mode="aspectFill"
+									lazyLoad
+								/>
+								{index % 2 === 0 && (
+									<Image
+										className="moments-photo-sticker"
+										src={heartStickerIcon}
+									/>
+								)}
+							</View>
 						))}
 						<View className="moments-tail" onClick={onOpenAlbum}>
 							<Text className="moments-tail-icon">📸</Text>

@@ -30,7 +30,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 56px;
+
+  // 磁贴底色随记录类型，与首页快速记录宫格同一套渐变
+  &.t-feeding { background: linear-gradient(135deg, #ffe9e5, #ffd8df); }
+  &.t-diaper { background: linear-gradient(135deg, #eef6e1, #ddeedc); }
+  &.t-sleep { background: linear-gradient(135deg, #e8f3fc, #daebfa); }
+  &.t-food { background: linear-gradient(135deg, #fff3dc, #ffe7c4); }
+  &.t-water { background: linear-gradient(135deg, #e4f5fe, #d2ecfd); }
+  &.t-temperature { background: linear-gradient(135deg, #ffecea, #ffd9d7); }
+  &.t-height_weight { background: linear-gradient(135deg, #f2eefe, #e2dcfa); }
+  &.t-medicine { background: linear-gradient(135deg, #f2eefe, #e2dcfa); }
+  &.t-vaccine { background: linear-gradient(135deg, #edf0fe, #dbe4fb); }
+  &.t-bath { background: linear-gradient(135deg, #e4f5fe, #d2ecfd); }
+  &.t-outdoor { background: linear-gradient(135deg, #eef6e1, #ddeedc); }
+}
+
+.record-hero-icon {
+  width: 56px;
+  height: 56px;
 }
 
 .record-hero-copy {

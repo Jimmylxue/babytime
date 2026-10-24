@@ -1,6 +1,6 @@
 /** 柱状图组件：屏幕渲染（带生长动画 + 点按选中），绘制逻辑在 painter.ts 与海报共用 */
 import { Canvas, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { paintBarChart, BarChartPoint } from './painter'
 import './index.scss'
@@ -39,6 +39,7 @@ export default function BarChart({
   const animRef = useRef<{ cancelled: boolean } | null>(null)
   const lastPointKeyRef = useRef('')
   const pendingAnimRef = useRef(false)
+  const drawRef = useRef<(animate: boolean) => void>(() => {})
   const touchStartXRef = useRef(0)
   const scrolledRef = useRef(false)
 
@@ -97,6 +98,17 @@ export default function BarChart({
         paint(node, ctx, width, height, animate)
       })
   }
+
+  useEffect(() => {
+    drawRef.current = draw
+  })
+
+  // 页面隐藏时数据仍会更新并触发绘制，但 createSelectorQuery 只能查到当前活动页，
+  // 这一帧会落空；回到本页时数据没变（pointKey 相同）又不会再画，图表就停在旧数据。
+  // 每次页面重新显示后按最新 points 补一次无动画重绘。
+  useDidShow(() => {
+    setTimeout(() => drawRef.current(false), 100)
+  })
 
   const paint = (node, ctx, W: number, H: number, animate: boolean) => {
     const data = { points, color, highlightIndex }

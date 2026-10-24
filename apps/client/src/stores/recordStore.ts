@@ -48,8 +48,19 @@ export interface TodaySummary {
   bathCount: number;
   outdoorCount: number;
   lastFeedingAt?: string | null;
+  lastFeedingAmount?: number | null;
   lastSleepAt?: string | null;
   lastSleepEndAt?: string | null;
+  lastDiaperAt?: string | null;
+  lastMedicineAt?: string | null;
+  lastMedicineName?: string | null;
+  lastMedicineDose?: string | null;
+}
+
+// 该宝宝近 7 天自己的喂奶节奏，服务端算好中位间隔；样本不足时为 null
+export interface FeedingRhythm {
+  intervalMinutes: number | null;
+  sampleCount: number;
 }
 
 export interface DailyStat {
@@ -99,6 +110,7 @@ export interface DetailPagination {
 interface RecordState {
   records: Record[];
   summary: TodaySummary | null;
+  rhythm: FeedingRhythm | null;
   dailyStats: DailyStat[];
   heightWeightTrend: HeightWeightTrendPoint[];
   temperatureTrend: TemperatureTrendPoint[];
@@ -132,6 +144,7 @@ interface RecordState {
 export const useRecordStore = create<RecordState>((set, get) => ({
   records: [],
   summary: null,
+  rhythm: null,
   dailyStats: [],
   heightWeightTrend: [],
   temperatureTrend: [],
@@ -162,6 +175,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       set({
         records: res.data?.records || [],
         summary: res.data?.summary || null,
+        rhythm: res.data?.rhythm || null,
         latestHeightWeight: res.data?.latestHeightWeight || null,
         latestTemperature: res.data?.latestTemperature || null,
         hasAnyRecord: res.data?.hasAnyRecord ?? null,
@@ -249,6 +263,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     set({
       records: [],
       summary: null,
+      rhythm: null,
       dailyStats: [],
       heightWeightTrend: [],
       temperatureTrend: [],

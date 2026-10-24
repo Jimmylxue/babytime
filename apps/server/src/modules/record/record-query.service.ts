@@ -4,6 +4,7 @@ import {
   Repository,
   Between,
   LessThan,
+  MoreThan,
   Not,
   IsNull,
   FindOptionsWhere,
@@ -104,13 +105,18 @@ export class RecordQueryService {
     const [
       lastFeeding,
       lastSleep,
+      lastDiaper,
+      lastMedicine,
       latestHeightRecord,
       latestWeightRecord,
       latestTempRecord,
       hasAnyRecord,
+      feedingRhythm,
     ] = await Promise.all([
       this.recordRepository.findOne({ where: { babyId, type: RecordType.FEEDING }, order: { startTime: 'DESC' } }),
       this.recordRepository.findOne({ where: { babyId, type: RecordType.SLEEP }, order: { startTime: 'DESC' } }),
+      this.recordRepository.findOne({ where: { babyId, type: RecordType.DIAPER }, order: { startTime: 'DESC' } }),
+      this.recordRepository.findOne({ where: { babyId, type: RecordType.MEDICINE }, order: { startTime: 'DESC' } }),
       this.recordRepository.findOne({
         where: { babyId, type: RecordType.HEIGHT_WEIGHT, height: Not(IsNull()) },
         order: { startTime: 'DESC' },
@@ -125,6 +131,7 @@ export class RecordQueryService {
       }),
       // exist() 走 SELECT 1 ... LIMIT 1，命中 idx_records_baby_type_start_time 的最左前缀
       this.recordRepository.exist({ where: { babyId } }),
+      this.getFeedingRhythm(babyId),
     ]);
 
     return {
@@ -132,17 +139,58 @@ export class RecordQueryService {
       summary: {
         ...summary,
         lastFeedingAt: lastFeeding?.startTime || null,
+        lastFeedingAmount: lastFeeding?.amount ?? null,
         lastSleepAt: lastSleep?.startTime || null,
         lastSleepEndAt: lastSleep?.endTime || null,
+        lastDiaperAt: lastDiaper?.startTime || null,
+        lastMedicineAt: lastMedicine?.startTime || null,
+        lastMedicineName: lastMedicine?.medicineName ?? null,
+        lastMedicineDose: lastMedicine?.medicineDose ?? null,
       },
       // 该宝宝是否一条记录都没有。首页据此区分「今天还没记」和「从没记过」
       hasAnyRecord,
+      // 首页「现在」卡据此预测下一顿；样本不足时 intervalMinutes 为 null，前端不展示预测
+      rhythm: feedingRhythm,
       // 与 getStats 的同名字段同一形状、同一算法，两处共用 toLatestHeightWeight
       latestHeightWeight: this.toLatestHeightWeight(latestHeightRecord, latestWeightRecord),
       latestTemperature: latestTempRecord
         ? { temperature: latestTempRecord.temperature, date: latestTempRecord.startTime }
         : null,
     };
+  }
+
+  /**
+   * 近 7 天喂奶节奏：相邻两顿起始时间的间隔取中位数。
+   * 用中位数而不是平均，是因为漏记一顿会拉出一个超长间隔，平均值会被带偏。
+   * 20 分钟内的重复记录不算新的一顿；超过 8 小时的多半是隔夜/漏记，不计入。
+   * 样本不足 3 个间隔时返回 null，前端不展示「预计下次」。
+   */
+  private async getFeedingRhythm(babyId: string) {
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    const feedings = await this.recordRepository.find({
+      where: { babyId, type: RecordType.FEEDING, startTime: MoreThan(since) },
+      select: ['startTime'],
+      order: { startTime: 'ASC' },
+    });
+
+    const gaps: number[] = [];
+    for (let i = 1; i < feedings.length; i++) {
+      const gap =
+        (new Date(feedings[i].startTime).getTime() -
+          new Date(feedings[i - 1].startTime).getTime()) /
+        60000;
+      if (gap >= 20 && gap <= 8 * 60) gaps.push(gap);
+    }
+    if (gaps.length < 3) {
+      return { intervalMinutes: null, sampleCount: gaps.length };
+    }
+
+    gaps.sort((a, b) => a - b);
+    const mid = Math.floor(gaps.length / 2);
+    const median =
+      gaps.length % 2 === 0 ? (gaps[mid - 1] + gaps[mid]) / 2 : gaps[mid];
+    return { intervalMinutes: Math.round(median), sampleCount: gaps.length };
   }
 
   /**

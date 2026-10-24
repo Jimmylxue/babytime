@@ -9,7 +9,6 @@ import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
 import { calculateAge, formatHM } from '../../utils/date'
-import { getMonthlyTips } from '../../utils/monthlyTips'
 import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi, photoApi, trackEvent } from '../../utils/request'
@@ -18,8 +17,9 @@ import {
 	hasAutoRedirectedToOnboarding,
 	markAutoRedirectedToOnboarding,
 } from '../../utils/onboarding'
-import reportPlusIcon from '../../assets/icons/report-plus.svg'
-import sparklePinkIcon from '../../assets/icons/sparkle-pink.svg'
+import sendRoseIcon from '../../assets/ui-icons/send-rose.svg'
+import heartRoseIcon from '../../assets/ui-icons/heart-rose.svg'
+import heartBlushIcon from '../../assets/ui-icons/heart-blush.svg'
 import { deliverDailyPoster } from '../../utils/chartExport'
 import { fetchPosterQrCode } from '../../utils/posterQr'
 import TabBar from '../../components/TabBar'
@@ -28,8 +28,10 @@ import VaccineReminderCard from './components/VaccineReminderCard'
 import QuickRecord from './components/QuickRecord'
 import FirstRecordGuide from './components/FirstRecordGuide'
 import MomentsSection, { RecentPhoto } from './components/MomentsSection'
-import TipsSheet from './components/TipsSheet'
+import NowCard from './components/NowCard'
+import HandoffSheet from './components/HandoffSheet'
 import { buildDailyPosterData } from './dailyReportData'
+import { HandoffPayload, buildHandoff } from './handoffData'
 import './index.scss'
 
 export default function Index() {
@@ -37,17 +39,18 @@ export default function Index() {
 	const { currentBaby, fetchBabies } = useBabyStore()
 	const {
 		summary,
+		rhythm,
 		fetchSummary,
 		latestHeightWeight,
 		latestTemperature,
 		hasAnyRecord,
 	} = useRecordStore()
-	const [showTips, setShowTips] = useState(false)
+	const [handoff, setHandoff] = useState<HandoffPayload | null>(null)
 	const [showAddGuide, setShowAddGuide] = useState(false)
 	// 新用户引导卡是否已被手动关掉（关掉后本次会话内不再出现，换设备/重进小程序仍可见）
 	const [firstGuideDismissed, setFirstGuideDismissed] = useState(false)
 	const [now, setNow] = useState(() => Date.now())
-	// 疫苗卡与「本月关注」面板开关随页面展示刷新（原逻辑在 useDidShow 直接请求）
+	// 疫苗提醒随页面展示刷新订阅状态与下一针计划
 	const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0)
 	// 首屏宝宝数据是否已回来。冷启动时 currentBaby 必然为 null，
 	// 必须靠这个标志区分「还在加载」和「真的没有宝宝档案」，
@@ -81,6 +84,8 @@ export default function Index() {
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
 	const momentsPreviewRef = useRef(false)
+	// 交接面板打开时，转发标题换成交接摘要；关闭后恢复默认分享文案
+	const handoffShareTitleRef = useRef<string | null>(null)
 
 	useEffect(() => {
 		const timer = setInterval(() => setNow(Date.now()), 60 * 1000)
@@ -114,7 +119,9 @@ export default function Index() {
 	}
 
 	useShareAppMessage(() => ({
-		title: '育娃手记｜宝宝吃睡记录与成长统计',
+		title:
+			handoffShareTitleRef.current ||
+			'育娃手记｜宝宝吃睡记录与成长统计',
 		path: '/pages/index/index',
 	}))
 
@@ -197,27 +204,22 @@ export default function Index() {
 		}
 	})
 
-	const formatElapsed = (date?: string | null) => {
-		if (!date) return ''
-		const minutes = Math.max(
-			0,
-			Math.floor((now - new Date(date).getTime()) / 60000),
-		)
-		if (minutes < 60) return `${minutes}分钟前`
-		const hours = Math.floor(minutes / 60)
-		if (hours < 24)
-			return `${hours}小时${minutes % 60 ? `${minutes % 60}分钟` : ''}前`
-		return `${Math.floor(hours / 24)}天前`
+	const openHandoff = () => {
+		if (!currentBaby) return
+		const payload = buildHandoff({
+			summary,
+			latestTemperature,
+			now: Date.now(),
+		})
+		handoffShareTitleRef.current = payload.shareTitle
+		setHandoff(payload)
+		void trackEvent('handoff_open')
 	}
 
-	const feedingElapsed = isLoggedIn ? formatElapsed(summary?.lastFeedingAt) : ''
-	const sleepElapsed = isLoggedIn
-		? summary?.lastSleepEndAt
-			? `已醒${formatElapsed(summary.lastSleepEndAt).replace('前', '')}`
-			: summary?.lastSleepAt
-				? `入睡${formatElapsed(summary.lastSleepAt)}`
-				: ''
-		: ''
+	const closeHandoff = () => {
+		handoffShareTitleRef.current = null
+		setHandoff(null)
+	}
 
 	// 调试开关：验收「新手引导卡」样式用。真实账号已有记录时 hasAnyRecord 为 true，
 	// 引导卡本来不会出现，这里允许强制打开。
@@ -248,6 +250,22 @@ export default function Index() {
 		firstGuideTrackedRef.current = true
 		if (!forceFirstGuide) void trackEvent('first_record_guide_show')
 	}, [showFirstGuide, forceFirstGuide])
+
+	// 「现在」卡的数据门槛。hasAnyRecord 是较新的服务端字段，未部署时会返回 null；
+	// 这时用 summary 里的历史时间戳兜底，避免新客户端配旧服务端时整张卡不出现。
+	const hasAnyHistory =
+		hasAnyRecord === true ||
+		Boolean(
+			summary &&
+				(summary.lastFeedingAt ||
+					summary.lastSleepAt ||
+					summary.lastDiaperAt ||
+					summary.lastMedicineAt ||
+					summary.feedingCount > 0 ||
+					summary.diaperCount > 0 ||
+					summary.sleepCount > 0 ||
+					latestHeightWeight),
+		)
 
 	const dismissFirstGuide = () => {
 		setFirstGuideDismissed(true)
@@ -316,8 +334,6 @@ export default function Index() {
 	// 未登录时使用 mock 数据
 	const displayBaby = isLoggedIn ? currentBaby : MOCK_BABY
 	const displayAge = displayBaby ? calculateAge(displayBaby.birthday) : null
-	const monthlyTips = displayAge ? getMonthlyTips(displayAge.months) : null
-	const featuredTip = monthlyTips?.tips[0]
 
 	// 身高体重是慢变的存量数据，示例模式补一份样例；体温是瞬时健康信号，示例里不展示
 	const displayHeightWeight = isLoggedIn
@@ -365,19 +381,29 @@ export default function Index() {
 
 	return (
 		<View className="page">
+			{/* 背景装饰爱心：只在头部区域若隐若现，随页面一起滚动 */}
+			<Image className="bg-heart bg-heart-1" src={heartBlushIcon} />
+			<Image className="bg-heart bg-heart-2" src={heartBlushIcon} />
+			<Image className="bg-heart bg-heart-3" src={heartBlushIcon} />
 			<View
 				className="home-topbar"
 				style={{ paddingTop: `${statusBarHeight}px` }}
 			>
-				<Text
-					className="home-topbar-title"
-					style={{
-						marginTop: `${capsuleBand.topOffset}px`,
-						lineHeight: `${capsuleBand.height}px`,
-					}}
+				<View
+					className="home-topbar-titles"
+					style={{ marginTop: `${capsuleBand.topOffset}px` }}
 				>
-					育娃手记
-				</Text>
+					<View className="home-topbar-title-row">
+						<Text
+							className="home-topbar-title"
+							style={{ lineHeight: `${capsuleBand.height}px` }}
+						>
+							育娃手记
+						</Text>
+						<Image className="home-topbar-heart" src={heartRoseIcon} />
+					</View>
+					<Text className="home-topbar-subtitle">记录成长的每一个瞬间</Text>
+				</View>
 				{isLoggedIn && currentBaby && (
 					<View
 						className="daily-pill"
@@ -388,9 +414,8 @@ export default function Index() {
 						}}
 						onClick={() => handleDailyReport('share')}
 					>
-						<Image className="daily-pill-icon" src={reportPlusIcon} />
-						<Text className="daily-pill-text">一键生成今日日报</Text>
-						<Image className="daily-pill-sparkle" src={sparklePinkIcon} />
+						<Text className="daily-pill-text">今日日报</Text>
+						<Image className="daily-pill-plane" src={sendRoseIcon} />
 					</View>
 				)}
 			</View>
@@ -420,16 +445,22 @@ export default function Index() {
 				temperature={displayTemperature}
 				tempFeverClass={tempFeverClass}
 				tempTimeText={tempTimeText}
-				featuredTip={featuredTip ?? null}
-				onOpenTips={() => setShowTips(true)}
 				onGhostRecord={navigateToRecord}
 			/>
 
-			<VaccineReminderCard
-				isLoggedIn={isLoggedIn}
-				babyId={currentBaby?.id}
-				refreshKey={vaccineRefreshKey}
-			/>
+			{isLoggedIn &&
+				currentBaby &&
+				summary &&
+				hasAnyRecord !== false &&
+				hasAnyHistory && (
+					<NowCard
+						birthday={currentBaby.birthday}
+						summary={summary}
+						rhythm={rhythm}
+						now={now}
+						onOpenHandoff={openHandoff}
+					/>
+				)}
 
 			{/* 新用户「记下第一条」引导：已建档且零记录时出现 */}
 			{showFirstGuide && (
@@ -441,16 +472,14 @@ export default function Index() {
 				/>
 			)}
 
-			{/* 快速记录 */}
-			{displayBaby && (
-				<QuickRecord
-					isLoggedIn={isLoggedIn}
-					hasBaby={Boolean(currentBaby)}
-					feedingElapsed={feedingElapsed}
-					sleepElapsed={sleepElapsed}
-					onNavigate={navigateToRecord}
-				/>
-			)}
+			{/* 快速记录保持在首屏内，状态卡只占一条提示的高度 */}
+			{displayBaby && <QuickRecord onNavigate={navigateToRecord} />}
+
+			<VaccineReminderCard
+				isLoggedIn={isLoggedIn}
+				babyId={currentBaby?.id}
+				refreshKey={vaccineRefreshKey}
+			/>
 
 			{/* 最近的瞬间：相册入口前置到首页 */}
 			{displayBaby && (
@@ -468,8 +497,12 @@ export default function Index() {
 				/>
 			)}
 
-			{showTips && monthlyTips && (
-				<TipsSheet monthlyTips={monthlyTips} onClose={() => setShowTips(false)} />
+			{handoff && (
+				<HandoffSheet
+					rows={handoff.rows}
+					text={handoff.text}
+					onClose={closeHandoff}
+				/>
 			)}
 
 			{/* 「添加到我的小程序」引导浮层：气泡指向右上角胶囊 */}

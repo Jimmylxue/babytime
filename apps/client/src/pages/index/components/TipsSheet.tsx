@@ -1,4 +1,5 @@
 import { View, Text, ScrollView } from '@tarojs/components'
+import './TipsSheet.scss'
 
 interface MonthlyTips {
 	ageLabel: string

@@ -24,9 +24,6 @@ import clockSolidIcon from '../../assets/icons/feed-clock-solid.svg'
 import saveWhiteIcon from '../../assets/icons/feed-save-white.svg'
 import statsCoralIcon from '../../assets/icons/feed-stats-coral.svg'
 import chevronGrayIcon from '../../assets/icons/chevron-gray.svg'
-import FeedingTimerCard, {
-	useFeedingTimer,
-} from './components/FeedingTimerCard'
 import BurpCountdownSheet from './components/BurpCountdownSheet'
 import './index.scss'
 
@@ -274,28 +271,6 @@ export default function FeedingPage() {
 		planReady: boolean
 		plan: SubscriptionPromptPlan | null
 	} | null>(null)
-	// 记录计时器自动填入的时长，重置时只清掉这一份，不动用户手输的值
-	const timerFilledRef = useRef<string | null>(null)
-	// 时长是否被用户手动改过：手动值优先于计时器，避免「按上次来」的预填值把计时结果盖掉
-	const durationEditedRef = useRef(false)
-	const feedingTimer = useFeedingTimer({
-		onStart: () => {
-			durationEditedRef.current = false
-		},
-		onFinish: minutes => {
-			const value = String(minutes)
-			timerFilledRef.current = value
-			durationEditedRef.current = false
-			setDuration(value)
-			void trackEvent('feeding_timer_finish', { minutes })
-		},
-		onReset: () => {
-			setDuration(prev => (prev === timerFilledRef.current ? '' : prev))
-			timerFilledRef.current = null
-			durationEditedRef.current = false
-		},
-	})
-
 	// 生成「上次」摘要（如：奶粉 · 140ml / 混合 · 母60ml+奶80ml）
 	const buildLastSummary = (last: any): string => {
 		const label = METHOD_LABELS[last.feedingMethod] || last.feedingMethod || ''
@@ -387,7 +362,6 @@ export default function FeedingPage() {
 	const handleDateChange = e => setRecordDate(e.detail.value)
 	const handleTimeChange = e => setStartTime(e.detail.value)
 	const handleDurationInput = e => {
-		durationEditedRef.current = true
 		setDuration(e.detail.value.replace(/\D/g, ''))
 	}
 	const handleNoteInput = e => setNote(e.detail.value)
@@ -427,18 +401,6 @@ export default function FeedingPage() {
 			? null
 			: startSilentRenew(silentPlanRef.current)
 		silentPlanRef.current = null
-		// 正在计时就顺手结束；计时结果优先，但用户手输过的时长优先于计时器
-		const durationWasEdited = durationEditedRef.current
-		if (feedingTimer.running) {
-			// 手输过时长就只停表，不覆盖用户输入；否则结束计时并回填
-			if (durationWasEdited) feedingTimer.pause()
-			else feedingTimer.finish()
-		}
-		const timerMinutes = feedingTimer.runningMinutes()
-		let durationForSave = duration
-		if (timerMinutes && !durationWasEdited) {
-			durationForSave = String(timerMinutes)
-		}
 		try {
 			const data: any = {
 				babyId,
@@ -452,7 +414,7 @@ export default function FeedingPage() {
 			} else if (amount > 0) {
 				data.amount = amount
 			}
-			if (durationForSave) data.duration = parseInt(durationForSave)
+			if (duration) data.duration = parseInt(duration)
 			if (note) data.note = note
 
 			if (isEdit) {
@@ -588,10 +550,6 @@ export default function FeedingPage() {
 						</View>
 					))}
 				</View>
-
-				{!isEdit && (
-					<FeedingTimerCard method={feedingMethod} timer={feedingTimer} />
-				)}
 
 				{feedingMethod !== 'mixed' ? (
 					<>

@@ -1,6 +1,7 @@
-import { View, Text, Image, Button } from '@tarojs/components'
+import { View, Text, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
+import syringeGreenIcon from '../../../assets/ui-icons/syringe-green.svg'
 import { needLogin } from '../../../utils/needLogin'
 import { formatDate } from '../../../utils/date'
 import {
@@ -8,8 +9,6 @@ import {
 	trackEvent,
 	VaccinePlanItem,
 } from '../../../utils/request'
-import { CDN_ASSETS } from '../../../config/assets'
-const vaccineSafety = CDN_ASSETS.vaccineSafety
 
 function formatVaccineDate(date: string) {
 	const [, month, day] = date.split('-').map(Number)
@@ -197,16 +196,11 @@ export default function VaccineReminderCard({
 			? ' expired'
 			: ' off'
 	const vaccineCtaText = isVaccineActive
-		? '查看计划'
+		? '查看'
 		: vaccineStateDisplay === 'exhausted'
-			? '再次订阅'
-			: '开启提醒'
+			? '续订'
+			: '开启'
 	const vaccineDaysLeft = getVaccineDaysLeft(nextVaccineDisplay?.effectiveDate)
-	const vaccineWeekday = nextVaccineDisplay
-		? '日一二三四五六'.charAt(
-				new Date(`${nextVaccineDisplay.effectiveDate}T00:00:00`).getDay(),
-			)
-		: ''
 	// 无下一针安排时的兜底文案
 	const vaccineReminderFallback =
 		vaccineStateDisplay === 'active'
@@ -224,41 +218,23 @@ export default function VaccineReminderCard({
 			onClick={handleReminderCardClick}
 			aria-label={vaccineBadgeText}
 		>
-			<Image
-				className="vaccine-safety-art"
-				src={vaccineSafety}
-				mode="aspectFit"
-			/>
+			<View className="vaccine-reminder-icon">
+				<Image className="vaccine-reminder-icon-img" src={syringeGreenIcon} />
+			</View>
 			<View className="vaccine-reminder-copy">
 				<View className="vaccine-title-row">
-					<Text className="vaccine-bell">🔔</Text>
 					<Text className="vaccine-reminder-title">疫苗提醒</Text>
-					<View className={`vaccine-state-badge${vaccineBadgeClass}`}>
-						<Text
-							className={`vaccine-state-badge-text${vaccineBadgeClass}`}
-						>
-							{vaccineBadgeText}
+					{nextVaccineDisplay && (
+						<Text className={`vaccine-days${vaccineBadgeClass}`}>
+							还有 {vaccineDaysLeft} 天
 						</Text>
-					</View>
+					)}
 				</View>
 				{nextVaccineDisplay ? (
-					<>
-						<Text className="vaccine-next-line">
-							下一针：{nextVaccineDisplay.label}
-						</Text>
-						<View className="vaccine-count">
-							<Text className="vaccine-count-prefix">还有</Text>
-							<Text className="vaccine-count-number">
-								{vaccineDaysLeft}
-							</Text>
-							<Text className="vaccine-count-unit">天</Text>
-						</View>
-						<Text className="vaccine-date-line">
-							接种日期：
-							{formatVaccineDate(nextVaccineDisplay.effectiveDate)}（周
-							{vaccineWeekday}）
-						</Text>
-					</>
+					<Text className="vaccine-next-line">
+						下一针 {nextVaccineDisplay.label} ·{' '}
+						{formatVaccineDate(nextVaccineDisplay.effectiveDate)}
+					</Text>
 				) : (
 					<Text className="vaccine-reminder-desc">
 						{vaccineReminderFallback}
@@ -269,14 +245,10 @@ export default function VaccineReminderCard({
 				className={`vaccine-plan-btn${isVaccineActive ? '' : ' cta'}`}
 				onClick={isVaccineActive ? handleViewVaccinePlan : undefined}
 			>
-				<Text
-					className={`vaccine-plan-btn-text${isVaccineActive ? '' : ' cta'}`}
-				>
+				<Text className={`vaccine-plan-btn-text${isVaccineActive ? '' : ' cta'}`}>
 					{vaccineCtaText}
 				</Text>
-				<Text
-					className={`vaccine-plan-btn-arrow${isVaccineActive ? '' : ' cta'}`}
-				>
+				<Text className={`vaccine-plan-btn-arrow${isVaccineActive ? '' : ' cta'}`}>
 					›
 				</Text>
 			</View>

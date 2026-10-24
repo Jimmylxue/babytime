@@ -9,6 +9,18 @@ import clockCoralIcon from '../../assets/icons/clock-coral.svg'
 import noteEditDarkIcon from '../../assets/icons/note-edit-dark.svg'
 import saveWhiteIcon from '../../assets/icons/save-white.svg'
 import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
+import iconFeeding from '../../assets/ui-icons/grid/icon-feeding.svg'
+import iconDiaper from '../../assets/ui-icons/grid/icon-diaper.svg'
+import iconSleep from '../../assets/ui-icons/grid/icon-sleep.svg'
+import iconFood from '../../assets/ui-icons/grid/icon-food.svg'
+import iconWater from '../../assets/ui-icons/grid/icon-water.svg'
+import iconTemperature from '../../assets/ui-icons/grid/icon-temperature.svg'
+import iconWeight from '../../assets/ui-icons/grid/icon-weight.svg'
+import iconHeight from '../../assets/ui-icons/grid/icon-height.svg'
+import iconMedicine from '../../assets/ui-icons/grid/icon-medicine.svg'
+import iconVaccine from '../../assets/ui-icons/grid/icon-vaccine.svg'
+import iconBath from '../../assets/ui-icons/grid/icon-bath.svg'
+import iconOutdoor from '../../assets/ui-icons/grid/icon-outdoor.svg'
 import { CDN_ASSETS } from '../../config/assets'
 import SubscriptionPromptSheet from '../../components/SubscriptionPromptSheet'
 import {
@@ -48,17 +60,17 @@ import OutdoorForm from './components/OutdoorForm'
 import './index.scss'
 
 const recordTypes = {
-	feeding: { title: '喂奶记录', icon: '🍼' },
-	diaper: { title: '尿布记录', icon: '💩' },
-	sleep: { title: '睡眠记录', icon: '😴' },
-	food: { title: '辅食记录', icon: '🍚' },
-	water: { title: '饮水记录', icon: '💧' },
-	temperature: { title: '体温记录', icon: '🌡️' },
-	height_weight: { title: '身高体重', icon: '📏' },
-	medicine: { title: '用药记录', icon: '💊' },
-	vaccine: { title: '疫苗记录', icon: '💉' },
-	bath: { title: '洗澡记录', icon: '🛁' },
-	outdoor: { title: '户外活动', icon: '🌳' },
+	feeding: { title: '喂奶记录', icon: iconFeeding },
+	diaper: { title: '尿布记录', icon: iconDiaper },
+	sleep: { title: '睡眠记录', icon: iconSleep },
+	food: { title: '辅食记录', icon: iconFood },
+	water: { title: '饮水记录', icon: iconWater },
+	temperature: { title: '体温记录', icon: iconTemperature },
+	height_weight: { title: '身高体重', icon: iconHeight },
+	medicine: { title: '用药记录', icon: iconMedicine },
+	vaccine: { title: '疫苗记录', icon: iconVaccine },
+	bath: { title: '洗澡记录', icon: iconBath },
+	outdoor: { title: '户外活动', icon: iconOutdoor },
 }
 
 // 类型专属表单注册表：页面按 type 渲染对应组件。
@@ -137,10 +149,10 @@ export default function RecordPage() {
 			: null
 	if (growthMetric === 'height') {
 		typeInfo.title = '身高记录'
-		typeInfo.icon = '📏'
+		typeInfo.icon = iconHeight
 	} else if (growthMetric === 'weight') {
 		typeInfo.title = '体重记录'
-		typeInfo.icon = '⚖️'
+		typeInfo.icon = iconWeight
 	}
 
 	const ActiveForm = TYPE_FORMS[type]
@@ -294,8 +306,8 @@ export default function RecordPage() {
 						mode="aspectFit"
 					/>
 				) : (
-					<View className="record-hero-emoji">
-						<Text>{typeInfo.icon}</Text>
+					<View className={`record-hero-emoji t-${type}`}>
+						<Image className="record-hero-icon" src={typeInfo.icon} />
 					</View>
 				)}
 				<View className="record-hero-copy">

@@ -149,7 +149,7 @@ export default function RecordDetailPage() {
   return (
     <View className="detail-page">
       <View className="detail-header">
-        <Text className="detail-header-icon">{typeInfo.icon}</Text>
+        <Image className="detail-header-icon" src={typeInfo.icon} />
         <Text className="detail-header-title">{typeInfo.label}明细</Text>
       </View>
 
