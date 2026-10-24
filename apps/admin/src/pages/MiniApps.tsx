@@ -18,14 +18,14 @@ export default function MiniApps() {
 					应用 tab 里各小应用的使用率。使用率 = 近 7 天打开过任一小应用的用户 / 近 7 天活跃用户（活跃口径同数据看板：产生过记录的用户）。
 				</Typography.Paragraph>
 				<Row gutter={[16, 16]}>
-					<Col xs={12} md={6}>
+					<Col xs={24} md={8}>
 						<Statistic
 							title="应用页访问（7天）"
 							value={metrics?.hubViews7 ?? 0}
 							suffix={` / ${metrics?.hubUsers7 ?? 0} 人`}
 						/>
 					</Col>
-					<Col xs={12} md={6}>
+					<Col xs={24} md={8}>
 						<Statistic
 							title="小应用使用率（7天）"
 							value={metrics?.usageRate ?? 0}
@@ -35,14 +35,7 @@ export default function MiniApps() {
 							{metrics?.toolUsers7 ?? 0} / {metrics?.activeUsers7 ?? 0} 人打开过小应用
 						</Typography.Text>
 					</Col>
-					<Col xs={12} md={6}>
-						<Statistic
-							title="AI 便便识别发起（7天）"
-							value={metrics?.stoolAnalyzes7 ?? 0}
-							suffix={` / ${metrics?.stoolUsers7 ?? 0} 人`}
-						/>
-					</Col>
-					<Col xs={12} md={6}>
+					<Col xs={24} md={8}>
 						<Statistic title="小应用总数" value={(metrics?.apps ?? []).length} suffix=" 个" />
 					</Col>
 				</Row>

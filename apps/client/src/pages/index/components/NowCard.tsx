@@ -50,11 +50,16 @@ export default function NowCard({
 			? awakeMinutes
 			: null
 
+	// 喂奶文案统一带上次的钟点时间，方便交接时直接说「几点喂的」
+	const lastFeedingClock = summary?.lastFeedingAt
+		? formatHM(summary.lastFeedingAt)
+		: null
+
 	let insight = '宝宝节奏平稳'
 	let insightDetail = nextFeedingAt
-		? `下次喂奶约 ${formatHM(nextFeedingAt)}，仅作节奏参考`
+		? `上次喂奶 ${lastFeedingClock} · 下次约 ${formatHM(nextFeedingAt)}`
 		: feedingMinutes != null
-			? `上次喂奶 ${formatDurationLong(feedingMinutes)}前，多记几顿就有预测`
+			? `上次喂奶 ${lastFeedingClock} · ${formatDurationLong(feedingMinutes)}前`
 			: '记下吃睡日常，这里会慢慢看出宝宝的节奏'
 	let insightTone = 'calm'
 	if (
@@ -63,7 +68,7 @@ export default function NowCard({
 		feedingMinutes >= intervalMinutes + 30
 	) {
 		insight = '差不多该喂奶了'
-		insightDetail = `距上次 ${formatDurationLong(feedingMinutes)} · 平时约 ${formatDuration(intervalMinutes)}一次`
+		insightDetail = `上次喂奶 ${lastFeedingClock} · 平时约 ${formatDuration(intervalMinutes)}一次`
 		insightTone = 'warm'
 	} else if (
 		awakeForHint != null &&

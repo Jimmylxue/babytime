@@ -37,14 +37,6 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 	rejected: { label: '已拒绝', color: 'default' },
 };
 
-const RISK_MAP: Record<string, { label: string; color: string }> = {
-	normal: { label: '正常', color: 'green' },
-	observe: { label: '需观察', color: 'orange' },
-	medical_attention: { label: '建议就医', color: 'red' },
-	urgent: { label: '需紧急处理', color: 'red' },
-	unknown: { label: '未知', color: 'default' },
-};
-
 function formatRecordLine(type: string, duration: number | null, amount: number | null, note: string | null) {
 	const parts: string[] = [];
 	if (amount != null) parts.push(`${amount}ml`);
@@ -211,34 +203,6 @@ export default function BabyDetailPage() {
 									),
 								}))}
 							/>
-						)}
-					</Card>
-
-					<Card title={`AI 便便分析（${data.aiAnalyses.length}）`} className="chart-card" style={{ marginBottom: 16 }}>
-						{data.aiAnalyses.length === 0 ? (
-							<Empty description="未使用过 AI 分析" />
-						) : (
-							data.aiAnalyses.map((item) => {
-								const risk = RISK_MAP[item.analysis.riskLevel ?? 'unknown'] ?? RISK_MAP.unknown;
-								return (
-									<Card key={item.id} size="small" style={{ marginBottom: 12 }} title={
-										<span>
-											<Tag color={risk.color}>{risk.label}</Tag>
-											<Typography.Text type="secondary" style={{ fontSize: 12 }}>
-												{dayjs(item.startTime).format('YYYY-MM-DD HH:mm')}
-											</Typography.Text>
-										</span>
-									}>
-										<p style={{ margin: '4px 0' }}>{item.analysis.summary}</p>
-										{item.analysis.observedFeatures?.color ? (
-											<Typography.Text type="secondary" style={{ fontSize: 12 }}>
-												颜色：{item.analysis.observedFeatures.color}
-												{item.analysis.observedFeatures.consistency ? ` · 性状：${item.analysis.observedFeatures.consistency}` : ''}
-											</Typography.Text>
-										) : null}
-									</Card>
-								);
-							})
 						)}
 					</Card>
 				</Col>

@@ -4,7 +4,6 @@ import {
 	BellOutlined,
 	CameraOutlined,
 	FileTextOutlined,
-	RobotOutlined,
 	RiseOutlined,
 	SmileOutlined,
 	TeamOutlined,
@@ -173,9 +172,6 @@ export default function Dashboard() {
 				</Col>
 				<Col xs={24} sm={12} lg={6}>
 					<KpiCard title="今日活跃用户" value={overview?.todayActiveUsers ?? 0} sub={`近 7 日活跃 ${overview?.weekActiveUsers ?? 0}`} icon={<TeamOutlined />} tone="gold" />
-				</Col>
-				<Col xs={24} sm={12} lg={6}>
-					<KpiCard title="AI 便便分析" value={overview?.aiAnalysisTotal ?? 0} sub={`今日新增 ${overview?.aiAnalysisToday ?? 0}`} icon={<RobotOutlined />} tone="purple" />
 				</Col>
 				<Col xs={24} sm={12} lg={6}>
 					<KpiCard title="累计照片" value={overview?.totalPhotos ?? 0} sub={`家庭成员 ${overview?.familyMembers ?? 0}`} icon={<CameraOutlined />} tone="coral" />
