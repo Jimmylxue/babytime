@@ -823,6 +823,14 @@
   min-width: 0;
 }
 
+// 标题与交接入口同行，把整行宽度留给下面「上次 / 距上次 / 下次」的时间文案
+.now-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .now-insight {
   display: block;
   color: #3a2e33;
@@ -843,7 +851,7 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  padding: 8px 0 8px 10px;
+  padding: 4px 0;
 
   &:active {
     opacity: 0.6;

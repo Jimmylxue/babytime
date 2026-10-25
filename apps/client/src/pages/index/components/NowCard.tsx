@@ -56,11 +56,12 @@ export default function NowCard({
 		: null
 
 	let insight = '宝宝节奏平稳'
-	let insightDetail = nextFeedingAt
-		? `上次喂奶 ${lastFeedingClock} · 下次约 ${formatHM(nextFeedingAt)}`
-		: feedingMinutes != null
-			? `上次喂奶 ${lastFeedingClock} · ${formatDurationLong(feedingMinutes)}前`
-			: '记下吃睡日常，这里会慢慢看出宝宝的节奏'
+	let insightDetail =
+		nextFeedingAt && feedingMinutes != null
+			? `上次喂奶 ${lastFeedingClock} · 距上次 ${formatDurationLong(feedingMinutes)} · 下次约 ${formatHM(nextFeedingAt)}`
+			: feedingMinutes != null
+				? `上次喂奶 ${lastFeedingClock} · 距上次 ${formatDurationLong(feedingMinutes)}`
+				: '记下吃睡日常，这里会慢慢看出宝宝的节奏'
 	let insightTone = 'calm'
 	if (
 		feedingMinutes != null &&
@@ -68,7 +69,7 @@ export default function NowCard({
 		feedingMinutes >= intervalMinutes + 30
 	) {
 		insight = '差不多该喂奶了'
-		insightDetail = `上次喂奶 ${lastFeedingClock} · 平时约 ${formatDuration(intervalMinutes)}一次`
+		insightDetail = `上次喂奶 ${lastFeedingClock} · 距上次 ${formatDurationLong(feedingMinutes)} · 平时约 ${formatDuration(intervalMinutes)}一次`
 		insightTone = 'warm'
 	} else if (
 		awakeForHint != null &&
@@ -100,12 +101,14 @@ export default function NowCard({
 				<Image className="now-card-icon-img" src={clockWhiteIcon} />
 			</View>
 			<View className="now-card-copy">
-				<Text className={`now-insight ${insightTone}`}>{insight}</Text>
+				<View className="now-card-title-row">
+					<Text className={`now-insight ${insightTone}`}>{insight}</Text>
+					<View className="now-handoff" onClick={onOpenHandoff}>
+						<Text className="now-handoff-text">交接给家人</Text>
+						<Text className="now-handoff-arrow">›</Text>
+					</View>
+				</View>
 				<Text className="now-insight-detail">{insightDetail}</Text>
-			</View>
-			<View className="now-handoff" onClick={onOpenHandoff}>
-				<Text className="now-handoff-text">交接给家人</Text>
-				<Text className="now-handoff-arrow">›</Text>
 			</View>
 		</View>
 	)
