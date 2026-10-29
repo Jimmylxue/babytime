@@ -134,8 +134,8 @@ export default function PhotoPage() {
 
   const handleTakePhoto = async () => {
     void trackEvent('photo_add_click', { from: 'album_page' });
-    const success = await takePhotoAndSave(babyId);
-    if (success) {
+    const saved = await takePhotoAndSave(babyId);
+    if (saved > 0) {
       fetchFirstPage();
     }
   };

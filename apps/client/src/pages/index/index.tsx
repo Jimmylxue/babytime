@@ -286,8 +286,8 @@ export default function Index() {
 			takePhotoAndSave(currentBaby.id, {
 				goAlbum: true,
 				babyName: currentBaby.name,
-			}).then(success => {
-				if (success) fetchRecentPhotos(currentBaby.id)
+			}).then(saved => {
+				if (saved > 0) fetchRecentPhotos(currentBaby.id)
 			})
 			return
 		}
