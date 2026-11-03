@@ -147,7 +147,7 @@ export class AdminBabyService {
       [id, id, id, id, id],
     );
 
-    const [recordTypes, familyMembers, recentRecords, aiAnalyses] = await Promise.all([
+    const [recordTypes, familyMembers, recentRecords] = await Promise.all([
       this.dataSource.query(
         `SELECT type, COUNT(*) AS count FROM records WHERE baby_id = ? GROUP BY type`,
         [id],
@@ -163,13 +163,6 @@ export class AdminBabyService {
       this.dataSource.query(
         `SELECT id, type, start_time AS startTime, end_time AS endTime, duration, amount, note
          FROM records WHERE baby_id = ?
-         ORDER BY start_time DESC LIMIT 20`,
-        [id],
-      ),
-      this.dataSource.query(
-        `SELECT id, start_time AS startTime, diaper_analysis AS analysis
-         FROM records
-         WHERE baby_id = ? AND diaper_analysis IS NOT NULL
          ORDER BY start_time DESC LIMIT 20`,
         [id],
       ),
@@ -211,11 +204,6 @@ export class AdminBabyService {
         duration: row.duration == null ? null : Number(row.duration),
         amount: row.amount == null ? null : Number(row.amount),
         note: row.note,
-      })),
-      aiAnalyses: aiAnalyses.map((row) => ({
-        id: row.id,
-        startTime: row.startTime,
-        analysis: typeof row.analysis === 'string' ? JSON.parse(row.analysis) : row.analysis,
       })),
     };
   }

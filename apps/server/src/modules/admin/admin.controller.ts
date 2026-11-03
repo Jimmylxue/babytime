@@ -108,6 +108,30 @@ export class AdminController {
   }
 
   @UseGuards(AdminJwtGuard)
+  @Get('stats/milestones')
+  async getMilestoneMetrics(@Query('days') days?: string) {
+    const data = await this.adminStatsService.getMilestoneMetrics(Number(days) || 30);
+    return data;
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('milestones/usage')
+  async getMilestoneUsage(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('keyword') keyword?: string,
+    @Query('sort') sort?: string,
+  ) {
+    const data = await this.adminStatsService.getMilestoneUsage(
+      Number(page) || 1,
+      Number(pageSize) || 20,
+      keyword,
+      sort,
+    );
+    return data;
+  }
+
+  @UseGuards(AdminJwtGuard)
   @Get('ops/https')
   async getHttpsHealth(@Query('refresh') refresh?: string) {
     const data = await this.opsHealthService.getHttpsStatus(refresh === '1');

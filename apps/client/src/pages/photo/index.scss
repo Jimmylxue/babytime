@@ -1,4 +1,4 @@
-// 相册页：粉调时间线（按设计稿高保真还原）
+// 瞬间页：朋友圈式信息流（粉调背景 + 白色卡片）
 .album-page {
   position: relative;
   min-height: 100vh;
@@ -35,7 +35,7 @@
   margin-top: -4px;
 }
 
-// 顶部宝宝插画：贴右上角，顶部锚定状态栏下方 52pt，纯装饰
+// 顶部宝宝插画：贴右上角，顶部锚定状态栏下方 40pt，纯装饰
 .album-hero-art {
   position: absolute;
   top: 120px;
@@ -46,7 +46,7 @@
   z-index: 0;
 }
 
-// 自定义导航区：标题顶 = 状态栏下方 44pt（对齐 UI 图）
+// 自定义导航区：标题顶 = 状态栏下方 150pt（对齐 UI 图）
 .album-nav {
   position: relative;
   z-index: 1;
@@ -84,7 +84,7 @@
   letter-spacing: 1px;
 }
 
-// 拍照记录主按钮
+// 发布瞬间主按钮
 .album-cta {
   position: relative;
   z-index: 1;
@@ -116,7 +116,7 @@
   letter-spacing: 4px;
 }
 
-// 成长相册标题行
+// 成长瞬间标题行
 .album-section-head {
   position: relative;
   z-index: 1;
@@ -143,44 +143,141 @@
   color: #4A3B3B;
 }
 
-.album-section-right {
-  display: flex;
-  align-items: center;
-}
-
 .album-count {
   font-size: 25px;
   color: #C4AEAE;
 }
 
-.album-manage {
-  font-size: 27px;
-  color: #F56A93;
-  font-weight: 700;
-  margin-left: 24px;
-  padding: 6px 8px;
-}
-
-// 时间线
-.album-timeline {
+// ── 瞬间信息流 ──
+.moment-feed {
   position: relative;
   z-index: 1;
-  padding-left: 44px;
 }
 
-.timeline-line {
-  position: absolute;
-  left: 13px;
-  top: 48px;
-  bottom: 70px;
-  width: 4px;
-  border-radius: 2px;
-  background: #F6CFDA;
+.moment-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 28px 26px 30px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 26px rgba(215, 143, 162, 0.08);
 }
 
-.timeline-item {
+.moment-head {
+  display: flex;
+  align-items: center;
+}
+
+.moment-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #FBF3F1;
+  flex-shrink: 0;
+}
+
+.moment-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FFD5E0 0%, #F9AFC2 100%);
+}
+
+.moment-avatar-text {
+  font-size: 30px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.moment-head-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.moment-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: #4A3B3B;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moment-time {
+  margin-top: 6px;
+  font-size: 22px;
+  color: #C4AEAE;
+}
+
+.moment-delete {
+  flex-shrink: 0;
+  padding: 8px 6px 8px 18px;
+}
+
+.moment-delete-text {
+  font-size: 24px;
+  color: #C4AEAE;
+}
+
+// 文案：保留用户输入的换行
+.moment-content {
+  display: block;
+  margin-top: 20px;
+  font-size: 28px;
+  line-height: 1.65;
+  color: #453434;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+// ── 朋友圈式九宫格：所有缩略图统一方形，点开再看原图 ──
+.moment-photos {
+  margin-top: 20px;
+  display: grid;
+  gap: 10px;
+
+  // 1 张：方形单图
+  &.photos-1 {
+    width: 64%;
+    grid-template-columns: 1fr;
+  }
+
+  // 2 张 / 4 张：两列
+  &.photos-2,
+  &.photos-4 {
+    width: 76%;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  // 3 张及以上：三列
+  &.photos-3,
+  &.photos-5,
+  &.photos-6,
+  &.photos-7,
+  &.photos-8,
+  &.photos-9 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+// 方形占位用 padding-top，部分微信版本不认 aspect-ratio 时也不会被长图撑高
+.moment-photo-wrap {
   position: relative;
-  margin-bottom: 36px;
+  width: 100%;
+  padding-top: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #FBF3F1;
+}
+
+.moment-photo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 // 分页加载尾部
@@ -193,106 +290,6 @@
 .timeline-footer-text {
   font-size: 24px;
   color: #D3BDBD;
-}
-
-.timeline-dot {
-  position: absolute;
-  left: -40px;
-  top: 44px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #FFFFFF;
-  border: 5px solid #F8A9BD;
-  box-sizing: border-box;
-}
-
-.timeline-dot.solid {
-  background: #F8809F;
-  border-color: #F8809F;
-}
-
-.timeline-card {
-  background: #FFFFFF;
-  border-radius: 28px;
-  padding: 28px 26px 30px;
-  box-shadow: 0 10px 26px rgba(215, 143, 162, 0.08);
-}
-
-.card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.card-date-wrap {
-  display: flex;
-  flex-direction: column;
-}
-
-.card-date {
-  font-size: 36px;
-  font-weight: 800;
-  color: #453434;
-}
-
-.card-weekday {
-  margin-top: 6px;
-  font-size: 24px;
-  color: #C4AEAE;
-}
-
-.card-count {
-  font-size: 24px;
-  color: #C4AEAE;
-  padding-top: 8px;
-}
-
-.card-grid {
-  margin-top: 24px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.card-photo {
-  position: relative;
-  aspect-ratio: 0.88;
-  border-radius: 18px;
-  overflow: hidden;
-  background: #FBF3F1;
-}
-
-.card-photo-img {
-  width: 100%;
-  height: 100%;
-}
-
-// 管理模式：选择圈角标
-.photo-check {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid #FFFFFF;
-  background: rgba(0, 0, 0, 0.25);
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.photo-check.checked {
-  background: #F8809F;
-  border-color: #F8809F;
-}
-
-.photo-check-icon {
-  color: #fff;
-  font-size: 26px;
-  font-weight: 700;
 }
 
 // 加载与空状态
@@ -325,68 +322,4 @@
 .album-state-desc {
   font-size: 26px;
   color: #C4AEAE;
-}
-
-// 管理模式底部操作栏
-.album-page.manage-mode {
-  padding-bottom: 200px;
-}
-
-.manage-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 100;
-  background: #FFFFFF;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 40px;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom));
-  box-shadow: 0 -6px 20px rgba(130, 110, 90, 0.08);
-}
-
-.manage-select-all {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-size: 26px;
-  color: #6D6A6E;
-}
-
-.manage-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid #D9D6CE;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.manage-circle.checked {
-  background: #F8809F;
-  border-color: #F8809F;
-}
-
-.manage-circle-icon {
-  color: #fff;
-  font-size: 26px;
-  font-weight: 700;
-}
-
-.manage-delete {
-  background: #F87696;
-  color: #fff;
-  font-size: 28px;
-  font-weight: 600;
-  padding: 18px 52px;
-  border-radius: 44px;
-  box-shadow: 0 8px 20px rgba(248, 118, 150, 0.3);
-}
-
-.manage-delete.disabled {
-  opacity: 0.4;
 }

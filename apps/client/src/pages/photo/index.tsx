@@ -1,8 +1,7 @@
 import { View, Text, Image } from '@tarojs/components';
 import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
 import { useRef, useState } from 'react';
-import { photoApi, trackEvent, PhotoTimelineGroup } from '../../utils/request';
-import { takePhotoAndSave } from '../../utils/upload';
+import { photoApi, trackEvent, MomentFeedItem } from '../../utils/request';
 import { thumbUrl, THUMB_W } from '../../utils/imageThumb';
 import { CDN_ASSETS } from '../../config/assets';
 const albumBaby = CDN_ASSETS.albumBaby;
@@ -11,35 +10,40 @@ import albumPinkIcon from '../../assets/icons/album-pink.svg';
 import heartIcon from '../../assets/icons/heart-pink.svg';
 import './index.scss';
 
-interface Photo {
-  id: string;
-  url: string;
-  thumbnail?: string;
-  photoDate: string;
-  note?: string;
-  createdAt: string;
-}
+const PAGE_SIZE = 20;
 
-interface TimelineItem {
-  date: string;
-  photos: Photo[];
-}
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
-const PAGE_SIZE = 30;
-
-const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+/** 朋友圈式时间：今天 / 昨天 / 本月内 / 更早 */
+const formatMomentTime = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+  const hm = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  if (diffDays === 0) return `今天 ${hm}`;
+  if (diffDays === 1) return `昨天 ${hm}`;
+  const md = `${date.getMonth() + 1}月${date.getDate()}日`;
+  if (date.getFullYear() === now.getFullYear()) return `${md} ${hm}`;
+  return `${date.getFullYear()}年${md}`;
+};
 
 export default function PhotoPage() {
   const router = useRouter();
-  const { babyId } = router.params;
-  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const babyId = router.params.babyId || '';
+  const [items, setItems] = useState<MomentFeedItem[]>([]);
+  const [baby, setBaby] = useState<{
+    id: string;
+    name: string;
+    avatar?: string | null;
+  } | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [manageMode, setManageMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const previewingRef = useRef(false);
   // 微信胶囊矩形（pt）：返回按钮与其同带、左右对称放置
   const [menuBand] = useState(() => {
@@ -61,7 +65,8 @@ export default function PhotoPage() {
   });
 
   useDidShow(() => {
-    // previewImage 关闭时也会触发 onShow，这次不需要重新拉取列表
+    // previewImage 关闭时也会触发 onShow，这次不需要重新拉取列表；
+    // 从发布页返回则照常刷新，新瞬间会出现在顶部
     if (previewingRef.current) {
       previewingRef.current = false;
       return;
@@ -71,7 +76,6 @@ export default function PhotoPage() {
     }
   });
 
-  // 触底加载下一页
   useReachBottom(() => {
     if (babyId) {
       loadMore();
@@ -80,17 +84,18 @@ export default function PhotoPage() {
 
   const fetchFirstPage = async () => {
     // 已有数据时静默刷新，避免整页闪"加载中"
-    if (timeline.length === 0) {
+    if (items.length === 0) {
       setLoading(true);
     }
     try {
-      const res = await photoApi.getTimeline(babyId, 1, PAGE_SIZE);
-      setTimeline((res.data?.items as TimelineItem[]) || []);
+      const res = await photoApi.getMoments(babyId, 1, PAGE_SIZE);
+      setItems(res.data?.items || []);
+      setBaby(res.data?.baby || null);
       setTotal(res.data?.total || 0);
       setPage(1);
       setHasMore(!!res.data?.hasMore);
     } catch (error) {
-      console.error('获取相册失败', error);
+      console.error('获取瞬间失败', error);
     } finally {
       setLoading(false);
     }
@@ -101,27 +106,8 @@ export default function PhotoPage() {
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const res = await photoApi.getTimeline(babyId, nextPage, PAGE_SIZE);
-      const items = ((res.data?.items as TimelineItem[]) || []).map((item) => ({
-        date: item.date,
-        photos: item.photos,
-      }));
-      setTimeline((prev) => {
-        if (
-          items.length > 0 &&
-          prev.length > 0 &&
-          prev[prev.length - 1].date === items[0].date
-        ) {
-          // 同一日期跨页：合并进已有分组
-          const merged = [...prev];
-          merged[merged.length - 1] = {
-            date: prev[prev.length - 1].date,
-            photos: [...prev[prev.length - 1].photos, ...items[0].photos],
-          };
-          return [...merged, ...items.slice(1)];
-        }
-        return [...prev, ...items];
-      });
+      const res = await photoApi.getMoments(babyId, nextPage, PAGE_SIZE);
+      setItems((prev) => [...prev, ...(res.data?.items || [])]);
       setTotal(res.data?.total || 0);
       setPage(nextPage);
       setHasMore(!!res.data?.hasMore);
@@ -132,50 +118,27 @@ export default function PhotoPage() {
     }
   };
 
-  const handleTakePhoto = async () => {
+  const handlePublish = () => {
     void trackEvent('photo_add_click', { from: 'album_page' });
-    const saved = await takePhotoAndSave(babyId);
-    if (saved > 0) {
-      fetchFirstPage();
-    }
+    Taro.navigateTo({ url: `/pages/photo-edit/index?babyId=${babyId}` });
   };
 
-  const toggleManage = () => {
-    setManageMode((m) => !m);
-    setSelectedIds([]);
-  };
-
-  // 长按照片：快捷进入管理模式并选中该张
-  const enterManageWith = (photoId: string) => {
-    setManageMode(true);
-    setSelectedIds([photoId]);
-  };
-
-  const toggleSelect = (photoId: string) => {
-    setSelectedIds((ids) =>
-      ids.includes(photoId) ? ids.filter((id) => id !== photoId) : [...ids, photoId]
-    );
-  };
-
-  const allPhotos = timeline.flatMap((item) => item.photos);
-  const allSelected = allPhotos.length > 0 && selectedIds.length === allPhotos.length;
-
-  const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? [] : allPhotos.map((p) => p.id));
-  };
-
-  const handleBatchDelete = async () => {
-    if (selectedIds.length === 0) return;
+  const handleDelete = async (item: MomentFeedItem) => {
+    const isMoment = item.kind === 'moment';
     const res = await Taro.showModal({
-      title: '确认删除',
-      content: `确定要删除选中的 ${selectedIds.length} 张照片吗？删除后无法恢复`,
+      title: isMoment ? '删除这条瞬间' : '删除照片',
+      content: isMoment
+        ? '删除后文案和照片都无法恢复，确定删除吗？'
+        : '删除后无法恢复，确定删除吗？',
     });
     if (!res.confirm) return;
     try {
-      await photoApi.deleteBatch(selectedIds);
-      Taro.showToast({ title: '删除成功', icon: 'success' });
-      setManageMode(false);
-      setSelectedIds([]);
+      if (isMoment) {
+        await photoApi.deleteMoment(item.id);
+      } else {
+        await photoApi.delete(item.id);
+      }
+      Taro.showToast({ title: '已删除', icon: 'success' });
       fetchFirstPage();
     } catch (error) {
       // 错误提示由全局拦截器统一 toast
@@ -192,28 +155,20 @@ export default function PhotoPage() {
     }
   };
 
-  // urls 用**全部已加载**照片：只传当天的话，翻到一组最后一张就滑不动了
-  const handlePreview = (photo: Photo) => {
+  // 朋友圈行为：预览范围是这一条瞬间里的照片，不串到其它瞬间
+  const handlePreview = (item: MomentFeedItem, currentUrl: string) => {
     previewingRef.current = true;
     Taro.previewImage({
-      current: photo.url,
-      urls: allPhotos.map((p) => p.url),
+      current: currentUrl,
+      urls: item.photos.map((photo) => photo.url),
       fail: () => {
         previewingRef.current = false;
       },
     });
   };
 
-  const formatDateParts = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return {
-      date: `${date.getMonth() + 1}月${date.getDate()}日`,
-      weekDay: weekDays[date.getDay()],
-    };
-  };
-
   return (
-    <View className={`album-page${manageMode ? ' manage-mode' : ''}`}>
+    <View className="album-page">
       {/* 返回按钮：自定义导航无系统返回，与微信胶囊同带对称、fixed 不随滚动 */}
       <View
         className="album-back"
@@ -240,27 +195,20 @@ export default function PhotoPage() {
         <Text className="album-subtitle">记录成长每一刻，留住美好回忆</Text>
       </View>
 
-      {/* 拍照记录主按钮 */}
-      {!manageMode && (
-        <View className="album-cta" onClick={handleTakePhoto}>
-          <Image className="album-cta-icon" src={cameraIcon} />
-          <Text className="album-cta-text">拍照记录</Text>
-        </View>
-      )}
+      {/* 发布瞬间主按钮 */}
+      <View className="album-cta" onClick={handlePublish}>
+        <Image className="album-cta-icon" src={cameraIcon} />
+        <Text className="album-cta-text">发布瞬间</Text>
+      </View>
 
-      {/* 成长相册标题行 */}
-      {timeline.length > 0 && (
+      {/* 成长瞬间标题行 */}
+      {items.length > 0 && (
         <View className="album-section-head">
           <View className="album-section-left">
             <Image className="album-section-icon" src={albumPinkIcon} />
-            <Text className="album-section-label">成长相册</Text>
+            <Text className="album-section-label">成长瞬间</Text>
           </View>
-          <View className="album-section-right">
-            <Text className="album-count">共 {total} 张</Text>
-            <Text className="album-manage" onClick={toggleManage}>
-              {manageMode ? '取消' : '管理'}
-            </Text>
-          </View>
+          <Text className="album-count">共 {total} 条</Text>
         </View>
       )}
 
@@ -269,64 +217,75 @@ export default function PhotoPage() {
         <View className="album-state">
           <Text className="album-state-text">加载中...</Text>
         </View>
-      ) : timeline.length === 0 ? (
-        <View className="album-state album-state-empty">
+      ) : items.length === 0 ? (
+        <View className="album-state album-state-empty" onClick={handlePublish}>
           <Text className="album-state-icon">📸</Text>
-          <Text className="album-state-title">还没有照片</Text>
-          <Text className="album-state-desc">点击上方按钮，拍下宝宝的第一个瞬间</Text>
+          <Text className="album-state-title">还没有瞬间</Text>
+          <Text className="album-state-desc">
+            发布第一条，记录宝宝的可爱时刻
+          </Text>
         </View>
       ) : (
-        <View className="album-timeline">
-          <View className="timeline-line" />
-          {timeline.map((item, index) => {
-            const { date, weekDay } = formatDateParts(item.date);
+        <View className="moment-feed">
+          {items.map((item) => {
+            const photoCount = item.photos.length;
             return (
-              <View key={item.date} className="timeline-item">
-                <View className={`timeline-dot${index === 0 ? ' solid' : ''}`} />
-                <View className="timeline-card">
-                  <View className="card-head">
-                    <View className="card-date-wrap">
-                      <Text className="card-date">{date}</Text>
-                      <Text className="card-weekday">{weekDay}</Text>
+              <View key={`${item.kind}-${item.id}`} className="moment-card">
+                <View className="moment-head">
+                  {baby?.avatar ? (
+                    <Image
+                      className="moment-avatar"
+                      src={thumbUrl(baby.avatar, THUMB_W.chip)}
+                      mode="aspectFill"
+                    />
+                  ) : (
+                    <View className="moment-avatar moment-avatar-fallback">
+                      <Text className="moment-avatar-text">
+                        {baby?.name?.slice(0, 1) || '宝'}
+                      </Text>
                     </View>
-                    <Text className="card-count">{item.photos.length}张</Text>
+                  )}
+                  <View className="moment-head-main">
+                    <Text className="moment-name">{baby?.name || '宝宝'}</Text>
+                    <Text className="moment-time">
+                      {formatMomentTime(item.createdAt)}
+                    </Text>
                   </View>
-                  <View className="card-grid">
-                    {item.photos.map((photo) => {
-                      const selected = selectedIds.includes(photo.id);
-                      return (
-                        <View
-                          key={photo.id}
-                          className="card-photo"
-                          onClick={() =>
-                            manageMode
-                              ? toggleSelect(photo.id)
-                              : handlePreview(photo)
-                          }
-                          onLongPress={() => {
-                            if (!manageMode) enterManageWith(photo.id);
-                          }}
-                        >
-                          <Image
-                            className="card-photo-img"
-                            src={thumbUrl(photo.thumbnail || photo.url, THUMB_W.grid)}
-                            mode="aspectFill"
-                            lazyLoad
-                          />
-                          {manageMode && (
-                            <View
-                              className={`photo-check${selected ? ' checked' : ''}`}
-                            >
-                              {selected && (
-                                <Text className="photo-check-icon">✓</Text>
-                              )}
-                            </View>
-                          )}
-                        </View>
-                      );
-                    })}
+                  <View
+                    className="moment-delete"
+                    onClick={() => handleDelete(item)}
+                  >
+                    <Text className="moment-delete-text">删除</Text>
                   </View>
                 </View>
+
+                {item.content && (
+                  <Text className="moment-content">{item.content}</Text>
+                )}
+
+                {photoCount > 0 && (
+                  <View
+                    className={`moment-photos photos-${Math.min(photoCount, 9)}`}
+                  >
+                    {item.photos.map((photo) => (
+                      <View
+                        key={photo.id}
+                        className="moment-photo-wrap"
+                        onClick={() => handlePreview(item, photo.url)}
+                      >
+                        <Image
+                          className="moment-photo"
+                          src={thumbUrl(
+                            photo.thumbnail || photo.url,
+                            photoCount === 1 ? THUMB_W.wide : THUMB_W.grid
+                          )}
+                          mode="aspectFill"
+                          lazyLoad
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             );
           })}
@@ -341,26 +300,6 @@ export default function PhotoPage() {
               <Text className="timeline-footer-text">— 已经到底啦 —</Text>
             </View>
           ) : null}
-        </View>
-      )}
-
-      {/* 管理模式底部操作栏 */}
-      {manageMode && (
-        <View className="manage-bar">
-          <View className="manage-select-all" onClick={toggleSelectAll}>
-            <View className={`manage-circle${allSelected ? ' checked' : ''}`}>
-              {allSelected && <Text className="manage-circle-icon">✓</Text>}
-            </View>
-            <Text>全选</Text>
-          </View>
-          <View
-            className={`manage-delete${selectedIds.length > 0 ? '' : ' disabled'}`}
-            onClick={handleBatchDelete}
-          >
-            <Text>
-              删除{selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
-            </Text>
-          </View>
         </View>
       )}
     </View>

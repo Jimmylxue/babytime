@@ -9,8 +9,6 @@ export interface Overview {
 	todayRecords: number;
 	todayActiveUsers: number;
 	weekActiveUsers: number;
-	aiAnalysisTotal: number;
-	aiAnalysisToday: number;
 	totalPhotos: number;
 	familyMembers: number;
 	vaccineSubscribedUsers: number;
@@ -97,8 +95,6 @@ export interface ToolsMetrics {
 	toolUsers7: number;
 	activeUsers7: number;
 	usageRate: number;
-	stoolAnalyzes7: number;
-	stoolUsers7: number;
 	apps: ToolsAppMetrics[];
 	daily14: { date: string; hubViews: number; opens: number }[];
 }
@@ -231,18 +227,6 @@ export interface RecentRecord {
 	note: string | null;
 }
 
-export interface AiAnalysisRecord {
-	id: string;
-	startTime: string;
-	analysis: {
-		riskLevel?: string;
-		summary?: string;
-		observedFeatures?: { color?: string; consistency?: string; visibleFindings?: string[] };
-		guidance?: string[];
-		concerns?: string[];
-	};
-}
-
 export interface BabyDetail {
 	baby: {
 		id: string;
@@ -263,7 +247,6 @@ export interface BabyDetail {
 	recordTypes: RecordTypeDistribution[];
 	familyMembers: FamilyMemberInfo[];
 	recentRecords: RecentRecord[];
-	aiAnalyses: AiAnalysisRecord[];
 }
 
 // 宝宝详情 · 照片（按 ID 排障查看，服务端落审计日志）
@@ -375,4 +358,86 @@ export interface OpsHttpsStatus {
 		expiresAt: string | null;
 		daysLeft: number | null;
 	};
+}
+
+// 成长里程碑分析
+export interface MilestoneDailyPoint {
+	date: string;
+	count: number;
+	users: number;
+}
+
+export interface MilestoneCategoryStat {
+	key: string;
+	count: number;
+	users: number;
+}
+
+export interface MilestoneTopItem {
+	code: string;
+	title: string;
+	count: number;
+	users: number;
+	photoCount: number;
+}
+
+export interface MilestoneFunnel {
+	views7: number;
+	viewUsers7: number;
+	posterShares7: number;
+	posterUsers7: number;
+	deletes7: number;
+	checkIns7: number;
+	checkInUsers7: number;
+	conversionRate7: number;
+}
+
+export interface MilestoneMetrics {
+	total: number;
+	users: number;
+	babies: number;
+	today: number;
+	weekNew: number;
+	monthNew: number;
+	customCount: number;
+	photoCount: number;
+	deletedActorCount: number;
+	users7: number;
+	users30: number;
+	totalUsers: number;
+	totalBabies: number;
+	userCoverageRate: number;
+	babyCoverageRate: number;
+	avgPerBaby: number;
+	customRate: number;
+	photoRate: number;
+	daily: MilestoneDailyPoint[];
+	categories: MilestoneCategoryStat[];
+	top: MilestoneTopItem[];
+	funnel: MilestoneFunnel;
+}
+
+export interface MilestoneUsageBaby {
+	id: string;
+	name: string;
+	count: number;
+}
+
+export interface MilestoneUsageUser {
+	userId: string | null;
+	nickname: string | null;
+	openId: string | null;
+	count: number;
+	customCount: number;
+	babyCount: number;
+	firstAt: string;
+	lastAt: string;
+	babies: MilestoneUsageBaby[];
+}
+
+export interface MilestoneUsageResult {
+	list: MilestoneUsageUser[];
+	total: number;
+	page: number;
+	pageSize: number;
 }

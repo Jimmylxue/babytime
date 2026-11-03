@@ -277,14 +277,34 @@ export interface PhotoTimelinePage {
 	hasMore: boolean
 }
 
+// 瞬间（朋友圈式帖子）：一条 = 文案 + 最多 9 张照片。
+// 改造前上传的单张照片没有 moments 行，服务端会包装成 kind='photo' 的单图瞬间。
+export interface MomentPhotoItem {
+	id: string
+	url: string
+	thumbnail?: string | null
+	photoDate: string
+}
+
+export interface MomentFeedItem {
+	id: string
+	kind: 'moment' | 'photo'
+	content: string | null
+	photoDate: string
+	createdAt: string
+	photos: MomentPhotoItem[]
+}
+
+export interface MomentFeedPage {
+	baby: { id: string; name: string; avatar?: string | null }
+	items: MomentFeedItem[]
+	total: number
+	page: number
+	pageSize: number
+	hasMore: boolean
+}
+
 export const photoApi = {
-	create: (data: {
-		babyId: string
-		url: string
-		thumbnail?: string
-		photoDate: string
-		note?: string
-	}) => request<any>({ url: '/photo', method: 'POST', data }),
 	getByBaby: (babyId: string, page?: number, pageSize?: number) =>
 		request<any>({
 			url: `/photo/baby/${babyId}?page=${page || 1}&pageSize=${pageSize || 20}`,
@@ -293,10 +313,20 @@ export const photoApi = {
 		request<PhotoTimelinePage>({
 			url: `/photo/timeline/${babyId}?page=${page}&pageSize=${pageSize}`,
 		}),
+	getMoments: (babyId: string, page = 1, pageSize = 20) =>
+		request<MomentFeedPage>({
+			url: `/photo/moments/${babyId}?page=${page}&pageSize=${pageSize}`,
+		}),
+	createMoment: (data: {
+		babyId: string
+		content?: string
+		photoDate: string
+		photos: { url: string; thumbnail?: string }[]
+	}) => request<any>({ url: '/photo/moment', method: 'POST', data }),
+	deleteMoment: (id: string) =>
+		request<any>({ url: `/photo/moment/${id}`, method: 'DELETE' }),
 	delete: (id: string) =>
 		request<any>({ url: `/photo/${id}`, method: 'DELETE' }),
-	deleteBatch: (ids: string[]) =>
-		request<any>({ url: '/photo/batch-delete', method: 'POST', data: { ids } }),
 }
 
 // 便便图片观察：密钥仅在服务端使用，客户端只提交已上传的图片 URL。

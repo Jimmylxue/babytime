@@ -8,6 +8,7 @@ import {
 	NotificationOutlined,
 	BellOutlined,
 	SafetyCertificateOutlined,
+	TrophyOutlined,
 	LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -20,6 +21,7 @@ const MENU_ITEMS = [
 	{ key: '/babies', icon: <SmileOutlined />, label: '宝宝列表' },
 	{ key: '/users', icon: <TeamOutlined />, label: '用户列表' },
 	{ key: '/analytics', icon: <BarChartOutlined />, label: '数据分析' },
+	{ key: '/milestones', icon: <TrophyOutlined />, label: '成长里程碑' },
 	{ key: '/mini-apps', icon: <AppstoreOutlined />, label: '小应用' },
 	{ key: '/announcements', icon: <NotificationOutlined />, label: '公告管理' },
 	{ key: '/notifications', icon: <BellOutlined />, label: '订阅消息' },

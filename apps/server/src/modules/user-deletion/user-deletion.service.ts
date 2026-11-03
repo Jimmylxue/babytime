@@ -89,6 +89,8 @@ export class UserDeletionService {
       // 2) 名下的流水与素材（baby_id 外键是 NO ACTION，必须先于 babies 删）
       await manager.query(`DELETE FROM records WHERE baby_id IN ${OWNED_BABIES}`, [userId]);
       await manager.query(`DELETE FROM photos WHERE baby_id IN ${OWNED_BABIES}`, [userId]);
+      // 顺序与删除宝宝一致：照片删完再删瞬间
+      await manager.query(`DELETE FROM moments WHERE baby_id IN ${OWNED_BABIES}`, [userId]);
       await manager.query(
         `DELETE FROM baby_milestones WHERE baby_id IN ${OWNED_BABIES}`,
         [userId],

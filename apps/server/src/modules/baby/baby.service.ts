@@ -6,6 +6,7 @@ import { FamilyMember, InviteStatus } from '../family/entities/family-member.ent
 import { FamilyInvite } from '../family/entities/family-invite.entity';
 import { Record } from '../record/entities/record.entity';
 import { Photo } from '../photo/entities/photo.entity';
+import { Moment } from '../photo/entities/moment.entity';
 import { Milestone } from '../milestone/entities/milestone.entity';
 import { VaccinePlan } from '../notification/entities/vaccine-plan.entity';
 import { CreateBabyDto, UpdateBabyDto } from './dto/create-baby.dto';
@@ -151,6 +152,8 @@ export class BabyService {
     await this.dataSource.transaction(async (manager) => {
       await manager.delete(Record, { babyId: id });
       await manager.delete(Photo, { babyId: id });
+      // moments 也要在 babies 之前删；顺序与注销账号链路保持一致
+      await manager.delete(Moment, { babyId: id });
       await manager.delete(Milestone, { babyId: id });
       await manager.delete(VaccinePlan, { babyId: id });
       await manager.delete(FamilyInvite, { babyId: id });

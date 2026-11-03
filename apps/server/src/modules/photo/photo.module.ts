@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Photo } from './entities/photo.entity';
+import { Moment } from './entities/moment.entity';
 import { PhotoService } from './photo.service';
 import { PhotoController } from './photo.controller';
 import { BabyModule } from '../baby/baby.module';
@@ -9,7 +10,7 @@ import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Photo]),
+    TypeOrmModule.forFeature([Photo, Moment]),
     BabyModule,
     ContentSecurityModule,
     UploadModule,

@@ -19,6 +19,17 @@ export const GENDER_LABELS: Record<string, string> = {
 	female: '女宝宝',
 };
 
+// 与 packages/shared/src/milestoneCatalog.ts 的 MilestoneCategory 保持一致
+export const MILESTONE_CATEGORY_LABELS: Record<string, string> = {
+	motor: '大运动',
+	fine: '精细动作',
+	language: '语言',
+	cognitive: '认知',
+	social: '社交情感',
+	daily: '生活能力',
+	custom: '自定义',
+};
+
 // 与 apps/server 的 acquire 白名单保持一致：
 // user.service 的 normalizeAcquisitionSource / notification.service 的 POSTER_QR_SCENES
 export const ACQUISITION_SOURCE_LABELS: Record<string, string> = {

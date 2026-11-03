@@ -15,7 +15,7 @@ interface MomentsSectionProps {
 	ready: boolean
 	onPreview: (photo: RecentPhoto) => void
 	onOpenAlbum: () => void
-	onTakePhoto: () => void
+	onCreate: () => void
 }
 
 // 最近的瞬间：横排最新 9 张照片 + 相册入口
@@ -25,7 +25,7 @@ export default function MomentsSection({
 	ready,
 	onPreview,
 	onOpenAlbum,
-	onTakePhoto,
+	onCreate,
 }: MomentsSectionProps) {
 	return (
 		<View className="moments-section">
@@ -79,10 +79,10 @@ export default function MomentsSection({
 					<View className="moments-photo sk-photo" />
 				</View>
 			) : (
-				<View className="moments-empty" onClick={onTakePhoto}>
+				<View className="moments-empty" onClick={onCreate}>
 					<Text className="moments-empty-icon">📷</Text>
 					<Text className="moments-empty-text">
-						给 {babyName} 拍张照片吧，它会出现在这里
+						发布 {babyName} 的第一个瞬间吧，它会出现在这里
 					</Text>
 				</View>
 			)}

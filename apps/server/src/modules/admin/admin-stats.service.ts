@@ -57,8 +57,6 @@ export class AdminStatsService {
         (SELECT COUNT(*) FROM records WHERE ${isToday()}) AS todayRecords,
         (SELECT COUNT(DISTINCT ${ACTIVE_USER_ID}) ${ACTIVE_USER_FROM} WHERE ${isToday('r.created_at')}) AS todayActiveUsers,
         (SELECT COUNT(DISTINCT ${ACTIVE_USER_ID}) ${ACTIVE_USER_FROM} WHERE r.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS weekActiveUsers,
-        (SELECT COUNT(*) FROM records WHERE diaper_analysis IS NOT NULL) AS aiAnalysisTotal,
-        (SELECT COUNT(*) FROM records WHERE diaper_analysis IS NOT NULL AND ${isToday()}) AS aiAnalysisToday,
         (SELECT COUNT(*) FROM photos) AS totalPhotos,
         (SELECT COUNT(*) FROM family_members WHERE status = 'accepted') AS familyMembers,
         (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS weekNewUsers,
@@ -78,8 +76,6 @@ export class AdminStatsService {
       todayRecords: Number(row.todayRecords),
       todayActiveUsers: Number(row.todayActiveUsers),
       weekActiveUsers: Number(row.weekActiveUsers),
-      aiAnalysisTotal: Number(row.aiAnalysisTotal),
-      aiAnalysisToday: Number(row.aiAnalysisToday),
       totalPhotos: Number(row.totalPhotos),
       familyMembers: Number(row.familyMembers),
       // 订阅过疫苗提醒的人数（累计授权 ≥1 次的去重用户）与当前仍有可发送额度的用户数
@@ -513,8 +509,6 @@ export class AdminStatsService {
         (SELECT COUNT(*) FROM user_events WHERE name = 'tools_hub_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS hubViews7,
         (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'tools_hub_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS hubUsers7,
         (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'tool_view' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS toolUsers7,
-        (SELECT COUNT(*) FROM user_events WHERE name = 'stool_analyze_click' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS stoolAnalyzes7,
-        (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'stool_analyze_click' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS stoolUsers7,
         (SELECT COUNT(DISTINCT ${ACTIVE_USER_ID}) ${ACTIVE_USER_FROM} WHERE r.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)) AS activeUsers7
       `,
     );
@@ -552,7 +546,6 @@ export class AdminStatsService {
     ]);
 
     const TOOL_LABELS: Record<string, string> = {
-      stool_ai: 'AI 识别便便',
       age_calc: '月龄计算器',
       vaccine_table: '疫苗接种时间表',
       milk_calc: '奶量估算器',
@@ -574,8 +567,10 @@ export class AdminStatsService {
       userRows30.map((row): [string, number] => [row.app, Number(row.users)]),
     );
 
-    // 点击与到达取并集，排序按近 7 天打开次数降序
-    const appKeys = Array.from(new Set([...clickMap.keys(), ...openMap7.keys()]));
+    // 点击与到达取并集，排序按近 7 天打开次数降序；已下线的便便 AI 不再出现在明细里
+    const appKeys = Array.from(new Set([...clickMap.keys(), ...openMap7.keys()])).filter(
+      (key) => key !== 'stool_ai',
+    );
     const apps = appKeys
       .map((key) => {
         const click = clickMap.get(key) ?? { count: 0, users: 0 };
@@ -622,10 +617,253 @@ export class AdminStatsService {
       activeUsers7,
       // 使用率＝近 7 天打开过任一小应用的用户 / 近 7 天活跃用户（活跃口径同数据看板：产生过记录的用户）
       usageRate: activeUsers7 > 0 ? Math.round((toolUsers7 / activeUsers7) * 1000) / 10 : 0,
-      stoolAnalyzes7: Number(summary.stoolAnalyzes7),
-      stoolUsers7: Number(summary.stoolUsers7),
       apps,
       daily14,
+    };
+  }
+
+  // 成长里程碑：有没有人在用、用了多少、谁在用。
+  // 打卡事实取 baby_milestones；页面访问 / 海报分享 / 删除行为取 user_events。
+  // 打卡用户按 actor_user_id 归属（家人代记算实际打卡人），注销账号后作者会被置空。
+  getMilestoneMetrics(days: number) {
+    const safeDays = Math.min(Math.max(Math.floor(days) || 30, 7), 90);
+    return this.cached(`milestones:${safeDays}`, () => this.loadMilestoneMetrics(safeDays));
+  }
+
+  private async loadMilestoneMetrics(safeDays: number) {
+    const pct = (part: number, whole: number) =>
+      whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0;
+    const round1 = (value: number) => Math.round(value * 10) / 10;
+    const weekStart = 'DATE_SUB(CURDATE(), INTERVAL 6 DAY)';
+    const monthStart = 'DATE_SUB(CURDATE(), INTERVAL 29 DAY)';
+
+    const [row] = await this.dataSource.query(
+      `SELECT
+        COUNT(*) AS total,
+        COUNT(DISTINCT actor_user_id) AS users,
+        COUNT(DISTINCT baby_id) AS babies,
+        COALESCE(SUM(${isToday()}), 0) AS today,
+        COALESCE(SUM(created_at >= ${weekStart}), 0) AS weekNew,
+        COALESCE(SUM(created_at >= ${monthStart}), 0) AS monthNew,
+        COALESCE(SUM(is_custom = 1), 0) AS customCount,
+        COALESCE(SUM(photo_url IS NOT NULL), 0) AS photoCount,
+        COALESCE(SUM(actor_user_id IS NULL), 0) AS deletedActorCount,
+        COUNT(DISTINCT CASE WHEN created_at >= ${weekStart} THEN actor_user_id END) AS users7,
+        COUNT(DISTINCT CASE WHEN created_at >= ${monthStart} THEN actor_user_id END) AS users30,
+        (SELECT COUNT(*) FROM users) AS totalUsers,
+        (SELECT COUNT(*) FROM babies) AS totalBabies
+      FROM baby_milestones`,
+    );
+
+    const [trendRows, categoryRows, topRows, actions] = await Promise.all([
+      this.dataSource.query(
+        `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
+                COUNT(*) AS count,
+                COUNT(DISTINCT actor_user_id) AS users
+         FROM baby_milestones
+         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+         GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')`,
+        [safeDays - 1],
+      ),
+      this.dataSource.query(
+        `SELECT category, COUNT(*) AS count, COUNT(DISTINCT actor_user_id) AS users
+         FROM baby_milestones
+         GROUP BY category
+         ORDER BY count DESC`,
+      ),
+      this.dataSource.query(
+        `SELECT COALESCE(code, 'custom') AS code,
+                MAX(CASE WHEN code IS NULL THEN '自定义里程碑' ELSE title END) AS title,
+                COUNT(*) AS count,
+                COUNT(DISTINCT actor_user_id) AS users,
+                COALESCE(SUM(photo_url IS NOT NULL), 0) AS photoCount
+         FROM baby_milestones
+         GROUP BY COALESCE(code, 'custom')
+         ORDER BY count DESC
+         LIMIT 12`,
+      ),
+      this.loadMilestoneActions(),
+    ]);
+
+    const trendMap = new Map<string, { count: number; users: number }>(
+      trendRows.map((item): [string, { count: number; users: number }] => [
+        item.date,
+        { count: Number(item.count), users: Number(item.users) },
+      ]),
+    );
+    const today = new Date();
+    const daily: { date: string; count: number; users: number }[] = [];
+    for (let i = safeDays - 1; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      const key = this.formatDate(d);
+      const hit = trendMap.get(key) || { count: 0, users: 0 };
+      daily.push({ date: key, ...hit });
+    }
+
+    const total = Number(row.total);
+    const users = Number(row.users);
+    const babies = Number(row.babies);
+    const weekNew = Number(row.weekNew);
+    const monthNew = Number(row.monthNew);
+    const customCount = Number(row.customCount);
+    const photoCount = Number(row.photoCount);
+    const users7 = Number(row.users7);
+    const users30 = Number(row.users30);
+    const totalUsers = Number(row.totalUsers);
+    const totalBabies = Number(row.totalBabies);
+
+    return {
+      total,
+      users,
+      babies,
+      today: Number(row.today),
+      weekNew,
+      monthNew,
+      customCount,
+      photoCount,
+      deletedActorCount: Number(row.deletedActorCount),
+      users7,
+      users30,
+      totalUsers,
+      totalBabies,
+      userCoverageRate: pct(users, totalUsers),
+      babyCoverageRate: pct(babies, totalBabies),
+      avgPerBaby: babies > 0 ? round1(total / babies) : 0,
+      customRate: pct(customCount, total),
+      photoRate: pct(photoCount, total),
+      daily,
+      categories: categoryRows.map((item) => ({
+        key: item.category,
+        count: Number(item.count),
+        users: Number(item.users),
+      })),
+      top: topRows.map((item) => ({
+        code: item.code,
+        title: item.title,
+        count: Number(item.count),
+        users: Number(item.users),
+        photoCount: Number(item.photoCount),
+      })),
+      funnel: {
+        ...actions,
+        checkIns7: weekNew,
+        checkInUsers7: users7,
+        conversionRate7: pct(users7, actions.viewUsers7),
+      },
+    };
+  }
+
+  // 里程碑页的行为漏斗（近 7 天）：页面访问 → 打卡 → 海报分享 / 删除
+  private async loadMilestoneActions() {
+    const weekStart = 'DATE_SUB(CURDATE(), INTERVAL 6 DAY)';
+    const [row] = await this.dataSource.query(
+      `SELECT
+        (SELECT COUNT(*) FROM user_events WHERE name = 'milestone_view' AND created_at >= ${weekStart}) AS views7,
+        (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'milestone_view' AND created_at >= ${weekStart}) AS viewUsers7,
+        (SELECT COUNT(*) FROM user_events WHERE name = 'milestone_poster_share' AND created_at >= ${weekStart}) AS posterShares7,
+        (SELECT COUNT(DISTINCT user_id) FROM user_events WHERE name = 'milestone_poster_share' AND created_at >= ${weekStart}) AS posterUsers7,
+        (SELECT COUNT(*) FROM user_events WHERE name = 'milestone_deleted' AND created_at >= ${weekStart}) AS deletes7`,
+    );
+    return {
+      views7: Number(row.views7),
+      viewUsers7: Number(row.viewUsers7),
+      posterShares7: Number(row.posterShares7),
+      posterUsers7: Number(row.posterUsers7),
+      deletes7: Number(row.deletes7),
+    };
+  }
+
+  // 使用用户明细：按实际打卡人聚合，附带其打过卡的宝宝（可跳宝宝详情）
+  async getMilestoneUsage(page: number, pageSize: number, keyword?: string, sort?: string) {
+    const safePage = Math.max(Math.floor(page) || 1, 1);
+    const safePageSize = Math.min(Math.max(Math.floor(pageSize) || 20, 1), 100);
+    const offset = (safePage - 1) * safePageSize;
+    const kw = keyword?.trim();
+    const whereClause = kw ? 'WHERE (u.nickname LIKE ? OR b.name LIKE ?)' : '';
+    const params: any[] = kw ? [`%${kw}%`, `%${kw}%`] : [];
+    const orderClause =
+      sort === 'count' ? 'milestoneCount DESC, lastAt DESC' : 'lastAt DESC, milestoneCount DESC';
+
+    const [countRow] = await this.dataSource.query(
+      `SELECT COUNT(DISTINCT COALESCE(m.actor_user_id, '__deleted__')) AS total
+       FROM baby_milestones m
+       INNER JOIN babies b ON b.id = m.baby_id
+       LEFT JOIN users u ON u.id = m.actor_user_id
+       ${whereClause}`,
+      params,
+    );
+
+    const rows = await this.dataSource.query(
+      `SELECT
+        MAX(m.actor_user_id) AS userId,
+        MAX(u.nickname) AS nickname,
+        MAX(u.open_id) AS openId,
+        COUNT(*) AS milestoneCount,
+        COALESCE(SUM(m.is_custom = 1), 0) AS customCount,
+        COUNT(DISTINCT m.baby_id) AS babyCount,
+        MIN(m.created_at) AS firstAt,
+        MAX(m.created_at) AS lastAt
+       FROM baby_milestones m
+       INNER JOIN babies b ON b.id = m.baby_id
+       LEFT JOIN users u ON u.id = m.actor_user_id
+       ${whereClause}
+       GROUP BY COALESCE(m.actor_user_id, '__deleted__')
+       ORDER BY ${orderClause}
+       LIMIT ? OFFSET ?`,
+      [...params, safePageSize, offset],
+    );
+
+    const userIds = rows
+      .map((row) => row.userId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    const hasDeleted = rows.some((row) => !row.userId);
+    const babiesByUser = new Map<string, { id: string; name: string; count: number }[]>();
+
+    if (rows.length > 0) {
+      const scope: string[] = [];
+      const scopeParams: any[] = [];
+      if (userIds.length > 0) {
+        scope.push(`m.actor_user_id IN (${userIds.map(() => '?').join(',')})`);
+        scopeParams.push(...userIds);
+      }
+      if (hasDeleted) scope.push('m.actor_user_id IS NULL');
+
+      const babyWhere = `${whereClause ? `${whereClause} AND ` : 'WHERE '}(${scope.join(' OR ')})`;
+      const babyRows = await this.dataSource.query(
+        `SELECT COALESCE(m.actor_user_id, '__deleted__') AS userKey,
+                b.id AS babyId,
+                b.name AS babyName,
+                COUNT(*) AS count
+         FROM baby_milestones m
+         INNER JOIN babies b ON b.id = m.baby_id
+         LEFT JOIN users u ON u.id = m.actor_user_id
+         ${babyWhere}
+         GROUP BY COALESCE(m.actor_user_id, '__deleted__'), b.id, b.name
+         ORDER BY count DESC`,
+        [...params, ...scopeParams],
+      );
+      babyRows.forEach((item) => {
+        const list = babiesByUser.get(item.userKey) ?? [];
+        list.push({ id: item.babyId, name: item.babyName, count: Number(item.count) });
+        babiesByUser.set(item.userKey, list);
+      });
+    }
+
+    return {
+      list: rows.map((row) => ({
+        userId: row.userId || null,
+        nickname: row.nickname || null,
+        openId: row.openId ? `${String(row.openId).slice(0, 6)}****` : null,
+        count: Number(row.milestoneCount),
+        customCount: Number(row.customCount),
+        babyCount: Number(row.babyCount),
+        firstAt: row.firstAt,
+        lastAt: row.lastAt,
+        babies: babiesByUser.get(row.userId || '__deleted__') ?? [],
+      })),
+      total: Number(countRow.total),
+      page: safePage,
+      pageSize: safePageSize,
     };
   }
 }

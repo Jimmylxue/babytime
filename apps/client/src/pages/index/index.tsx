@@ -9,7 +9,6 @@ import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
 import { calculateAge, formatHM } from '../../utils/date'
-import { takePhotoAndSave } from '../../utils/upload'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi, photoApi, trackEvent } from '../../utils/request'
 import { MOCK_BABY, MOCK_STATS } from '../../utils/mock'
@@ -283,11 +282,8 @@ export default function Index() {
 		}
 		if (type === 'photo') {
 			void trackEvent('photo_add_click', { from: 'home' })
-			takePhotoAndSave(currentBaby.id, {
-				goAlbum: true,
-				babyName: currentBaby.name,
-			}).then(saved => {
-				if (saved > 0) fetchRecentPhotos(currentBaby.id)
+			Taro.navigateTo({
+				url: `/pages/photo-edit/index?babyId=${currentBaby.id}`,
 			})
 			return
 		}
@@ -493,7 +489,7 @@ export default function Index() {
 							url: `/pages/photo/index?babyId=${displayBaby.id}`,
 						})
 					}
-					onTakePhoto={() => navigateToRecord('photo')}
+					onCreate={() => navigateToRecord('photo')}
 				/>
 			)}
 

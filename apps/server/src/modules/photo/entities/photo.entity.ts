@@ -14,6 +14,8 @@ import { Baby } from '../../baby/entities/baby.entity';
 @Index('idx_photos_baby_photo_date', ['babyId', 'photoDate'])
 // 后台相册指标的「近 7/30 天上传量」只按 created_at 取范围
 @Index('idx_photos_created_at', ['createdAt'])
+// 信息流按 moment_id 批量取一条瞬间的全部照片
+@Index('idx_photos_moment_id', ['momentId'])
 export class Photo {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -32,6 +34,18 @@ export class Photo {
 
   @Column({ name: 'note', type: 'text', nullable: true, comment: '备注' })
   note: string;
+
+  @Column({
+    name: 'moment_id',
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+    comment: '所属瞬间ID，为空表示改造前的单张照片',
+  })
+  momentId: string | null;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0, comment: '瞬间内的展示顺序' })
+  sortOrder: number;
 
   @ManyToOne(() => Baby)
   @JoinColumn({ name: 'baby_id' })

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { PhotoService } from './photo.service';
 import { CreatePhotoDto } from './dto/create-photo.dto';
+import { CreateMomentDto } from './dto/create-moment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @Controller('photo')
@@ -24,6 +25,33 @@ export class PhotoController {
   async create(@Request() req, @Body() createPhotoDto: CreatePhotoDto) {
     const photo = await this.photoService.create(req.user.id, createPhotoDto);
     return photo;
+  }
+
+  @Post('moment')
+  @HttpCode(200)
+  async createMoment(@Request() req, @Body() createMomentDto: CreateMomentDto) {
+    return this.photoService.createMoment(req.user.id, createMomentDto);
+  }
+
+  @Get('moments/:babyId')
+  async getFeed(
+    @Param('babyId') babyId: string,
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+    @Request() req,
+  ) {
+    return this.photoService.getFeed(
+      req.user.id,
+      babyId,
+      page ? Math.max(1, parseInt(page)) : 1,
+      pageSize ? Math.min(50, Math.max(1, parseInt(pageSize))) : 20,
+    );
+  }
+
+  @Delete('moment/:id')
+  @HttpCode(200)
+  async removeMoment(@Param('id') id: string, @Request() req) {
+    return this.photoService.removeMoment(id, req.user.id);
   }
 
   @Get('baby/:babyId')

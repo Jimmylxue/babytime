@@ -16,6 +16,7 @@ export default defineAppConfig({
 		'pages/milestones/index',
 		'pages/record-detail/index',
 		'pages/photo/index',
+		'pages/photo-edit/index',
 		'pages/baby-edit/index',
 		'pages/family/index',
 		'pages/family-join/index',
