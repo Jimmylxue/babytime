@@ -1,0 +1,278 @@
+.cd-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FBE4E9 0%, #FCEFEF 220px, #FDF7F5 100%);
+  padding: 24px 26px calc(200px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.cd-state {
+  padding: 180px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cd-state-text {
+  font-size: 28px;
+  color: #C4AEAE;
+}
+
+.cd-state-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #6B5555;
+  margin-bottom: 12px;
+}
+
+.cd-state-desc {
+  font-size: 24px;
+  color: #C4AEAE;
+}
+
+.cd-comments-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 26px;
+  box-shadow: 0 10px 26px rgba(215, 143, 162, 0.08);
+}
+
+.cd-comments-title {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #4A3B3B;
+  margin-bottom: 8px;
+}
+
+.cd-comments-empty {
+  display: block;
+  padding: 30px 0 16px;
+  text-align: center;
+  font-size: 24px;
+  color: #C4AEAE;
+}
+
+.cd-comment {
+  display: flex;
+  padding: 22px 0;
+  border-top: 1px solid #F7EAEE;
+
+  &.first {
+    border-top: none;
+  }
+}
+
+.cd-comment-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #FBF3F1;
+  flex-shrink: 0;
+}
+
+.cd-comment-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FFD5E0 0%, #F9AFC2 100%);
+}
+
+.cd-comment-avatar-text {
+  font-size: 26px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.cd-comment-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 16px;
+}
+
+.cd-comment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cd-comment-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: #5A4444;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cd-comment-time {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #C4AEAE;
+}
+
+.cd-comment-content {
+  display: block;
+  margin-top: 8px;
+  font-size: 26px;
+  line-height: 1.6;
+  color: #453434;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cd-comment-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 20px;
+}
+
+.cd-comment-reply,
+.cd-comment-delete,
+.cd-comment-report {
+  font-size: 22px;
+  color: #C4AEAE;
+}
+
+.cd-comment-reply {
+  color: #F56A93;
+}
+
+.cd-replies {
+  margin-top: 10px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: #FBF7F5;
+}
+
+.cd-reply {
+  display: flex;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.cd-reply + .cd-reply {
+  border-top: 1px solid #F3EAE7;
+}
+
+.cd-reply-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #FBF3F1;
+  flex-shrink: 0;
+}
+
+.cd-reply-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cd-reply-content {
+  display: block;
+  font-size: 24px;
+  line-height: 1.6;
+  color: #5A4444;
+  word-break: break-word;
+}
+
+.cd-reply-name {
+  font-weight: 700;
+  color: #5A4444;
+}
+
+.cd-reply-to {
+  color: #A79292;
+}
+
+.cd-reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 3px;
+}
+
+.cd-reply-action {
+  font-size: 21px;
+  color: #C4AEAE;
+}
+
+.cd-reply-action.reply {
+  color: #F56A93;
+}
+
+.cd-comment-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 26px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  background: rgba(255, 250, 249, 0.98);
+  box-shadow: 0 -6px 20px rgba(130, 110, 90, 0.08);
+}
+
+.cd-reply-tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.cd-reply-tip-text {
+  font-size: 22px;
+  color: #A79292;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cd-reply-tip-cancel {
+  flex-shrink: 0;
+  margin-left: 16px;
+  font-size: 22px;
+  color: #F56A93;
+}
+
+.cd-input-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cd-comment-input {
+  flex: 1;
+  height: 70px;
+  padding: 0 24px;
+  border-radius: 35px;
+  background: #F8F0F2;
+  font-size: 26px;
+  color: #4A3B3B;
+  box-sizing: border-box;
+}
+
+.cd-send {
+  flex-shrink: 0;
+  height: 70px;
+  padding: 0 28px;
+  border-radius: 35px;
+  background: linear-gradient(135deg, #F996AC 0%, #F87696 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.disabled {
+    opacity: 0.4;
+  }
+}
+
+.cd-send-text {
+  font-size: 26px;
+  font-weight: 700;
+  color: #FFFFFF;
+}

@@ -8,7 +8,9 @@ import Babies from './pages/Babies';
 import BabyDetailPage from './pages/BabyDetail';
 import Analytics from './pages/Analytics';
 import Milestones from './pages/Milestones';
+import Community from './pages/Community';
 import MiniApps from './pages/MiniApps';
+import Settings from './pages/Settings';
 import Announcements from './pages/Announcements';
 import Subscriptions from './pages/Subscriptions';
 import Ops from './pages/Ops';
@@ -38,7 +40,9 @@ export default function App() {
 				<Route path="users" element={<Users />} />
 				<Route path="analytics" element={<Analytics />} />
 				<Route path="milestones" element={<Milestones />} />
+				<Route path="community" element={<Community />} />
 				<Route path="mini-apps" element={<MiniApps />} />
+				<Route path="settings" element={<Settings />} />
 				<Route path="announcements" element={<Announcements />} />
 				<Route path="notifications" element={<Subscriptions />} />
 				<Route path="ops" element={<Ops />} />

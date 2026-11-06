@@ -1,17 +1,20 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { useBabyStore } from '../../stores/babyStore'
 import { calculateAge } from '../../utils/date'
 import { getMonthlyTips } from '../../utils/monthlyTips'
 import { trackEvent } from '../../utils/request'
+import { getSystemConfig } from '../../utils/systemConfig'
 import TabBar from '../../components/TabBar'
 import TipsSheet from '../index/components/TipsSheet'
+import communityIcon from '../../assets/icons/community-chat-heart.svg'
 import './index.scss'
 
 interface ToolItem {
 	key: string
 	icon: string
+	iconSrc?: string
 	title: string
 	tint: string
 	badge?: string
@@ -56,16 +59,30 @@ const monthlyTipsTool: ToolItem = {
 	tint: 'sand',
 }
 
+const communityTool: ToolItem = {
+	key: 'community',
+	icon: '',
+	iconSrc: communityIcon,
+	title: '育娃圈',
+	tint: 'rose',
+	path: '/pages/community/index',
+}
+
 export default function ToolsPage() {
 	const { currentBaby } = useBabyStore()
 	const [showTips, setShowTips] = useState(false)
+	const [communityEnabled, setCommunityEnabled] = useState(false)
 	const monthlyTips = currentBaby
 		? getMonthlyTips(calculateAge(currentBaby.birthday).months)
 		: null
-	const toolItems = monthlyTips ? [monthlyTipsTool, ...tools] : tools
+	const contextTools = monthlyTips ? [monthlyTipsTool, ...tools] : tools
+	const toolItems = communityEnabled
+		? [communityTool, ...contextTools]
+		: contextTools
 
 	useDidShow(() => {
 		trackEvent('tools_hub_view')
+		getSystemConfig().then(config => setCommunityEnabled(config.communityEnabled))
 	})
 
 	const handleTap = (tool: ToolItem) => {
@@ -91,7 +108,15 @@ export default function ToolsPage() {
 					>
 						<View className="tool-icon-wrap">
 							<View className={`tool-icon tint-${tool.tint}`}>
-								<Text className="tool-icon-emoji">{tool.icon}</Text>
+								{tool.iconSrc ? (
+									<Image
+										className="tool-icon-image"
+										src={tool.iconSrc}
+										mode="aspectFit"
+									/>
+								) : (
+									<Text className="tool-icon-emoji">{tool.icon}</Text>
+								)}
 							</View>
 							{tool.badge && (
 								<View className="tool-badge">

@@ -211,6 +211,27 @@
   color: #C4AEAE;
 }
 
+.moment-public-tag {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #FFF0F4;
+  font-size: 20px;
+  color: #E56A8B;
+}
+
+.moment-visibility-action {
+  flex-shrink: 0;
+  padding: 8px 6px 8px 18px;
+}
+
+.moment-visibility-text {
+  font-size: 24px;
+  color: #F56A93;
+}
+
 .moment-delete {
   flex-shrink: 0;
   padding: 8px 6px 8px 18px;

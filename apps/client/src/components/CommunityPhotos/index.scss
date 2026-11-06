@@ -1,0 +1,42 @@
+.community-photos {
+  margin-top: 20px;
+  display: grid;
+  gap: 10px;
+
+  &.photos-1 {
+    width: 64%;
+    grid-template-columns: 1fr;
+  }
+
+  &.photos-2,
+  &.photos-4 {
+    width: 76%;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  &.photos-3,
+  &.photos-5,
+  &.photos-6,
+  &.photos-7,
+  &.photos-8,
+  &.photos-9 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.community-photo-wrap {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #FBF3F1;
+}
+
+.community-photo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}

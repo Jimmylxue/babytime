@@ -5,10 +5,12 @@ import {
 	TeamOutlined,
 	BarChartOutlined,
 	AppstoreOutlined,
+	GlobalOutlined,
 	NotificationOutlined,
 	BellOutlined,
 	SafetyCertificateOutlined,
 	TrophyOutlined,
+	SettingOutlined,
 	LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -22,7 +24,9 @@ const MENU_ITEMS = [
 	{ key: '/users', icon: <TeamOutlined />, label: '用户列表' },
 	{ key: '/analytics', icon: <BarChartOutlined />, label: '数据分析' },
 	{ key: '/milestones', icon: <TrophyOutlined />, label: '成长里程碑' },
+	{ key: '/community', icon: <GlobalOutlined />, label: '育娃圈' },
 	{ key: '/mini-apps', icon: <AppstoreOutlined />, label: '小应用' },
+	{ key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
 	{ key: '/announcements', icon: <NotificationOutlined />, label: '公告管理' },
 	{ key: '/notifications', icon: <BellOutlined />, label: '订阅消息' },
 	{ key: '/ops', icon: <SafetyCertificateOutlined />, label: '运维看板' },

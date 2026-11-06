@@ -3,6 +3,7 @@ import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
 import { useRef, useState } from 'react';
 import { photoApi, trackEvent, MomentFeedItem } from '../../utils/request';
 import { thumbUrl, THUMB_W } from '../../utils/imageThumb';
+import { formatMomentTime } from '../../utils/momentTime';
 import { CDN_ASSETS } from '../../config/assets';
 const albumBaby = CDN_ASSETS.albumBaby;
 import cameraIcon from '../../assets/icons/camera-white.svg';
@@ -11,24 +12,6 @@ import heartIcon from '../../assets/icons/heart-pink.svg';
 import './index.scss';
 
 const PAGE_SIZE = 20;
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-/** 朋友圈式时间：今天 / 昨天 / 本月内 / 更早 */
-const formatMomentTime = (iso: string) => {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const now = new Date();
-  const startOfDay = (d: Date) =>
-    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
-  const hm = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-  if (diffDays === 0) return `今天 ${hm}`;
-  if (diffDays === 1) return `昨天 ${hm}`;
-  const md = `${date.getMonth() + 1}月${date.getDate()}日`;
-  if (date.getFullYear() === now.getFullYear()) return `${md} ${hm}`;
-  return `${date.getFullYear()}年${md}`;
-};
 
 export default function PhotoPage() {
   const router = useRouter();
@@ -145,6 +128,29 @@ export default function PhotoPage() {
     }
   };
 
+  const handleToggleVisibility = async (item: MomentFeedItem) => {
+    if (item.kind !== 'moment' || !item.canToggleVisibility) return;
+    const next = item.visibility === 'public' ? 'family' : 'public';
+    if (next === 'public') {
+      const res = await Taro.showModal({
+        title: '分享到育娃圈？',
+        content: '公开后所有用户可见，可随时设为私密',
+        confirmText: '公开',
+      });
+      if (!res.confirm) return;
+    }
+    try {
+      await photoApi.updateMomentVisibility(item.id, next);
+      Taro.showToast({
+        title: next === 'public' ? '已公开' : '已设为私密',
+        icon: 'success',
+      });
+      fetchFirstPage();
+    } catch (error) {
+      // 错误提示由全局拦截器统一 toast
+    }
+  };
+
   const handleBack = () => {
     const pages = Taro.getCurrentPages();
     if (pages.length > 1) {
@@ -250,7 +256,20 @@ export default function PhotoPage() {
                     <Text className="moment-time">
                       {formatMomentTime(item.createdAt)}
                     </Text>
+                    {item.visibility === 'public' && (
+                      <Text className="moment-public-tag">育娃圈公开</Text>
+                    )}
                   </View>
+                  {item.canToggleVisibility && (
+                    <View
+                      className="moment-visibility-action"
+                      onClick={() => handleToggleVisibility(item)}
+                    >
+                      <Text className="moment-visibility-text">
+                        {item.visibility === 'public' ? '设为私密' : '设为公开'}
+                      </Text>
+                    </View>
+                  )}
                   <View
                     className="moment-delete"
                     onClick={() => handleDelete(item)}

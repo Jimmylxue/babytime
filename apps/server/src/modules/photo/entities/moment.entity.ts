@@ -13,6 +13,8 @@ import { Baby } from '../../baby/entities/baby.entity';
 // photos.moment_id 为空的旧照片不算在内，读信息流时按单图瞬间兜底。
 @Entity('moments')
 @Index('idx_moments_baby_photo_date', ['babyId', 'photoDate'])
+// 育娃圈公开流按可见范围 + 发布时间分页
+@Index('idx_moments_visibility_created', ['visibility', 'createdAt'])
 export class Moment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -28,6 +30,16 @@ export class Moment {
 
   @Column({ name: 'photo_date', type: 'date', comment: '所属日期' })
   photoDate: string;
+
+  // family = 仅家庭成员可见；public = 同时进入育娃圈公开流
+  @Column({
+    name: 'visibility',
+    type: 'enum',
+    enum: ['family', 'public'],
+    default: 'family',
+    comment: '可见范围：family=家庭，public=育娃圈',
+  })
+  visibility: 'family' | 'public';
 
   @ManyToOne(() => Baby)
   @JoinColumn({ name: 'baby_id' })

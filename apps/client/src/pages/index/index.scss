@@ -1494,6 +1494,50 @@
   font-weight: 600;
 }
 
+// 育娃圈入口
+.community-entry {
+  margin-bottom: 40px;
+  padding: 28px 30px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #FFF6F8 0%, #FDE7EE 100%);
+  border: 1px solid rgba(248, 118, 150, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.community-entry-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.community-entry-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #C94F70;
+  letter-spacing: 1px;
+}
+
+.community-entry-desc {
+  margin-top: 8px;
+  font-size: 23px;
+  color: #B08A94;
+}
+
+.community-entry-arrow {
+  flex-shrink: 0;
+  font-size: 40px;
+  line-height: 1;
+  color: #E79AAE;
+}
+
 .moments-scroll {
   width: 100%;
   white-space: nowrap;

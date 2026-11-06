@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -13,6 +14,7 @@ import {
 import { PhotoService } from './photo.service';
 import { CreatePhotoDto } from './dto/create-photo.dto';
 import { CreateMomentDto } from './dto/create-moment.dto';
+import { UpdateMomentVisibilityDto } from './dto/update-moment-visibility.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @Controller('photo')
@@ -52,6 +54,20 @@ export class PhotoController {
   @HttpCode(200)
   async removeMoment(@Param('id') id: string, @Request() req) {
     return this.photoService.removeMoment(id, req.user.id);
+  }
+
+  @Patch('moment/:id/visibility')
+  @HttpCode(200)
+  async updateMomentVisibility(
+    @Param('id') id: string,
+    @Body() dto: UpdateMomentVisibilityDto,
+    @Request() req,
+  ) {
+    return this.photoService.updateMomentVisibility(
+      req.user.id,
+      id,
+      dto.visibility,
+    );
   }
 
   @Get('baby/:babyId')

@@ -196,6 +196,41 @@
   color: #C4AEAE;
 }
 
+// 分享到育娃圈开关
+.publish-public {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #F7EAEE;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.publish-public-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.publish-public-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #4A3B3B;
+}
+
+.publish-public-desc {
+  margin-top: 6px;
+  font-size: 23px;
+  line-height: 1.5;
+  color: #A79292;
+}
+
+.publish-public-switch {
+  flex-shrink: 0;
+}
+
 // 底部发布栏
 .publish-bar {
   position: fixed;

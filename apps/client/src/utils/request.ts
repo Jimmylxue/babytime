@@ -292,6 +292,8 @@ export interface MomentFeedItem {
 	content: string | null
 	photoDate: string
 	createdAt: string
+	visibility?: 'family' | 'public'
+	canToggleVisibility?: boolean
 	photos: MomentPhotoItem[]
 }
 
@@ -321,8 +323,15 @@ export const photoApi = {
 		babyId: string
 		content?: string
 		photoDate: string
+		visibility?: 'family' | 'public'
 		photos: { url: string; thumbnail?: string }[]
 	}) => request<any>({ url: '/photo/moment', method: 'POST', data }),
+	updateMomentVisibility: (id: string, visibility: 'family' | 'public') =>
+		request<any>({
+			url: `/photo/moment/${id}/visibility`,
+			method: 'PATCH',
+			data: { visibility },
+		}),
 	deleteMoment: (id: string) =>
 		request<any>({ url: `/photo/moment/${id}`, method: 'DELETE' }),
 	delete: (id: string) =>
@@ -340,6 +349,113 @@ export const announcementApi = {
 		url: '/announcement/current',
 		needToken: false,
 	}),
+}
+
+// 后台系统设置里向小程序公开的配置；接口不可用时调用方按安全默认值降级
+export interface SystemClientConfig {
+	/** 发布瞬间时是否允许用户选择「原图」 */
+	momentOriginalUpload: boolean
+	/** 育娃圈是否开启 */
+	communityEnabled: boolean
+}
+
+export const systemApi = {
+	getConfig: () =>
+		request<SystemClientConfig>({
+			url: '/system/config',
+			needToken: false,
+			silent: true,
+		}),
+}
+
+// 育娃圈
+export interface CommunityAuthor {
+	nickname: string
+	avatar: string | null
+}
+
+export interface CommunityPhotoItem {
+	id: string
+	url: string
+	thumbnail?: string | null
+	photoDate: string
+}
+
+export interface CommunityPost {
+	id: string
+	content: string | null
+	createdAt: string
+	author: CommunityAuthor
+	photos: CommunityPhotoItem[]
+	likeCount: number
+	commentCount: number
+	likedByMe: boolean
+}
+
+export interface CommunityFeedPage {
+	items: CommunityPost[]
+	total: number
+	page: number
+	pageSize: number
+	hasMore: boolean
+}
+
+export interface CommunityComment {
+	id: string
+	content: string
+	createdAt: string
+	author: CommunityAuthor
+	canDelete: boolean
+	/** 顶层评论为 null；回复指向所属的一级评论 */
+	parentId: string | null
+	/** 回复的目标用户昵称，用于展示「回复 @昵称」 */
+	replyToNickname: string | null
+	replies: CommunityComment[]
+}
+
+export interface CommunityPostDetail {
+	post: CommunityPost
+	comments: CommunityComment[]
+}
+
+export const communityApi = {
+	getFeed: (page = 1, pageSize = 10) =>
+		request<CommunityFeedPage>({
+			url: `/community/feed?page=${page}&pageSize=${pageSize}`,
+		}),
+	getPost: (id: string) =>
+		request<CommunityPostDetail>({ url: `/community/posts/${id}` }),
+	like: (id: string) =>
+		request<{ liked: boolean; likeCount: number }>({
+			url: `/community/posts/${id}/like`,
+			method: 'POST',
+		}),
+	unlike: (id: string) =>
+		request<{ liked: boolean; likeCount: number }>({
+			url: `/community/posts/${id}/like`,
+			method: 'DELETE',
+		}),
+	addComment: (
+		id: string,
+		content: string,
+		options: { parentId?: string; replyToCommentId?: string } = {}
+	) =>
+		request<{ comment: CommunityComment; commentCount: number }>({
+			url: `/community/posts/${id}/comments`,
+			method: 'POST',
+			data: { content, ...options },
+		}),
+	deleteComment: (id: string) =>
+		request<{ success: boolean; commentCount: number }>({
+			url: `/community/comments/${id}`,
+			method: 'DELETE',
+		}),
+	report: (data: {
+		targetType: 'moment' | 'comment'
+		targetId: string
+		reason: 'spam' | 'abuse' | 'privacy' | 'other'
+		detail?: string
+	}) => request<any>({ url: '/community/reports', method: 'POST', data }),
 }
 
 export interface VaccinePlanItem {

@@ -1,8 +1,10 @@
-import { View, Text, Image, Textarea } from '@tarojs/components';
+import { View, Text, Image, Textarea, Switch } from '@tarojs/components';
 import type { BaseEventOrig, ITouchEvent } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { useEffect, useRef, useState } from 'react';
 import { photoApi } from '../../utils/request';
+import { getSystemConfig } from '../../utils/systemConfig';
+import { useBabyStore } from '../../stores/babyStore';
 import { MAX_BATCH_COUNT, uploadLocalImages } from '../../utils/upload';
 import './index.scss';
 
@@ -30,6 +32,13 @@ export default function PhotoEditPage() {
   const [images, setImages] = useState<DraftPhoto[]>([]);
   const [content, setContent] = useState('');
   const [publishing, setPublishing] = useState(false);
+  // 默认关闭原图：接口失败或服务端未部署时也按压缩图上传，避免小服务器吃满流量
+  const [allowOriginalUpload, setAllowOriginalUpload] = useState(false);
+  const [communityEnabled, setCommunityEnabled] = useState(false);
+  const [publicToCommunity, setPublicToCommunity] = useState(false);
+  const baby = useBabyStore((state) =>
+    state.babies.find((item) => item.id === babyId)
+  );
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [dragSize, setDragSize] = useState(0);
@@ -67,10 +76,13 @@ export default function PhotoEditPage() {
   const addImages = async () => {
     const remain = MAX_BATCH_COUNT - images.length;
     if (remain <= 0) return;
+    const sizeType: Array<'original' | 'compressed'> = allowOriginalUpload
+      ? ['original', 'compressed']
+      : ['compressed'];
     try {
       const res = await Taro.chooseImage({
         count: remain,
-        sizeType: ['original', 'compressed'],
+        sizeType,
         sourceType: ['album', 'camera'],
       });
       const paths = (res.tempFilePaths || []).filter(Boolean);
@@ -116,6 +128,18 @@ export default function PhotoEditPage() {
     },
     []
   );
+
+  useEffect(() => {
+    let alive = true;
+    getSystemConfig().then((config) => {
+      if (!alive) return;
+      setAllowOriginalUpload(config.momentOriginalUpload);
+      setCommunityEnabled(config.communityEnabled);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handlePhotoTouchStart = (event: BaseEventOrig<any>, id: string) => {
     if (dragIdRef.current) return;
@@ -282,6 +306,7 @@ export default function PhotoEditPage() {
           babyId,
           content: text || undefined,
           photoDate: todayStr(),
+          visibility: publicToCommunity ? 'public' : 'family',
           photos: urls.map((url) => ({ url })),
         });
       } finally {
@@ -310,6 +335,7 @@ export default function PhotoEditPage() {
 
   const canPublish = content.trim().length > 0 || images.length > 0;
   const canAdd = images.length < MAX_BATCH_COUNT;
+  const canPublic = communityEnabled && baby?.isOwner === true;
   const dragPhoto = dragId
     ? images.find((photo) => photo.id === dragId)
     : undefined;
@@ -411,6 +437,25 @@ export default function PhotoEditPage() {
               ? '长按图片可拖动调整顺序，最多 9 张'
               : `最多 ${MAX_BATCH_COUNT} 张照片，可添加文案一起发布`}
           </Text>
+
+          {canPublic && (
+            <View className="publish-public">
+              <View className="publish-public-copy">
+                <Text className="publish-public-title">分享到育娃圈</Text>
+                <Text className="publish-public-desc">
+                  所有用户可见，发布后可随时设为私密
+                </Text>
+              </View>
+              <Switch
+                className="publish-public-switch"
+                checked={publicToCommunity}
+                color="#F87696"
+                onChange={(event: BaseEventOrig<{ value: boolean }>) =>
+                  setPublicToCommunity(event.detail.value)
+                }
+              />
+            </View>
+          )}
         </View>
       </View>
 

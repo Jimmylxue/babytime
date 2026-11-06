@@ -441,3 +441,135 @@ export interface MilestoneUsageResult {
 	page: number;
 	pageSize: number;
 }
+
+// 系统设置
+export interface SystemSettingItem {
+	key: string;
+	label: string;
+	description: string;
+	type: 'boolean';
+	value: boolean;
+	updatedAt: string | null;
+	updatedBy: string | null;
+}
+
+export interface SystemSettingGroup {
+	key: string;
+	label: string;
+	settings: SystemSettingItem[];
+}
+
+export interface SystemSettingsResponse {
+	groups: SystemSettingGroup[];
+}
+
+// 育娃圈后台管理
+export interface CommunityAuthor {
+	nickname: string;
+	avatar: string | null;
+}
+
+export interface CommunityPhoto {
+	id: string;
+	url: string;
+	thumbnail: string | null;
+	photoDate: string;
+}
+
+export interface CommunityPost {
+	id: string;
+	content: string | null;
+	createdAt: string;
+	author: CommunityAuthor;
+	photos: CommunityPhoto[];
+	likeCount: number;
+	commentCount: number;
+}
+
+export interface CommunityPostList {
+	list: CommunityPost[];
+	total: number;
+	page: number;
+	pageSize: number;
+}
+
+export interface CommunityReportMoment {
+	type: 'moment';
+	id: string;
+	content: string | null;
+	createdAt: string;
+	visibility: string;
+	author: CommunityAuthor;
+	photos: CommunityPhoto[];
+}
+
+export interface CommunityReportComment {
+	type: 'comment';
+	id: string;
+	content: string;
+	status: string;
+	createdAt: string;
+	author: CommunityAuthor;
+	moment: {
+		id: string;
+		content: string | null;
+		createdAt: string;
+		visibility: string;
+		author: CommunityAuthor;
+		photos: CommunityPhoto[];
+	} | null;
+}
+
+export type CommunityReportTarget =
+	| CommunityReportMoment
+	| CommunityReportComment
+	| null;
+
+export interface CommunityReport {
+	id: string;
+	targetType: 'moment' | 'comment';
+	targetId: string;
+	reason: string;
+	detail: string | null;
+	status: 'pending' | 'handled' | 'dismissed';
+	createdAt: string;
+	reporter: CommunityAuthor;
+	target: CommunityReportTarget;
+}
+
+export interface CommunityReportList {
+	list: CommunityReport[];
+	total: number;
+	page: number;
+	pageSize: number;
+}
+
+// 后台点击点赞/评论数后懒加载的互动明细
+export interface CommunityLikeUser {
+	userId: string;
+	createdAt: string;
+	author: CommunityAuthor;
+}
+
+export interface CommunityInteractionComment {
+	id: string;
+	content: string;
+	status: 'visible' | 'hidden';
+	createdAt: string;
+	author: CommunityAuthor;
+	canDelete?: boolean;
+	parentId: string | null;
+	replyToNickname: string | null;
+	replies: CommunityInteractionComment[];
+}
+
+export interface CommunityInteractions {
+	post: {
+		id: string;
+		content: string | null;
+		visibility: string;
+		author: CommunityAuthor;
+	};
+	likes: CommunityLikeUser[];
+	comments: CommunityInteractionComment[];
+}

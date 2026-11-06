@@ -1,0 +1,102 @@
+.community-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 28px 26px 22px;
+  margin-bottom: 22px;
+  box-shadow: 0 10px 26px rgba(215, 143, 162, 0.08);
+}
+
+.community-head {
+  display: flex;
+  align-items: center;
+}
+
+.community-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #FBF3F1;
+  flex-shrink: 0;
+}
+
+.community-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FFD5E0 0%, #F9AFC2 100%);
+}
+
+.community-avatar-text {
+  font-size: 30px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.community-head-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.community-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: #4A3B3B;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-time {
+  margin-top: 6px;
+  font-size: 22px;
+  color: #C4AEAE;
+}
+
+.community-report {
+  flex-shrink: 0;
+  padding: 10px 0 10px 20px;
+  font-size: 22px;
+  color: #C4AEAE;
+}
+
+.community-content {
+  display: block;
+  margin-top: 18px;
+  font-size: 28px;
+  line-height: 1.65;
+  color: #453434;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.community-actions {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid #F7EAEE;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+}
+
+.community-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.community-action-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.community-action-text {
+  font-size: 24px;
+  color: #A79292;
+}
+
+.community-action.is-liked .community-action-text {
+  color: #F56A93;
+}

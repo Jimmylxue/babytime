@@ -16,6 +16,8 @@ import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 import { NotificationModule } from '../notification/notification.module';
 import { UploadModule } from '../upload/upload.module';
 import { UserDeletionModule } from '../user-deletion/user-deletion.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
+import { CommunityModule } from '../community/community.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { UserDeletionModule } from '../user-deletion/user-deletion.module';
     NotificationModule,
     UploadModule,
     UserDeletionModule,
+    SystemSettingsModule,
+    CommunityModule,
     HttpModule,
   ],
   controllers: [AdminController],

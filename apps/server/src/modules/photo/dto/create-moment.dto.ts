@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsDateString,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -32,6 +33,10 @@ export class CreateMomentDto {
 
   @IsDateString({}, { message: '日期格式不正确' })
   photoDate: string;
+
+  @IsOptional()
+  @IsIn(['family', 'public'], { message: '可见范围不正确' })
+  visibility?: 'family' | 'public';
 
   // 允许纯文字瞬间，所以照片数组可空；有图时按数组顺序展示
   @IsOptional()

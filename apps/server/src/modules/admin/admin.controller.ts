@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Post,
   Put,
@@ -20,9 +21,13 @@ import { OpsHealthService } from './ops-health.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
+import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
+import { HandleCommunityReportDto } from './dto/handle-community-report.dto';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import { NotificationService } from '../notification/notification.service';
 import { UserDeletionService } from '../user-deletion/user-deletion.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { CommunityService } from '../community/community.service';
 import { secretsEqual } from '../../common/secrets';
 import { clientIpOf } from '../../common/client-ip';
 
@@ -36,6 +41,8 @@ export class AdminController {
     private readonly userDeletionService: UserDeletionService,
     private readonly notificationService: NotificationService,
     private readonly opsHealthService: OpsHealthService,
+    private readonly systemSettingsService: SystemSettingsService,
+    private readonly communityService: CommunityService,
   ) {}
 
   @Post('auth/login')
@@ -150,6 +157,84 @@ export class AdminController {
 
     const data = await this.opsHealthService.runAlertCheck();
     return data;
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('system/settings')
+  async getSystemSettings() {
+    return this.systemSettingsService.getAdminSettings();
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Put('system/settings')
+  async updateSystemSettings(
+    @Body() dto: UpdateSystemSettingsDto,
+    @Request() req,
+  ) {
+    return this.systemSettingsService.updateSettings(
+      req.user?.username || 'admin',
+      clientIpOf(req),
+      dto.settings,
+    );
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('community/posts')
+  async getCommunityPosts(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.communityService.getAdminPosts(
+      Number(page) || 1,
+      Number(pageSize) || 20,
+    );
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('community/posts/:id/interactions')
+  async getCommunityInteractions(@Param('id') id: string) {
+    return this.communityService.getAdminInteractions(id);
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Post('community/posts/:id/hide')
+  @HttpCode(200)
+  async hideCommunityPost(@Param('id') id: string, @Request() req) {
+    return this.communityService.hidePostByAdmin(
+      id,
+      req.user?.username || 'admin',
+      clientIpOf(req),
+    );
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Get('community/reports')
+  async getCommunityReports(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.communityService.getAdminReports(
+      Number(page) || 1,
+      Number(pageSize) || 20,
+      status,
+    );
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Post('community/reports/:id/handle')
+  @HttpCode(200)
+  async handleCommunityReport(
+    @Param('id') id: string,
+    @Body() dto: HandleCommunityReportDto,
+    @Request() req,
+  ) {
+    return this.communityService.handleReport(
+      id,
+      dto.action,
+      req.user?.username || 'admin',
+      clientIpOf(req),
+    );
   }
 
   @UseGuards(AdminJwtGuard)

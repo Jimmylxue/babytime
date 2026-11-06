@@ -22,6 +22,10 @@ const RULES = {
 	'stool-analysis': { limit: 30, windowMs: 24 * 60 * 60 * 1000 },
 	/** 订阅授权入账（客户端自报）：刷的是我们自己的统计口径 */
 	'subscription-grant': { limit: 20, windowMs: 24 * 60 * 60 * 1000 },
+	/** 育娃圈：评论/举报/点赞都是公开行为，按人给足正常使用余量 */
+	'community-comment': { limit: 50, windowMs: 24 * 60 * 60 * 1000 },
+	'community-report': { limit: 20, windowMs: 24 * 60 * 60 * 1000 },
+	'community-like': { limit: 500, windowMs: 24 * 60 * 60 * 1000 },
 } as const
 
 type Bucket = keyof typeof RULES

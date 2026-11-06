@@ -53,11 +53,20 @@
   &.tint-lilac {
     background: linear-gradient(160deg, #F8F5FD 0%, #EEE6FA 100%);
   }
+
+  &.tint-rose {
+    background: linear-gradient(160deg, #FFF4F7 0%, #FBDFE8 100%);
+  }
 }
 
 .tool-icon-emoji {
   font-size: 44px;
   line-height: 1;
+}
+
+.tool-icon-image {
+  width: 54px;
+  height: 54px;
 }
 
 .tool-badge {

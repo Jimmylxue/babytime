@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { In, Repository, DataSource } from 'typeorm';
 import { Photo } from './entities/photo.entity';
@@ -8,6 +8,7 @@ import { CreateMomentDto } from './dto/create-moment.dto';
 import { BabyService } from '../baby/baby.service';
 import { ContentSecurityService } from '../content-security/content-security.service';
 import { CdnCleanupService } from '../upload/cdn-cleanup.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @Injectable()
 export class PhotoService {
@@ -20,6 +21,7 @@ export class PhotoService {
     private babyService: BabyService,
     private contentSecurity: ContentSecurityService,
     private cleanup: CdnCleanupService,
+    private systemSettings: SystemSettingsService,
   ) {}
 
   async create(userId: string, createPhotoDto: CreatePhotoDto) {
@@ -31,12 +33,23 @@ export class PhotoService {
 
   // 一条瞬间（朋友圈式帖子）：文案 + 最多 9 张照片，一次事务落库
   async createMoment(userId: string, dto: CreateMomentDto) {
-    await this.babyService.findOne(dto.babyId, userId);
+    const baby = await this.babyService.findOne(dto.babyId, userId);
 
     const content = dto.content?.trim() || null;
     const photos = dto.photos ?? [];
+    const visibility = dto.visibility || 'family';
     if (!content && photos.length === 0) {
       throw new BadRequestException('写点文案或选张照片吧');
+    }
+    if (visibility === 'public') {
+      const config = await this.systemSettings.getClientConfig();
+      if (!config.communityEnabled) {
+        throw new ForbiddenException('育娃圈暂未开启');
+      }
+      // 防止家庭成员未经创建者同意把宝宝照片公开
+      if (baby.userId !== userId) {
+        throw new ForbiddenException('只有宝宝创建者可以公开瞬间');
+      }
     }
     await this.contentSecurity.checkUserTexts(userId, [content]);
 
@@ -47,6 +60,7 @@ export class PhotoService {
           userId,
           content,
           photoDate: dto.photoDate,
+          visibility,
         }),
       );
       const photoRows = photos.map((item, index) =>
@@ -65,10 +79,44 @@ export class PhotoService {
         babyId: moment.babyId,
         content: moment.content,
         photoDate: moment.photoDate,
+        visibility: moment.visibility,
         createdAt: moment.createdAt,
         photos: savedPhotos,
       };
     });
+  }
+
+  // 作者随时可以把瞬间公开到育娃圈 / 收回为家庭可见
+  async updateMomentVisibility(
+    userId: string,
+    id: string,
+    visibility: 'family' | 'public',
+  ) {
+    const moment = await this.momentRepository.findOne({ where: { id } });
+    if (!moment) {
+      throw new NotFoundException('瞬间不存在');
+    }
+    const baby = await this.babyService.findOne(moment.babyId, userId);
+
+    if (visibility === 'public') {
+      const config = await this.systemSettings.getClientConfig();
+      if (!config.communityEnabled) {
+        throw new ForbiddenException('育娃圈暂未开启');
+      }
+      // 只有宝宝创建者本人发布的内容才能公开，家庭成员不能替宝宝公开
+      if (baby.userId !== userId || moment.userId !== userId) {
+        throw new ForbiddenException('只有宝宝创建者可以公开瞬间');
+      }
+    } else if (moment.userId !== userId && baby.userId !== userId) {
+      // 收回公开权限放宽到宝宝创建者，避免家人误公开后无法处理
+      throw new ForbiddenException('无权修改这条瞬间');
+    }
+
+    if (moment.visibility !== visibility) {
+      moment.visibility = visibility;
+      await this.momentRepository.save(moment);
+    }
+    return { id: moment.id, visibility: moment.visibility };
   }
 
   async findAllByBaby(userId: string, babyId: string, page: number = 1, pageSize: number = 20) {
@@ -191,7 +239,7 @@ export class PhotoService {
   // 旧照片不改数据，读时包装成「无文案、单图」的瞬间，保证历史内容连续。
   async getFeed(userId: string, babyId: string, page = 1, pageSize = 20) {
     const baby = await this.babyService.findOne(babyId, userId);
-
+    const config = await this.systemSettings.getClientConfig();
     const safePage = Math.max(1, Math.floor(page) || 1);
     const safePageSize = Math.min(50, Math.max(1, Math.floor(pageSize) || 20));
     const offset = (safePage - 1) * safePageSize;
@@ -265,6 +313,8 @@ export class PhotoService {
       content: string | null;
       photoDate: string;
       createdAt: Date;
+      visibility: 'family' | 'public';
+      canToggleVisibility: boolean;
       photos: ReturnType<typeof toPhoto>[];
     };
 
@@ -279,6 +329,11 @@ export class PhotoService {
           content: moment.content,
           photoDate: moment.photoDate,
           createdAt: moment.createdAt,
+          visibility: moment.visibility,
+          canToggleVisibility:
+            moment.userId === userId &&
+            baby.userId === userId &&
+            (moment.visibility === 'public' || config.communityEnabled),
           photos: (photosByMoment.get(moment.id) ?? []).map(toPhoto),
         });
         return;
@@ -291,6 +346,8 @@ export class PhotoService {
         content: photo.note?.trim() || null,
         photoDate: photo.photoDate,
         createdAt: photo.createdAt,
+        visibility: 'family',
+        canToggleVisibility: false,
         photos: [toPhoto(photo)],
       });
     });

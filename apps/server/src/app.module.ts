@@ -20,6 +20,8 @@ import { MilestoneModule } from './modules/milestone/milestone.module';
 import { AnnouncementModule } from './modules/announcement/announcement.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { CommunityModule } from './modules/community/community.module';
 
 @Module({
   imports: [
@@ -71,6 +73,8 @@ import { NotificationModule } from './modules/notification/notification.module';
     AnnouncementModule,
     AdminModule,
     NotificationModule,
+    SystemSettingsModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [

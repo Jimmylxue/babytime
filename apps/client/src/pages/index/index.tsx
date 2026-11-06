@@ -11,6 +11,7 @@ import { useRecordStore } from '../../stores/recordStore'
 import { calculateAge, formatHM } from '../../utils/date'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi, photoApi, trackEvent } from '../../utils/request'
+import { getSystemConfig } from '../../utils/systemConfig'
 import { MOCK_BABY, MOCK_STATS } from '../../utils/mock'
 import {
 	hasAutoRedirectedToOnboarding,
@@ -80,6 +81,7 @@ export default function Index() {
 	// 首屏照片是否已拉取过。recentPhotos 初始为空数组，
 	// 不区分「还在加载」就会先闪一下「还没有照片」的拍照引导。
 	const [photosReady, setPhotosReady] = useState(false)
+	const [communityEnabled, setCommunityEnabled] = useState(false)
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
 	const momentsPreviewRef = useRef(false)
@@ -172,6 +174,8 @@ export default function Index() {
 			momentsPreviewRef.current = false
 			return
 		}
+		// tab 页面不会重新挂载，育娃圈开关要在每次回到首页时刷新
+		getSystemConfig().then(config => setCommunityEnabled(config.communityEnabled))
 		if (isLoggedIn) void trackEvent('app_open')
 		const source = Taro.getCurrentInstance().router?.params?.source
 		if (
@@ -491,6 +495,24 @@ export default function Index() {
 					}
 					onCreate={() => navigateToRecord('photo')}
 				/>
+			)}
+
+			{/* 育娃圈入口：后台开启后才出现 */}
+			{communityEnabled && (
+				<View
+					className="community-entry"
+					onClick={() =>
+						Taro.navigateTo({ url: '/pages/community/index' })
+					}
+				>
+					<View className="community-entry-copy">
+						<Text className="community-entry-title">育娃圈</Text>
+						<Text className="community-entry-desc">
+							看看其他家长记录的成长瞬间
+						</Text>
+					</View>
+					<Text className="community-entry-arrow">›</Text>
+				</View>
 			)}
 
 			{handoff && (

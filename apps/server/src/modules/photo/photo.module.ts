@@ -7,6 +7,7 @@ import { PhotoController } from './photo.controller';
 import { BabyModule } from '../baby/baby.module';
 import { ContentSecurityModule } from '../content-security/content-security.module';
 import { UploadModule } from '../upload/upload.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { UploadModule } from '../upload/upload.module';
     BabyModule,
     ContentSecurityModule,
     UploadModule,
+    SystemSettingsModule,
   ],
   controllers: [PhotoController],
   providers: [PhotoService],

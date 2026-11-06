@@ -6,7 +6,7 @@
 
 任何涉及**生产发布**的改动，完成后必须整理进**本轮发版**的清单文件，条目包含**可直接复制执行的命令**：
 
-- 清单目录：`docs/releases/`，每轮发版一个文件，命名 `YYYY-MM-DD-HHMM-release-checklist.md`（时间为创建时刻，HHMM 用于同一天多次发版区分）。已有「待发布」清单时直接续写该文件；发布完成后整份文件顶部标注 `✅ 已发布 YYYY-MM-DD HH:MM`，不再删除内容
+- 清单目录：`docs/releases/`，**每个发布日一个文件**，命名 `YYYY-MM-DD-HHMM-release-checklist.md`（HHMM 用于同一天多次发版区分）。同一天有多次发布时续写当天文件；不同日期必须新建文件，禁止把后续日期的内容追加到旧日期文件。发布完成后整份文件顶部标注 `✅ 已发布 YYYY-MM-DD HH:MM`，不再删除内容
 - SQL 目录：所有生产迁移 SQL 放 `docs/sql/`，文件名带日期（参照 `db-indexes-2026-09.sql`）；清单里引用时写完整路径 `docs/sql/xxx.sql`
 
 需要登记的内容：
