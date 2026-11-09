@@ -23,5 +23,9 @@ export const CDN_ASSETS = {
   familyIllustration: `${CDN_BASE}/family-illustration.png`,
   feedingBaby: `${CDN_BASE}/feeding-baby.png`,
   sleepBaby: `${CDN_BASE}/sleep-baby.png`,
+  growthBabyBoy: `${CDN_BASE}/growth-baby-boy.png`,
+  growthBabyGirl: `${CDN_BASE}/growth-baby-girl.png`,
+  scaleBabyBoy: `${CDN_BASE}/scale-baby-boy.png`,
+  scaleBabyGirl: `${CDN_BASE}/scale-baby-girl.png`,
   vaccineSafety: `${CDN_BASE}/vaccine-safety.png`,
 } as const

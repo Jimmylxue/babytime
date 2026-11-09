@@ -3,6 +3,7 @@ import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useRef, useState } from 'react'
 import { useRecordStore } from '../../stores/recordStore'
 import { recordApi, trackEvent } from '../../utils/request'
+import { chooseAndUploadImages } from '../../utils/upload'
 import { formatDate, formatHM } from '../../utils/date'
 import calendarCoralIcon from '../../assets/icons/calendar-coral.svg'
 import clockCoralIcon from '../../assets/icons/clock-coral.svg'
@@ -130,6 +131,8 @@ export default function RecordPage() {
 	// 「按上次来」预填只做一次
 	const prefillRef = useRef(false)
 	const [note, setNote] = useState('')
+	// 记录配图（所有类型通用，最多 9 张）。尿布另有专用那张 diaperImage，互不影响
+	const [photoUrls, setPhotoUrls] = useState<string[]>([])
 	const [startTime, setStartTime] = useState(formatHM(new Date()))
 	const [recordDate, setRecordDate] = useState(formatDate(new Date()))
 	const today = formatDate(new Date())
@@ -196,9 +199,35 @@ export default function RecordPage() {
 			setRecordDate(formatDate(record.startTime))
 			if (type !== 'height_weight') setStartTime(formatHM(record.startTime))
 			if (record.note) setNote(record.note)
+			if (Array.isArray(record.photoUrls)) setPhotoUrls(record.photoUrls)
 		} catch (error) {
 			// 错误提示由全局拦截器统一 toast
 		}
+	}
+
+	// 记录配图：选图 → 上传 → 追加。微信单次最多 9 张，这里按剩余额度限制
+	const handleAddPhotos = async () => {
+		const remain = 9 - photoUrls.length
+		if (remain <= 0) {
+			Taro.showToast({ title: '最多 9 张', icon: 'none' })
+			return
+		}
+		const res = await chooseAndUploadImages({ count: remain, sizeType: ['compressed'] })
+		if (!res) return
+		if (res.failed > 0) {
+			Taro.showToast({ title: `${res.failed} 张上传失败`, icon: 'none' })
+		}
+		if (res.urls.length > 0) {
+			setPhotoUrls(prev => [...prev, ...res.urls].slice(0, 9))
+		}
+	}
+
+	const handleRemovePhoto = (url: string) => {
+		setPhotoUrls(prev => prev.filter(item => item !== url))
+	}
+
+	const handlePreviewPhoto = (url: string) => {
+		Taro.previewImage({ current: url, urls: photoUrls })
 	}
 
 	const handleSubmit = async () => {
@@ -231,6 +260,9 @@ export default function RecordPage() {
 			Object.assign(data, formRef.current?.buildPayload({ recordDate, startTime }))
 
 			if (note) data.note = note
+			// 编辑态即使清空了也要传空数组（表示清空配图），新增态无图不传
+			if (photoUrls.length > 0) data.photoUrls = photoUrls
+			else if (isEdit) data.photoUrls = []
 
 			if (isEdit) {
 				// 更新接口由记录 ID 确定所属宝宝和记录类型，不能重复提交创建专用字段。
@@ -419,6 +451,40 @@ export default function RecordPage() {
 					isEdit={isEdit}
 				/>
 			)}
+
+			{/* 配图卡（所有类型通用，最多 9 张）：给记录留一张现场图，比纯文字更好回看 */}
+			<View className="record-card">
+				<View className="record-card-label-row">
+					<Text className="record-card-label">
+						配图 (可选)
+					</Text>
+					<Text className="record-photo-count">{photoUrls.length}/9</Text>
+				</View>
+				<View className="record-photo-grid">
+					{photoUrls.map(url => (
+						<View key={url} className="record-photo-item">
+							<Image
+								className="record-photo-img"
+								src={url}
+								mode="aspectFill"
+								onClick={() => handlePreviewPhoto(url)}
+							/>
+							<View
+								className="record-photo-remove"
+								onClick={() => handleRemovePhoto(url)}
+							>
+								<Text className="record-photo-remove-text">×</Text>
+							</View>
+						</View>
+					))}
+					{photoUrls.length < 9 && (
+						<View className="record-photo-add" onClick={handleAddPhotos}>
+							<Text className="record-photo-add-icon">＋</Text>
+							<Text className="record-photo-add-text">加图</Text>
+						</View>
+					)}
+				</View>
+			</View>
 
 			{/* 备注卡（所有类型共用，UI 稿样式） */}
 			<View className="record-card">

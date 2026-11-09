@@ -72,6 +72,40 @@ export class RecordController {
     return records;
   }
 
+  /**
+   * 健康分析原始数据：体温点 + 尿布点。
+   * 聚合（病程切分、排便规律）在前端用 @baby-time/shared 的纯函数算。
+   */
+  @Get('health/:babyId')
+  async getHealthPoints(
+    @Param('babyId') babyId: string,
+    @Query('days') days: string,
+    @Request() req,
+  ) {
+    return this.recordService.getHealthPoints(
+      req.user.id,
+      babyId,
+      days ? parseInt(days) : undefined,
+    );
+  }
+
+  /**
+   * 导出记录为 Excel（.xlsx，base64）。小程序拿到 content 后本地写文件再 openDocument 打开。
+   * 用 GET + JSON 而不是文件流：省掉 downloadFile 域名白名单与 header 鉴权的坑。
+   */
+  @Get('export/:babyId')
+  async exportExcel(
+    @Param('babyId') babyId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Request() req,
+  ) {
+    return this.recordService.exportRecordsExcel(req.user.id, babyId, {
+      startDate,
+      endDate,
+    });
+  }
+
   @Get('detail/:babyId')
   async getRecordDetail(
     @Param('babyId') babyId: string,

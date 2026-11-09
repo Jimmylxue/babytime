@@ -1,8 +1,13 @@
 import { View, Text, Image } from '@tarojs/components'
-import growthBoyIllu from '../../../assets/growth-baby-boy.jpg'
-import growthGirlIllu from '../../../assets/growth-baby-girl.jpg'
-import scaleBabyBoyIllu from '../../../assets/scale-baby-boy.jpg'
-import scaleBabyGirlIllu from '../../../assets/scale-baby-girl.jpg'
+import { CDN_ASSETS } from '../../../config/assets'
+
+// 这 4 张插画原本直接 import 进包（合计 ~180KB），是主包里最后一批本地装饰图。
+// 与其它装饰图统一走 CDN，把主包空间留给功能。CDN 不可用时 Image 会显示空白，
+// 但底色与卡片背景一致，不会出现"坏图"图标。
+const growthBoyIllu = CDN_ASSETS.growthBabyBoy
+const growthGirlIllu = CDN_ASSETS.growthBabyGirl
+const scaleBabyBoyIllu = CDN_ASSETS.scaleBabyBoy
+const scaleBabyGirlIllu = CDN_ASSETS.scaleBabyGirl
 import pencilWhiteIcon from '../../../assets/icons/pencil-white.svg'
 
 interface GrowthHeroCardProps {

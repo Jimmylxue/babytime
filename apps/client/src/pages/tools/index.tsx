@@ -8,13 +8,23 @@ import { trackEvent } from '../../utils/request'
 import { getSystemConfig } from '../../utils/systemConfig'
 import TabBar from '../../components/TabBar'
 import TipsSheet from '../index/components/TipsSheet'
-import communityIcon from '../../assets/icons/community-chat-heart.svg'
+// 发现页图标全部改为自绘 SVG（24×24 / 线宽 1.7 / 圆角端点），
+// 与记录页 grid 图标同一套视觉语言；emoji 在不同机型渲染差异太大。
+import toolAgeIcon from '../../assets/tool-icons/tool-age.svg'
+import toolVaccineTableIcon from '../../assets/tool-icons/tool-vaccine-table.svg'
+import toolCatchupIcon from '../../assets/tool-icons/tool-catchup.svg'
+import toolMilkIcon from '../../assets/tool-icons/tool-milk.svg'
+import toolMilestoneIcon from '../../assets/tool-icons/tool-milestone.svg'
+import toolCheckupIcon from '../../assets/tool-icons/tool-checkup.svg'
+import toolHealthIcon from '../../assets/tool-icons/tool-health.svg'
+import toolTipsIcon from '../../assets/tool-icons/tool-tips.svg'
+import toolCommunityIcon from '../../assets/tool-icons/tool-community.svg'
 import './index.scss'
 
 interface ToolItem {
 	key: string
-	icon: string
-	iconSrc?: string
+	/** SVG 图标（必需）—— 发现页不再使用 emoji */
+	iconSrc: string
 	title: string
 	tint: string
 	badge?: string
@@ -24,45 +34,65 @@ interface ToolItem {
 const tools: ToolItem[] = [
 	{
 		key: 'age_calc',
-		icon: '🎂',
+		iconSrc: toolAgeIcon,
 		title: '月龄计算器',
 		tint: 'pink',
 		path: '/pages/tool/age-calc/index',
 	},
 	{
 		key: 'vaccine_table',
-		icon: '💉',
+		iconSrc: toolVaccineTableIcon,
 		title: '疫苗时间表',
 		tint: 'blue',
 		path: '/pages/tool/vaccine-table/index',
 	},
 	{
+		key: 'vaccine_catchup',
+		iconSrc: toolCatchupIcon,
+		title: '补种提醒',
+		tint: 'sand',
+		path: '/pages/tool/vaccine-catchup/index',
+	},
+	{
 		key: 'milk_calc',
-		icon: '🍼',
+		iconSrc: toolMilkIcon,
 		title: '奶量估算器',
 		tint: 'cream',
 		path: '/pages/tool/milk-calc/index',
 	},
 	{
 		key: 'milestone',
-		icon: '🌟',
+		iconSrc: toolMilestoneIcon,
 		title: '成长里程碑',
 		tint: 'lilac',
 		path: '/pages/milestones/index',
+	},
+	{
+		key: 'checkup',
+		iconSrc: toolCheckupIcon,
+		title: '儿保体检',
+		tint: 'blue',
+		path: '/pages/tool/checkup/index',
+	},
+	{
+		key: 'health',
+		iconSrc: toolHealthIcon,
+		title: '健康分析',
+		tint: 'rose',
+		path: '/pages/tool/health/index',
 	},
 ]
 
 const monthlyTipsTool: ToolItem = {
 	key: 'monthly_tips',
-	icon: '🌱',
+	iconSrc: toolTipsIcon,
 	title: '本月关注',
 	tint: 'sand',
 }
 
 const communityTool: ToolItem = {
 	key: 'community',
-	icon: '',
-	iconSrc: communityIcon,
+	iconSrc: toolCommunityIcon,
 	title: '育娃圈',
 	tint: 'rose',
 	path: '/pages/community/index',
@@ -108,15 +138,11 @@ export default function ToolsPage() {
 					>
 						<View className="tool-icon-wrap">
 							<View className={`tool-icon tint-${tool.tint}`}>
-								{tool.iconSrc ? (
-									<Image
-										className="tool-icon-image"
-										src={tool.iconSrc}
-										mode="aspectFit"
-									/>
-								) : (
-									<Text className="tool-icon-emoji">{tool.icon}</Text>
-								)}
+								<Image
+									className="tool-icon-image"
+									src={tool.iconSrc}
+									mode="aspectFit"
+								/>
 							</View>
 							{tool.badge && (
 								<View className="tool-badge">

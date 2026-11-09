@@ -6,6 +6,7 @@ import {
   IsString,
   IsObject,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 import { FeedingMethod, DiaperStatus } from '../entities/record.entity';
 
@@ -57,6 +58,15 @@ export class UpdateRecordDto {
   @IsString()
   @IsOptional()
   foodName?: string;
+
+  // 新食物观察：反应状态 + 是否首日新食物（仅辅食记录有意义）
+  @IsString()
+  @IsOptional()
+  foodReaction?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  foodIsNew?: boolean;
 
   // 体温
   @IsNumber()
@@ -118,4 +128,10 @@ export class UpdateRecordDto {
   @IsString()
   @IsOptional()
   note?: string;
+
+  // 记录配图（最多 9 张）。不传表示不改动；传空数组表示清空全部配图
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  photoUrls?: string[];
 }

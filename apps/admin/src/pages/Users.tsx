@@ -197,7 +197,7 @@ export default function Users() {
 			width: 220,
 			render: (_, record) => (
 				<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-					<Avatar src={record.avatar ?? undefined}>{(record.nickname || '微')[0]}</Avatar>
+					<Avatar src={record.avatar || undefined}>{(record.nickname || '微')[0]}</Avatar>
 					<span>{record.nickname || '微信用户'}</span>
 				</div>
 			),
@@ -322,7 +322,7 @@ export default function Users() {
 								onClick={() => goBabyDetail(baby.id)}
 							>
 								<div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
-									<Avatar src={baby.avatar ?? undefined}>{(baby.name || '宝')[0]}</Avatar>
+									<Avatar src={baby.avatar || undefined}>{(baby.name || '宝')[0]}</Avatar>
 								<div style={{ flex: 1 }}>
 									<div>{baby.name || '宝宝'}</div>
 									<span style={{ fontSize: 12, color: '#999' }}>

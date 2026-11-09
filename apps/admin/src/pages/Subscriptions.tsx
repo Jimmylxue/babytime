@@ -68,7 +68,7 @@ export default function Subscriptions() {
 			width: 210,
 			render: (_, record) => (
 				<Space>
-					<Avatar src={record.avatar ?? undefined}>{(record.nickname || '微')[0]}</Avatar>
+					<Avatar src={record.avatar || undefined}>{(record.nickname || '微')[0]}</Avatar>
 					<div>
 						<div>{record.nickname || '微信用户'}</div>
 						<Typography.Text type="secondary" style={{ fontSize: 12 }}>{record.userId.slice(0, 8)}</Typography.Text>

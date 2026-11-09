@@ -7,6 +7,7 @@ import {
   IsUUID,
   IsObject,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 import { RecordType, FeedingMethod, DiaperStatus } from '../entities/record.entity';
 
@@ -62,6 +63,15 @@ export class CreateRecordDto {
   @IsString()
   @IsOptional()
   foodName?: string;
+
+  // 新食物观察：反应状态 + 是否首日新食物（仅辅食记录有意义）
+  @IsString()
+  @IsOptional()
+  foodReaction?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  foodIsNew?: boolean;
 
   // 体温
   @IsNumber()
@@ -123,4 +133,10 @@ export class CreateRecordDto {
   @IsString()
   @IsOptional()
   note?: string;
+
+  // 记录配图（最多 9 张）：所有类型通用，与尿布专用的 diaperImage 并存
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  photoUrls?: string[];
 }

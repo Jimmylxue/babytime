@@ -634,3 +634,180 @@ Picker + Picker::before {
   font-size: 20px;
   color: #D9A7B0;
 }
+
+// ── 记录配图（所有类型通用，最多 9 张） ──────────────────────────────────
+.record-photo-count {
+  margin-left: auto;
+  font-size: 22px;
+  color: #B8A99A;
+}
+
+.record-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.record-photo-item {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #FBF6F7;
+}
+
+.record-photo-img {
+  width: 100%;
+  height: 100%;
+}
+
+.record-photo-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.record-photo-remove-text {
+  font-size: 28px;
+  color: #fff;
+  line-height: 1;
+}
+
+.record-photo-add {
+  width: 148px;
+  height: 148px;
+  border-radius: 18px;
+  border: 2px dashed #F0DDE3;
+  background: #FFFAFB;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  &:active {
+    background: #FFF3F6;
+  }
+}
+
+.record-photo-add-icon {
+  font-size: 40px;
+  color: #E8AFBD;
+  line-height: 1;
+}
+
+.record-photo-add-text {
+  font-size: 21px;
+  color: #C0AEB4;
+}
+
+// ── 辅食新食物观察（3 天） ────────────────────────────────────────────────
+.record-card-hint {
+  margin-left: auto;
+  font-size: 21px;
+  color: #B8A99A;
+}
+
+.food-reaction-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.food-reaction-item {
+  flex: 1;
+  padding: 16px 8px;
+  border-radius: 18px;
+  background: #FBF6F7;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &.active {
+    background: #FFF0F4;
+    border-color: #F58AA1;
+  }
+
+  &.reaction.active {
+    background: #FFF6EC;
+    border-color: #E0913A;
+  }
+}
+
+.food-reaction-label {
+  font-size: 25px;
+  color: #3A2E33;
+  font-weight: 600;
+}
+
+.food-reaction-sub {
+  font-size: 18px;
+  color: #A08E94;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.food-new-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: #FBF6F7;
+
+  &.active {
+    background: #FFF0F4;
+  }
+}
+
+.food-new-check {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 2px solid #E0D6D9;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.active {
+    background: #F58AA1;
+    border-color: #F58AA1;
+  }
+}
+
+.food-new-check-mark {
+  font-size: 22px;
+  color: #fff;
+  line-height: 1;
+}
+
+.food-new-text {
+  font-size: 24px;
+  color: #5A4E53;
+}
+
+.food-reaction-warn {
+  display: block;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #FFF6EC;
+  font-size: 21px;
+  color: #C8842E;
+  line-height: 1.6;
+}

@@ -1,7 +1,9 @@
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { CDN_ASSETS } from '../../../config/assets'
-const emptyBabyIllustration = CDN_ASSETS.emptyBabyIllustration
+// ⚠️ 曾经写成 CDN_ASSETS.emptyBabyIllustration（这个 key 不存在），
+// 导致「未建档」空状态一直显示不出插画。正确 key 是 emptyBaby。
+const emptyBabyIllustration = CDN_ASSETS.emptyBaby
 
 import plusCircleIcon from '../../../assets/icons/plus-circle-white.svg'
 import editIcon from '../../../assets/icons/edit.svg'
@@ -28,6 +30,8 @@ interface BabyCardProps {
 	temperature: { temperature: number } | null
 	tempFeverClass: string
 	tempTimeText: string
+	/** 连续记录天数；未登录 / 无宝宝 / 数据未到时为 null */
+	streakDays?: number | null
 	onGhostRecord: (type: string, metric: string) => void
 }
 
@@ -42,6 +46,7 @@ export default function BabyCard({
 	temperature,
 	tempFeverClass,
 	tempTimeText,
+	streakDays,
 	onGhostRecord,
 }: BabyCardProps) {
 	// 首屏宝宝数据未回来时显示骨架屏（避免闪「还没有宝宝信息」）
@@ -151,6 +156,14 @@ export default function BabyCard({
 							? `${displayAge.months}个月 ${displayAge.days}天`
 							: '添加宝宝档案后开始记录'}
 					</Text>
+					{/* 连续记录徽章：只在真的连续 ≥2 天时出现，第 1 天不给压力 */}
+					{typeof streakDays === 'number' && streakDays >= 2 && (
+						<View className="baby-streak">
+							<Text className="baby-streak-text">
+								连续记录 {streakDays} 天
+							</Text>
+						</View>
+					)}
 					{temperature && (
 						<Text className={`baby-temp-inline${tempFeverClass}`}>
 							体温 {temperature.temperature}°C · {tempTimeText}

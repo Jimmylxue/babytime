@@ -98,6 +98,26 @@ const mockTemperatureItems = buildMockTimeline('temperature', [8, 14, 20], hour 
   temperature: hour === 14 ? 37.2 : 36.5,
 }))
 
+// 统计页补齐 tab 后，未登录预览也可能落在这些类型上；
+// 缺 key 会让 MOCK_DETAIL[activeType].items 直接抛错，所以每类都要有兜底（哪怕是空数组）
+const mockFoodItems = buildMockTimeline('food', [11, 17], hour => ({
+  foodName: hour === 11 ? '高铁米粉' : '南瓜泥',
+}))
+
+const mockWaterItems = buildMockTimeline('water', [10, 15], () => ({ amount: 40 }))
+
+const mockMedicineItems = buildMockTimeline('medicine', [9, 21], hour => ({
+  medicineName: hour === 9 ? '维生素D' : '退热药',
+  medicineDose: hour === 9 ? '1滴' : '2.5ml',
+}))
+
+const mockBathItems = buildMockTimeline('bath', [19], () => ({}))
+
+const mockOutdoorItems = buildMockTimeline('outdoor', [16], () => ({
+  outdoorLocation: '小区公园',
+  duration: 45,
+}))
+
 export const MOCK_DETAIL: Record<string, { items: any[]; summary: any }> = {
   feeding: {
     items: mockFeedingItems,
@@ -119,6 +139,30 @@ export const MOCK_DETAIL: Record<string, { items: any[]; summary: any }> = {
     items: mockTemperatureItems,
     summary: { count: mockTemperatureItems.length, latestTemperature: 36.5, avgIntervalMinutes: 360 },
   },
+  food: {
+    items: mockFoodItems,
+    summary: { count: mockFoodItems.length, avgIntervalMinutes: 360 },
+  },
+  water: {
+    items: mockWaterItems,
+    summary: { count: mockWaterItems.length, totalAmount: 80, avgIntervalMinutes: 300 },
+  },
+  medicine: {
+    items: mockMedicineItems,
+    summary: { count: mockMedicineItems.length, avgIntervalMinutes: 720 },
+  },
+  bath: {
+    items: mockBathItems,
+    summary: { count: mockBathItems.length, avgIntervalMinutes: null },
+  },
+  outdoor: {
+    items: mockOutdoorItems,
+    summary: { count: mockOutdoorItems.length, totalDuration: 45, avgIntervalMinutes: null },
+  },
+  vaccine: {
+    items: [],
+    summary: { count: 0, avgIntervalMinutes: null },
+  },
 }
 
 function getDateStr(daysAgo: number): string {
@@ -139,6 +183,14 @@ export function generateMockDailyStats(days: number): DailyStat[] {
       sleepCount: Math.floor(Math.random() * 3) + 1,
       foodCount: Math.floor(Math.random() * 3),
       waterTotal: Math.floor(Math.random() * 100) + 50,
+      // 补齐 tab 之后这几个指标也会被画出来，示例数据不能恒为 0（否则图表全是空柱子）
+      bathCount: Math.random() > 0.35 ? 1 : 0,
+      outdoorCount: Math.floor(Math.random() * 2) + (Math.random() > 0.5 ? 1 : 0),
+      temperatureCount: Math.floor(Math.random() * 3),
+      heightWeightCount: Math.random() > 0.8 ? 1 : 0,
+      medicineCount: Math.random() > 0.85 ? 1 : 0,
+      vaccineCount: Math.random() > 0.95 ? 1 : 0,
+      otherCount: 0,
     })
   }
   return stats

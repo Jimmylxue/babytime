@@ -657,3 +657,75 @@
     box-shadow: none;
   }
 }
+
+// ── 导出时间范围选择 ────────────────────────────────────────────────────
+.export-quick-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.export-quick-item {
+  flex: 1;
+  padding: 16px 0;
+  border-radius: 16px;
+  background: #FBF6F7;
+  text-align: center;
+
+  &:active {
+    background: #FFF0F4;
+  }
+}
+
+.export-quick-text {
+  font-size: 24px;
+  color: #5A4E53;
+  font-weight: 600;
+}
+
+.export-range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.export-range-field {
+  flex: 1;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #FBF6F7;
+}
+
+.export-range-label {
+  display: block;
+  font-size: 20px;
+  color: #B8A99A;
+}
+
+.export-range-value {
+  display: block;
+  margin-top: 6px;
+  font-size: 26px;
+  color: #3A2E33;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.export-range-sep {
+  flex-shrink: 0;
+  font-size: 22px;
+  color: #B8A99A;
+}
+
+.export-range-hint {
+  display: block;
+  margin-top: 18px;
+  font-size: 22px;
+  color: #A08E94;
+  text-align: center;
+
+  &.over {
+    color: #E0605A;
+    font-weight: 600;
+  }
+}

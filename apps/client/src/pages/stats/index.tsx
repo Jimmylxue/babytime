@@ -19,6 +19,8 @@ import TabBar from '../../components/TabBar'
 import { ChartPosterOptions, deliverChartPoster } from '../../utils/chartExport'
 import { fetchPosterQrCode } from '../../utils/posterQr'
 import { buildGrowthSeries, shiftDate } from './utils'
+import { getLastCompleteWeek } from '../../utils/weeklyReportRange'
+import calendarHeartIcon from '../../assets/icons/calendar-heart.svg'
 import GrowthHeroCard from './components/GrowthHeroCard'
 import DateNav from './components/DateNav'
 import DayDetailCard from './components/DayDetailCard'
@@ -256,6 +258,8 @@ export default function StatsPage() {
 			)
 		: null
 
+	const lastWeek = getLastCompleteWeek()
+
 	// 各图表卡片共用的海报上下文
 	const posterContext = {
 		babyName: currentBaby?.name,
@@ -290,6 +294,28 @@ export default function StatsPage() {
 							{isLoggedIn ? '去创建' : '去登录'}
 						</Text>
 					</View>
+				</View>
+			)}
+
+			{/* 上周成长周报入口：只在有登录态和宝宝时展示 */}
+			{isLoggedIn && currentBaby && (
+				<View
+					className="weekly-entry"
+					onClick={() => Taro.navigateTo({ url: '/pages/weekly-report/index' })}
+				>
+					<View className="weekly-entry-icon-wrap">
+						<Image className="weekly-entry-icon" src={calendarHeartIcon} />
+					</View>
+					<View className="weekly-entry-copy">
+						<View className="weekly-entry-title-row">
+							<Text className="weekly-entry-title">成长周报</Text>
+							<Text className="weekly-entry-tag">上周</Text>
+						</View>
+						<Text className="weekly-entry-range">
+							{lastWeek.label} · 记录、成长、里程碑和照片
+						</Text>
+					</View>
+					<Text className="weekly-entry-arrow">›</Text>
 				</View>
 			)}
 
@@ -422,6 +448,66 @@ export default function StatsPage() {
 							stats={displayDailyStats}
 							statKey="diaperCount"
 							label="尿布次数"
+							unit="次"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'food' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="foodCount"
+							label="辅食次数"
+							unit="次"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'water' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="waterTotal"
+							label="饮水量"
+							unit="ml"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'medicine' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="medicineCount"
+							label="用药次数"
+							unit="次"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'bath' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="bathCount"
+							label="洗澡次数"
+							unit="次"
+							days={days}
+							selectedDate={selectedDate}
+							onDateChange={handleDateChange}
+							{...posterContext}
+						/>
+					)}
+					{activeType === 'outdoor' && (
+						<DailyBarChart
+							stats={displayDailyStats}
+							statKey="outdoorCount"
+							label="户外次数"
 							unit="次"
 							days={days}
 							selectedDate={selectedDate}

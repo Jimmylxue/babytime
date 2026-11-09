@@ -81,15 +81,27 @@ export default function DailyBarChart({
 			`日均 ${Math.round(total / days)}ml`,
 		]
 		reviewText = `${rangeWord}奶量稳定，日均 ${Math.round(total / days)}ml，宝宝吃得棒棒哒！`
+	} else if (statKey === 'waterTotal') {
+		metaTexts = [
+			`近${days}天共 ${total}ml`,
+			`日均 ${Math.round(total / days)}ml`,
+		]
+		reviewText = `${rangeWord}喝水 ${total}ml，日均 ${Math.round(total / days)}ml，记得少量多次补水～`
 	} else if (statKey === 'sleepTotal') {
 		metaTexts = [`近${days}天共 ${formatDurationLong(total)}`]
 		reviewText = `${rangeWord}累计睡眠 ${formatDurationLong(total)}，睡得好的宝宝才能长得好～`
 	} else if (statKey === 'diaperCount') {
 		metaTexts = [`近${days}天共 ${total} 次`]
 		reviewText = `${rangeWord}共更换尿布 ${total} 次，小屁屁保持干爽，照顾得很细心～`
-	} else {
+	} else if (statKey === 'feedingCount') {
 		metaTexts = [`近${days}天共 ${total} 次`, `日均 ${avgPerDay} 次`]
 		reviewText = `${rangeWord}喂奶规律，日均 ${avgPerDay} 次，宝宝吃得棒棒哒！`
+	} else {
+		// 其余计数类（辅食/用药/洗澡/户外）：文案按标题里的名称走，不写死"喂奶"
+		metaTexts = [`近${days}天共 ${total} 次`, `日均 ${avgPerDay} 次`]
+		reviewText = total > 0
+			? `${rangeWord}${label}共 ${total} 次，日均 ${avgPerDay} 次，这些都记着呢～`
+			: `${rangeWord}还没有${label}记录，记一条就能看到趋势啦～`
 	}
 
 	// 7 天：日粒度柱状图；14/30 天柱子会互相重叠，改用趋势折线表达

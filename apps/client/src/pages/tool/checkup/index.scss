@@ -1,0 +1,222 @@
+// 儿保体检时间轴：与疫苗时间轴同构，颜色用蓝绿系区分（疫苗是粉）
+.ck-page {
+	min-height: 100vh;
+	background: #FFFAF9;
+	display: flex;
+	flex-direction: column;
+}
+
+.ck-scroll {
+	flex: 1;
+	padding: 24px 24px 40px;
+	box-sizing: border-box;
+}
+
+.ck-hero {
+	background: linear-gradient(135deg, #F2F8FC 0%, #E6F2FA 100%);
+	border: 1px solid rgba(127, 168, 217, 0.18);
+	border-radius: 26px;
+	padding: 26px 24px;
+	margin-bottom: 26px;
+}
+
+.ck-hero-row {
+	display: flex;
+}
+
+.ck-hero-item {
+	flex: 1;
+	text-align: center;
+}
+
+.ck-hero-num {
+	display: block;
+	font-size: 40px;
+	font-weight: 800;
+	color: #5A86B8;
+	line-height: 1.1;
+
+	&.warn {
+		color: #C8842E;
+	}
+}
+
+.ck-hero-label {
+	display: block;
+	margin-top: 8px;
+	font-size: 20px;
+	color: #8A9BAA;
+}
+
+.ck-hero-hint {
+	display: block;
+	margin-top: 18px;
+	font-size: 21px;
+	color: #8A9BAA;
+	text-align: center;
+	line-height: 1.5;
+}
+
+.ck-list {
+	position: relative;
+}
+
+.ck-row {
+	display: flex;
+	gap: 16px;
+	padding-bottom: 8px;
+	opacity: 0.92;
+
+	&.done {
+		opacity: 0.6;
+	}
+}
+
+.ck-rail {
+	flex: 0 0 30px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 6px;
+}
+
+.ck-node {
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	border: 3px solid #D8E3EC;
+	background: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	z-index: 1;
+
+	&.done {
+		background: #7FA8D9;
+		border-color: #7FA8D9;
+	}
+
+	&.overdue {
+		border-color: #E8C79A;
+	}
+
+	&.next {
+		border-color: #F58AA1;
+		box-shadow: 0 0 0 4px rgba(245, 138, 161, 0.16);
+	}
+}
+
+.ck-node-check {
+	font-size: 15px;
+	color: #fff;
+	line-height: 1;
+}
+
+.ck-line {
+	flex: 1;
+	width: 2px;
+	background: #E8EEF3;
+	margin-top: 4px;
+	margin-bottom: -8px;
+	border-radius: 2px;
+}
+
+.ck-body {
+	flex: 1;
+	min-width: 0;
+	padding: 4px 18px 20px;
+	background: #fff;
+	border-radius: 18px;
+	border: 1px solid #F0EDE6;
+	margin-bottom: 12px;
+}
+
+.ck-body-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	padding-top: 14px;
+}
+
+.ck-age {
+	font-size: 21px;
+	color: #8A9BAA;
+	font-weight: 600;
+}
+
+.ck-badge {
+	font-size: 18px;
+	padding: 3px 9px;
+	border-radius: 6px;
+	font-weight: 600;
+
+	&.next {
+		color: #F0607E;
+		background: #FFF0F4;
+	}
+
+	&.overdue {
+		color: #C8842E;
+		background: #FFF6EC;
+	}
+
+	&.done {
+		color: #7FA8D9;
+		background: #EFF6FC;
+	}
+}
+
+.ck-title {
+	display: block;
+	font-size: 26px;
+	color: #3A2E33;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.ck-focus {
+	display: block;
+	margin-top: 8px;
+	font-size: 21px;
+	color: #A08E94;
+	line-height: 1.55;
+}
+
+.ck-date {
+	display: block;
+	margin-top: 10px;
+	font-size: 20px;
+	color: #B8A99A;
+
+	&.overdue {
+		color: #C8842E;
+	}
+}
+
+.ck-disclaimer {
+	display: block;
+	margin-top: 24px;
+	font-size: 20px;
+	color: #B8A9AE;
+	line-height: 1.75;
+}
+
+.ck-notice {
+	margin-bottom: 20px;
+	padding: 16px 20px;
+	border-radius: 16px;
+	background: #FFF6EC;
+	border: 1px solid #F3E2C8;
+
+	&:active {
+		opacity: 0.8;
+	}
+}
+
+.ck-notice-text {
+	font-size: 22px;
+	color: #C8842E;
+	line-height: 1.5;
+}

@@ -38,6 +38,8 @@ export const ACQUISITION_SOURCE_LABELS: Record<string, string> = {
 	chart: '图表',
 	family: '家庭邀请',
 	milestone: '里程碑',
+	weekly: '成长周报',
+	handoff: '交接班',
 };
 
 /** 来源的中文名；null / 未知值一律显示为自然流入 */

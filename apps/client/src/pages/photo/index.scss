@@ -344,3 +344,218 @@
   font-size: 26px;
   color: #C4AEAE;
 }
+
+// ── 家庭互动：点赞条 + 评论面板 ──────────────────────────────────────────
+// 相册页原本没有底部弹层，这里补一套最小的 sheet 样式（不复用 family 页的，
+// 避免跨页面样式耦合；这类基础组件以后可以抽成共享 scss，但当前只有两处用）。
+.moment-actions {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #F7EFF1;
+}
+
+.moment-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:active {
+    opacity: 0.6;
+  }
+
+  &.active .moment-action-text {
+    color: #F0607E;
+    font-weight: 600;
+  }
+}
+
+.moment-action-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.moment-action-text {
+  font-size: 23px;
+  color: #A08E94;
+}
+
+.sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 36px 36px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: photoSheetUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes photoSheetUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-handle {
+  width: 48px;
+  height: 6px;
+  background: #F0EDE6;
+  border-radius: 3px;
+  margin: 16px auto 0;
+  flex-shrink: 0;
+}
+
+.sheet-header {
+  padding: 24px 32px 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sheet-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2E2D2E;
+}
+
+.sheet-subtitle {
+  display: block;
+  margin-top: 10px;
+  font-size: 23px;
+  color: #B8A99A;
+}
+
+.comment-list {
+  flex: 1;
+  min-height: 200px;
+  max-height: 46vh;
+  padding: 0 32px;
+  box-sizing: border-box;
+}
+
+.comment-empty {
+  display: block;
+  padding: 48px 0;
+  text-align: center;
+  font-size: 24px;
+  color: #B8A99A;
+}
+
+.comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid #F8F1F3;
+}
+
+.comment-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #FDEBF1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.comment-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.comment-avatar-text {
+  font-size: 26px;
+  color: #F0607E;
+  font-weight: 600;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-name {
+  display: block;
+  font-size: 23px;
+  color: #9C8A90;
+  font-weight: 600;
+}
+
+.comment-content {
+  display: block;
+  margin-top: 6px;
+  font-size: 26px;
+  color: #3A2E33;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.comment-delete {
+  flex-shrink: 0;
+  font-size: 22px;
+  color: #C0AEB4;
+  padding: 4px 0 4px 12px;
+}
+
+.comment-input-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 32px 28px;
+  border-top: 1px solid #F7EFF1;
+  flex-shrink: 0;
+}
+
+.comment-input {
+  flex: 1;
+  min-width: 0;
+  height: 72px;
+  padding: 0 24px;
+  background: #FBF6F7;
+  border-radius: 36px;
+  font-size: 26px;
+  color: #3A2E33;
+}
+
+.comment-send {
+  flex-shrink: 0;
+  padding: 0 30px;
+  height: 72px;
+  border-radius: 36px;
+  background: linear-gradient(135deg, #FF9CB0 0%, #F0607E 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.is-disabled {
+    opacity: 0.5;
+  }
+}
+
+.comment-send-text {
+  font-size: 26px;
+  color: #fff;
+  font-weight: 600;
+}

@@ -1,7 +1,12 @@
-import { View, Text, Image } from '@tarojs/components';
+import { View, Text, Image, Input, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
 import { useRef, useState } from 'react';
-import { photoApi, trackEvent, MomentFeedItem } from '../../utils/request';
+import {
+  photoApi,
+  trackEvent,
+  MomentFeedItem,
+  MomentCommentItem,
+} from '../../utils/request';
 import { thumbUrl, THUMB_W } from '../../utils/imageThumb';
 import { formatMomentTime } from '../../utils/momentTime';
 import { CDN_ASSETS } from '../../config/assets';
@@ -28,6 +33,13 @@ export default function PhotoPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const previewingRef = useRef(false);
+  // 家庭互动：评论面板（openCommentItem 非空即展开）与在途标记，防止连点
+  const [openCommentItem, setOpenCommentItem] = useState<MomentFeedItem | null>(null);
+  const [commentList, setCommentList] = useState<MomentCommentItem[]>([]);
+  const [commentInput, setCommentInput] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentSending, setCommentSending] = useState(false);
+  const likeInflightRef = useRef<Set<string>>(new Set());
   // 微信胶囊矩形（pt）：返回按钮与其同带、左右对称放置
   const [menuBand] = useState(() => {
     let top = (Taro.getSystemInfoSync().statusBarHeight || 20) + 4;
@@ -146,6 +158,126 @@ export default function PhotoPage() {
         icon: 'success',
       });
       fetchFirstPage();
+    } catch (error) {
+      // 错误提示由全局拦截器统一 toast
+    }
+  };
+
+  // 点赞：先改本地（立即有反馈），失败回滚并提示
+  const handleLike = async (item: MomentFeedItem) => {
+    if (!item.canInteract) return;
+    if (likeInflightRef.current.has(item.id)) return;
+    likeInflightRef.current.add(item.id);
+    const next = !item.likedByMe;
+    const optimisticDelta = next ? 1 : -1;
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === item.id
+          ? {
+              ...it,
+              likedByMe: next,
+              likeCount: Math.max(0, (it.likeCount || 0) + optimisticDelta),
+            }
+          : it,
+      ),
+    );
+    try {
+      const res = await photoApi.setMomentLike(item.id, next);
+      // 用服务端返回的真实计数校正（并发点赞时本地算的可能偏一点）
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? { ...it, likedByMe: res.data?.liked ?? next, likeCount: res.data?.likeCount ?? it.likeCount }
+            : it,
+        ),
+      );
+    } catch (error) {
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? {
+                ...it,
+                likedByMe: !next,
+                likeCount: Math.max(0, (it.likeCount || 0) - optimisticDelta),
+              }
+            : it,
+        ),
+      );
+    } finally {
+      likeInflightRef.current.delete(item.id);
+    }
+  };
+
+  const openComments = async (item: MomentFeedItem) => {
+    if (!item.canInteract) return;
+    setOpenCommentItem(item);
+    setCommentInput('');
+    setCommentList([]);
+    setCommentLoading(true);
+    try {
+      const res = await photoApi.getMomentComments(item.id);
+      setCommentList(res.data?.items || []);
+    } catch (error) {
+      // 错误提示由全局拦截器统一 toast
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const closeComments = () => {
+    if (commentSending) return;
+    setOpenCommentItem(null);
+    setCommentInput('');
+    setCommentList([]);
+  };
+
+  const handleSendComment = async () => {
+    if (!openCommentItem || commentSending) return;
+    const text = commentInput.trim();
+    if (!text) {
+      Taro.showToast({ title: '说点什么吧', icon: 'none' });
+      return;
+    }
+    setCommentSending(true);
+    try {
+      const res = await photoApi.addMomentComment(openCommentItem.id, text);
+      const created = res.data?.comment;
+      if (created) {
+        setCommentList((prev) => [...prev, created]);
+      }
+      setCommentInput('');
+      // 同步卡片上的评论数
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === openCommentItem.id
+            ? { ...it, commentCount: res.data?.commentCount ?? (it.commentCount || 0) + 1 }
+            : it,
+        ),
+      );
+    } catch (error) {
+      // 失败原因（含内容安全拦截）由全局拦截器统一 toast
+    } finally {
+      setCommentSending(false);
+    }
+  };
+
+  const handleDeleteComment = async (comment: MomentCommentItem) => {
+    if (!openCommentItem) return;
+    const res = await Taro.showModal({
+      title: '删除评论',
+      content: '删除后无法恢复，确定删除吗？',
+    });
+    if (!res.confirm) return;
+    try {
+      await photoApi.deleteMomentComment(openCommentItem.id, comment.id);
+      setCommentList((prev) => prev.filter((c) => c.id !== comment.id));
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === openCommentItem.id
+            ? { ...it, commentCount: Math.max(0, (it.commentCount || 0) - 1) }
+            : it,
+        ),
+      );
     } catch (error) {
       // 错误提示由全局拦截器统一 toast
     }
@@ -305,6 +437,32 @@ export default function PhotoPage() {
                     ))}
                   </View>
                 )}
+
+                {/* 家庭互动栏：点赞 / 评论。旧版单张照片没有 moment 行，不显示 */}
+                {item.canInteract && (
+                  <View className="moment-actions">
+                    <View
+                      className={`moment-action${item.likedByMe ? ' active' : ''}`}
+                      onClick={() => handleLike(item)}
+                    >
+                      <Text className="moment-action-icon">
+                        {item.likedByMe ? '❤️' : '🤍'}
+                      </Text>
+                      <Text className="moment-action-text">
+                        {item.likeCount ? item.likeCount : '赞'}
+                      </Text>
+                    </View>
+                    <View
+                      className="moment-action"
+                      onClick={() => openComments(item)}
+                    >
+                      <Text className="moment-action-icon">💬</Text>
+                      <Text className="moment-action-text">
+                        {item.commentCount ? item.commentCount : '评论'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
               </View>
             );
           })}
@@ -319,6 +477,79 @@ export default function PhotoPage() {
               <Text className="timeline-footer-text">— 已经到底啦 —</Text>
             </View>
           ) : null}
+        </View>
+      )}
+
+      {/* 评论面板 */}
+      {openCommentItem && (
+        <View className="sheet-overlay" onClick={closeComments}>
+          <View className="sheet-panel" onClick={e => e.stopPropagation()}>
+            <View className="sheet-handle" />
+            <View className="sheet-header">
+              <Text className="sheet-title">评论</Text>
+              <Text className="sheet-subtitle">
+                {commentList.length > 0
+                  ? `共 ${commentList.length} 条`
+                  : '还没有评论'}
+              </Text>
+            </View>
+            <ScrollView className="comment-list" scrollY>
+              {commentLoading ? (
+                <Text className="comment-empty">加载中...</Text>
+              ) : commentList.length === 0 ? (
+                <Text className="comment-empty">说点什么吧，家人都会看到</Text>
+              ) : (
+                commentList.map(comment => (
+                  <View key={comment.id} className="comment-item">
+                    <View className="comment-avatar">
+                      {comment.author.avatar ? (
+                        <Image
+                          className="comment-avatar-img"
+                          src={thumbUrl(comment.author.avatar, THUMB_W.chip)}
+                          mode="aspectFill"
+                        />
+                      ) : (
+                        <Text className="comment-avatar-text">
+                          {comment.author.nickname?.slice(0, 1) || '家'}
+                        </Text>
+                      )}
+                    </View>
+                    <View className="comment-body">
+                      <Text className="comment-name">
+                        {comment.author.nickname}
+                      </Text>
+                      <Text className="comment-content">{comment.content}</Text>
+                    </View>
+                    {comment.canDelete && (
+                      <Text
+                        className="comment-delete"
+                        onClick={() => handleDeleteComment(comment)}
+                      >
+                        删除
+                      </Text>
+                    )}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            <View className="comment-input-row">
+              <Input
+                className="comment-input"
+                value={commentInput}
+                onInput={e => setCommentInput(e.detail.value)}
+                placeholder="写点鼓励的话…"
+                maxlength={200}
+                confirmType="send"
+                onConfirm={handleSendComment}
+              />
+              <View
+                className={`comment-send${commentSending ? ' is-disabled' : ''}`}
+                onClick={handleSendComment}
+              >
+                <Text className="comment-send-text">发送</Text>
+              </View>
+            </View>
+          </View>
         </View>
       )}
     </View>

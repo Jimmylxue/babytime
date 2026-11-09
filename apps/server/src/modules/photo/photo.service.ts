@@ -9,6 +9,10 @@ import { BabyService } from '../baby/baby.service';
 import { ContentSecurityService } from '../content-security/content-security.service';
 import { CdnCleanupService } from '../upload/cdn-cleanup.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { MomentLike } from '../community/entities/moment-like.entity';
+import { MomentComment } from '../community/entities/moment-comment.entity';
+import { User } from '../user/entities/user.entity';
+import { RateLimitService } from '../../common/rate-limit.service';
 
 @Injectable()
 export class PhotoService {
@@ -17,6 +21,13 @@ export class PhotoService {
     private photoRepository: Repository<Photo>,
     @InjectRepository(Moment)
     private momentRepository: Repository<Moment>,
+    @InjectRepository(MomentLike)
+    private likeRepository: Repository<MomentLike>,
+    @InjectRepository(MomentComment)
+    private commentRepository: Repository<MomentComment>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    private rateLimit: RateLimitService,
     @InjectDataSource() private readonly dataSource: DataSource,
     private babyService: BabyService,
     private contentSecurity: ContentSecurityService,
@@ -26,6 +37,7 @@ export class PhotoService {
 
   async create(userId: string, createPhotoDto: CreatePhotoDto) {
     await this.babyService.findOne(createPhotoDto.babyId, userId);
+    await this.babyService.assertCanWrite(createPhotoDto.babyId, userId);
     await this.contentSecurity.checkUserTexts(userId, [createPhotoDto.note]);
     const photo = this.photoRepository.create(createPhotoDto);
     return this.photoRepository.save(photo);
@@ -34,6 +46,7 @@ export class PhotoService {
   // 一条瞬间（朋友圈式帖子）：文案 + 最多 9 张照片，一次事务落库
   async createMoment(userId: string, dto: CreateMomentDto) {
     const baby = await this.babyService.findOne(dto.babyId, userId);
+    await this.babyService.assertCanWrite(dto.babyId, userId);
 
     const content = dto.content?.trim() || null;
     const photos = dto.photos ?? [];
@@ -97,6 +110,7 @@ export class PhotoService {
       throw new NotFoundException('瞬间不存在');
     }
     const baby = await this.babyService.findOne(moment.babyId, userId);
+    await this.babyService.assertCanWrite(moment.babyId, userId);
 
     if (visibility === 'public') {
       const config = await this.systemSettings.getClientConfig();
@@ -156,6 +170,7 @@ export class PhotoService {
 
   async remove(id: string, userId: string) {
     const photo = await this.findOne(id, userId);
+    await this.babyService.assertCanWrite(photo.babyId, userId);
     await this.photoRepository.remove(photo);
     // 先删行、后清图：引用回查要等这条记录消失才判得准
     this.cleanup.scheduleDelete([photo.url, photo.thumbnail]);
@@ -168,6 +183,7 @@ export class PhotoService {
       throw new NotFoundException('瞬间不存在');
     }
     await this.babyService.findOne(moment.babyId, userId);
+    await this.babyService.assertCanWrite(moment.babyId, userId);
 
     const photos = await this.photoRepository.find({
       where: { momentId: id },
@@ -196,9 +212,14 @@ export class PhotoService {
       throw new NotFoundException('照片不存在');
     }
 
-    // 涉及到的每个宝宝都做一次权限校验（创建者或家庭成员）
+    // 涉及到的每个宝宝都做一次权限校验（创建者或家庭成员），批量删还要过写权限
     const babyIds = [...new Set(photos.map((p) => p.babyId))];
-    await Promise.all(babyIds.map((babyId) => this.babyService.findOne(babyId, userId)));
+    await Promise.all(
+      babyIds.map(async (babyId) => {
+        await this.babyService.findOne(babyId, userId);
+        await this.babyService.assertCanWrite(babyId, userId);
+      }),
+    );
 
     // 单条 DELETE ... WHERE id IN，不存在的照片视为已删除，直接忽略
     const result = await this.photoRepository.delete({ id: In(photos.map((p) => p.id)) });
@@ -352,13 +373,190 @@ export class PhotoService {
       });
     });
 
+    // 互动数据：家庭流也要显示点赞/评论数，按本页 moment id 批量取，不逐条查
+    const momentIdList = items.filter((item) => item.kind === 'moment').map((item) => item.id);
+    const likeCountMap = new Map<string, number>();
+    const commentCountMap = new Map<string, number>();
+    const likedByMeSet = new Set<string>();
+    if (momentIdList.length > 0) {
+      const [likeRows, commentRows, mineRows]: Array<Array<{ momentId: string; n: string }>> =
+        await Promise.all([
+          this.dataSource.query(
+            `SELECT moment_id AS momentId, COUNT(*) AS n FROM moment_likes
+              WHERE moment_id IN (?) GROUP BY moment_id`,
+            [momentIdList],
+          ),
+          this.dataSource.query(
+            `SELECT moment_id AS momentId, COUNT(*) AS n FROM moment_comments
+              WHERE moment_id IN (?) AND status = 'visible' GROUP BY moment_id`,
+            [momentIdList],
+          ),
+          this.dataSource.query(
+            `SELECT moment_id AS momentId, COUNT(*) AS n FROM moment_likes
+              WHERE moment_id IN (?) AND user_id = ? GROUP BY moment_id`,
+            [momentIdList, userId],
+          ),
+        ]);
+      likeRows.forEach((row) => likeCountMap.set(row.momentId, Number(row.n)));
+      commentRows.forEach((row) => commentCountMap.set(row.momentId, Number(row.n)));
+      mineRows.forEach((row) => likedByMeSet.add(row.momentId));
+    }
+
     return {
       baby: { id: baby.id, name: baby.name, avatar: baby.avatar || null },
-      items,
+      items: items.map((item) => ({
+        ...item,
+        likeCount: likeCountMap.get(item.id) || 0,
+        commentCount: commentCountMap.get(item.id) || 0,
+        likedByMe: likedByMeSet.has(item.id),
+        // 家庭流里只有 moment 能互动（旧版单张照片没有 moment 行）
+        canInteract: item.kind === 'moment',
+      })),
       total,
       page: safePage,
       pageSize: safePageSize,
       hasMore: offset + rows.length < total,
     };
+  }
+
+  /**
+   * 家庭时光流的互动：点赞 / 评论。
+   *
+   * 与育娃圈（community.service）的区别只有一个，但很关键：
+   * 育娃圈要求 moment.visibility === 'public' 且后台开关打开；
+   * 家庭流**不要求公开** —— 只要是「你能访问的这个宝宝的瞬间」就能互动。
+   * 所以不能复用 community.service，那里面到处是 getPublicMoment()。
+   *
+   * 复用同一张 moment_likes / moment_comments 表：
+   * 一条瞬间如果后来被公开，之前的家庭点赞会自然带进育娃圈计数，语义是一致的。
+   */
+  private async getInteractableMoment(userId: string, momentId: string) {
+    const moment = await this.momentRepository.findOne({ where: { id: momentId } });
+    if (!moment) {
+      throw new NotFoundException('瞬间不存在');
+    }
+    // 能访问这个宝宝 = 创建者或已加入的家庭成员；不能访问就不该知道这条瞬间存在
+    await this.babyService.findOne(moment.babyId, userId);
+    return moment;
+  }
+
+  async setMomentLike(userId: string, momentId: string, liked: boolean) {
+    const moment = await this.getInteractableMoment(userId, momentId);
+    await this.babyService.assertCanWrite(moment.babyId, userId);
+    // 与育娃圈共用一个限流桶：同一个人在这两处的点赞总量一起算
+    this.rateLimit.assert('community-like', userId);
+
+    if (liked) {
+      const existing = await this.likeRepository.findOne({
+        where: { momentId, userId },
+      });
+      if (!existing) {
+        try {
+          await this.likeRepository.save(
+            this.likeRepository.create({ momentId, userId }),
+          );
+        } catch (error: any) {
+          // 并发重复点赞由唯一索引兜底，不是业务失败
+          if (error?.code !== 'ER_DUP_ENTRY') throw error;
+        }
+      }
+    } else {
+      await this.likeRepository.delete({ momentId, userId });
+    }
+
+    const likeCount = await this.likeRepository.count({ where: { momentId } });
+    return { liked, likeCount };
+  }
+
+  async addMomentComment(userId: string, momentId: string, content: string) {
+    const moment = await this.getInteractableMoment(userId, momentId);
+    await this.babyService.assertCanWrite(moment.babyId, userId);
+    const text = (content || '').trim();
+    if (!text) throw new BadRequestException('评论内容不能为空');
+    if (text.length > 200) throw new BadRequestException('评论最多 200 字');
+
+    this.rateLimit.assert('community-comment', userId);
+    await this.contentSecurity.checkUserTexts(userId, [text], 2);
+
+    const comment = await this.commentRepository.save(
+      this.commentRepository.create({
+        momentId,
+        userId,
+        content: text,
+        status: 'visible',
+      }),
+    );
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'nickname', 'avatar'],
+    });
+    const commentCount = await this.commentRepository.count({
+      where: { momentId, status: 'visible' },
+    });
+    return {
+      comment: {
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        author: {
+          nickname: user?.nickname || '微信用户',
+          avatar: user?.avatar || null,
+        },
+      },
+      commentCount,
+    };
+  }
+
+  async getMomentComments(userId: string, momentId: string) {
+    const moment = await this.getInteractableMoment(userId, momentId);
+    const comments = await this.commentRepository.find({
+      where: { momentId, status: 'visible' },
+      order: { createdAt: 'ASC' },
+      take: 200,
+    });
+    const userIds = [...new Set(comments.map((c) => c.userId))];
+    const users = userIds.length
+      ? await this.userRepository.find({
+          where: { id: In(userIds) },
+          select: ['id', 'nickname', 'avatar'],
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return {
+      // 谁能删：评论作者本人，或宝宝创建者（家庭内的管理权）
+      items: comments.map((comment) => {
+        const author = userMap.get(comment.userId);
+        return {
+          id: comment.id,
+          content: comment.content,
+          createdAt: comment.createdAt,
+          author: {
+            nickname: author?.nickname || '微信用户',
+            avatar: author?.avatar || null,
+          },
+          canDelete: comment.userId === userId || moment.userId === userId,
+        };
+      }),
+      total: comments.length,
+    };
+  }
+
+  async removeMomentComment(userId: string, momentId: string, commentId: string) {
+    const moment = await this.getInteractableMoment(userId, momentId);
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId, momentId },
+    });
+    if (!comment) {
+      throw new NotFoundException('评论不存在');
+    }
+    // 本人删自己的，或宝宝创建者删家庭内的任意评论
+    if (comment.userId !== userId && moment.userId !== userId) {
+      throw new ForbiddenException('无权删除这条评论');
+    }
+    // 软删除保留证据，与育娃圈同一口径
+    comment.status = 'hidden';
+    await this.commentRepository.save(comment);
+    return { success: true };
   }
 }

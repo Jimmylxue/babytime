@@ -136,10 +136,44 @@
   color: #2D2A2E;
 }
 
+// 称谓 + 权限两个胶囊并排：称谓在前（爸爸/奶奶），权限徽章只在「只读」和「创建者」时出现
+.member-role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 .member-role-pill {
   background: #FDE8EE;
   border-radius: 10px;
   padding: 5px 18px;
+}
+
+.member-access-pill {
+  border-radius: 10px;
+  padding: 5px 14px;
+
+  &.viewer {
+    background: #EFF1F5;
+  }
+
+  &.owner {
+    background: #FFF3E0;
+  }
+}
+
+.member-access-pill-text {
+  font-size: 21px;
+  font-weight: 600;
+}
+
+.member-access-pill.viewer .member-access-pill-text {
+  color: #7E8794;
+}
+
+.member-access-pill.owner .member-access-pill-text {
+  color: #C8842E;
 }
 
 .member-role-pill-text {

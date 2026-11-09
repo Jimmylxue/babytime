@@ -16,7 +16,12 @@ import {
   MilestonePosterOptions,
   MILESTONE_CANVAS_ID,
 } from './milestonePoster'
+import {
+  renderWeeklyPoster,
+  WEEKLY_POSTER_CANVAS_ID,
+} from './weeklyPoster'
 import type { AlbumData } from './albumData'
+import type { WeeklyReportData } from './weeklyReportData'
 
 export type { ChartPosterOptions }
 
@@ -169,5 +174,19 @@ export function deliverMilestonePoster(
     MILESTONE_CANVAS_ID,
     action,
     '生成纪念海报中',
+  )
+}
+
+/** 生成成长周报长图，并执行保存或分享 */
+export function deliverWeeklyPoster(
+  data: WeeklyReportData,
+  action: 'save' | 'share',
+  miniProgramCodeUrl?: string,
+) {
+  return deliverPoster(
+    () => renderWeeklyPoster(data, miniProgramCodeUrl),
+    WEEKLY_POSTER_CANVAS_ID,
+    action,
+    '生成周报中',
   )
 }

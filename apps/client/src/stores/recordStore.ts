@@ -34,6 +34,8 @@ export interface Record {
   isCustomVaccine?: boolean;
   outdoorLocation?: string;
   note?: string;
+  /** 记录配图（最多 9 张）；老记录为 null */
+  photoUrls?: string[] | null;
   createdAt: string;
 }
 
@@ -63,6 +65,15 @@ export interface FeedingRhythm {
   sampleCount: number;
 }
 
+// 连续记录天数：任一类型记过就算这天有记录。
+// current 从今天（或昨天，若今天还没记）往前数；longest 是整个历史的最长连续段。
+export interface RecordStreak {
+  current: number;
+  longest: number;
+  totalDays: number;
+  lastRecordDate: string | null;
+}
+
 export interface DailyStat {
   date: string;
   feedingCount: number;
@@ -72,6 +83,14 @@ export interface DailyStat {
   sleepCount: number;
   foodCount: number;
   waterTotal: number;
+  /** 周报/活跃天数用；老接口可能没有这些字段 */
+  bathCount?: number;
+  outdoorCount?: number;
+  temperatureCount?: number;
+  heightWeightCount?: number;
+  medicineCount?: number;
+  vaccineCount?: number;
+  otherCount?: number;
 }
 
 export interface HeightWeightTrendPoint {
@@ -111,6 +130,7 @@ interface RecordState {
   records: Record[];
   summary: TodaySummary | null;
   rhythm: FeedingRhythm | null;
+  streak: RecordStreak | null;
   dailyStats: DailyStat[];
   heightWeightTrend: HeightWeightTrendPoint[];
   temperatureTrend: TemperatureTrendPoint[];
@@ -145,6 +165,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   records: [],
   summary: null,
   rhythm: null,
+  streak: null,
   dailyStats: [],
   heightWeightTrend: [],
   temperatureTrend: [],
@@ -176,6 +197,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
         records: res.data?.records || [],
         summary: res.data?.summary || null,
         rhythm: res.data?.rhythm || null,
+        streak: res.data?.streak || null,
         latestHeightWeight: res.data?.latestHeightWeight || null,
         latestTemperature: res.data?.latestTemperature || null,
         hasAnyRecord: res.data?.hasAnyRecord ?? null,
@@ -264,6 +286,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       records: [],
       summary: null,
       rhythm: null,
+      streak: null,
       dailyStats: [],
       heightWeightTrend: [],
       temperatureTrend: [],

@@ -29,6 +29,7 @@ export class MilestoneService {
 
   async create(userId: string, dto: CreateMilestoneDto) {
     const baby = await this.babyService.findOne(dto.babyId, userId);
+    await this.babyService.assertCanWrite(dto.babyId, userId);
     const preset = dto.code ? findMilestone(dto.code) : undefined;
     if (dto.code && !preset) {
       throw new BadRequestException('这个里程碑不在清单里，可以改成自定义里程碑');
@@ -76,6 +77,7 @@ export class MilestoneService {
   async update(id: string, userId: string, dto: UpdateMilestoneDto) {
     const milestone = await this.findOne(id, userId);
     const baby = await this.babyService.findOne(milestone.babyId, userId);
+    await this.babyService.assertCanWrite(milestone.babyId, userId);
 
     if (dto.date) this.validateDate(dto.date, baby.birthday);
     // 预置项的名称跟着清单走，只允许改自定义项的标题
@@ -95,6 +97,7 @@ export class MilestoneService {
 
   async remove(id: string, userId: string) {
     const milestone = await this.findOne(id, userId);
+    await this.babyService.assertCanWrite(milestone.babyId, userId);
     await this.milestoneRepository.remove(milestone);
     this.cleanup.scheduleDelete([milestone.photoUrl]);
     return { success: true };

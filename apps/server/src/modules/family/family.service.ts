@@ -2,7 +2,12 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { randomInt } from 'crypto';
-import { FamilyMember, InviteStatus, MemberRole } from './entities/family-member.entity';
+import {
+  FamilyMember,
+  InviteStatus,
+  MemberAccess,
+  MemberRole,
+} from './entities/family-member.entity';
 import {
   FamilyInvite,
   FamilyInviteStatus,
@@ -31,12 +36,17 @@ function toMemberEntry(member: {
   id: string;
   userId: string;
   role: string;
+  accessLevel?: MemberAccess | null;
   user?: Partial<User> | null;
 }) {
   return {
     id: member.id,
     userId: member.userId,
     role: member.role,
+    // owner 那条是合成出来的（没有真实 family_members 行），所以从 role 兜底
+    accessLevel:
+      member.accessLevel ||
+      (member.role === 'owner' ? MemberAccess.OWNER : MemberAccess.EDITOR),
     user: toPublicUser(member.user, member.userId),
   };
 }
@@ -539,6 +549,43 @@ export class FamilyService {
     }
 
     return { success: true };
+  }
+
+  /**
+   * 设置某个成员的权限级别（editor / viewer）。
+   *
+   * 规则：
+   * - 只有家庭创建者能改
+   * - 不能改自己（创建者永远是 owner）
+   * - 不能把别人设成 owner（owner 只有一个，就是创建者）
+   *
+   * 注意：这里只动 access_level，不动 role（亲属称谓）。
+   */
+  async setMemberAccessLevel(userId: string, memberId: string, level: MemberAccess) {
+    if (level === MemberAccess.OWNER) {
+      throw new BadRequestException('创建者权限不能转交');
+    }
+    if (level !== MemberAccess.EDITOR && level !== MemberAccess.VIEWER) {
+      throw new BadRequestException('权限值不合法');
+    }
+
+    const member = await this.familyRepository.findOne({ where: { id: memberId } });
+    if (!member) {
+      throw new NotFoundException('成员不存在');
+    }
+    if (member.inviterId !== userId) {
+      throw new BadRequestException('仅家庭创建者可修改成员权限');
+    }
+    if (member.userId === userId) {
+      throw new BadRequestException('不能修改自己的权限');
+    }
+    if (member.status !== InviteStatus.ACCEPTED) {
+      throw new BadRequestException('该成员还未加入家庭');
+    }
+
+    member.accessLevel = level;
+    await this.familyRepository.save(member);
+    return { success: true, memberId: member.id, accessLevel: level };
   }
 
   // 主动退出家庭

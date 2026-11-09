@@ -21,26 +21,34 @@ export interface DetailTypeTab {
 	icon: string
 }
 
-// 统计页 tab 用的类型列表（保持原有 6 类，新类型不上统计页 tab）
+// 统计页 tab 用的类型列表。
+// 服务端 getStats / getDetail 一直支持全部 11 种记录类型，这里只是入口；
+// 之前只放了 7 项，辅食/喝水/用药/洗澡/户外记了却看不到统计 —— 补齐后与记录页入口一致。
+// 身高/体重共用 height_weight 类型，靠 metric 区分成两项。
+//
+// ⚠️ 顺序按「使用频次」排，不是按记录类型枚举顺序：
+// 前 6 项（喂奶/尿布/身高/体重/体温/疫苗）是每天或每次体检都要看的高频项，
+// 一次性保证一屏内可见；睡觉/辅食/喝水次之；用药/洗澡/户外/育种类垫底，靠横向滚动访问。
+// 改顺序只影响展示，不影响任何接口——
+// 但注意 `stats/index.tsx` 的默认 `activeType` 是 'feeding'，调整时别把它挪走。
 export const detailTypeTabs: DetailTypeTab[] = [
 	{ type: 'feeding', label: '喂奶', icon: iconFeeding },
 	{ type: 'diaper', label: '尿布', icon: iconDiaper },
-	{ type: 'sleep', label: '睡觉', icon: iconSleep },
 	{ type: 'height_weight', metric: 'height', label: '身高', icon: iconHeight },
 	{ type: 'height_weight', metric: 'weight', label: '体重', icon: iconWeight },
 	{ type: 'temperature', label: '体温', icon: iconTemperature },
 	{ type: 'vaccine', label: '疫苗', icon: iconVaccine },
-]
-
-// 记录明细页标题用的全量类型信息（含所有可记录类型；height/weight 共用 height_weight 类型、按 metric 区分）
-export const detailTypeInfo: DetailTypeTab[] = [
-	...detailTypeTabs,
+	{ type: 'sleep', label: '睡觉', icon: iconSleep },
 	{ type: 'food', label: '辅食', icon: iconFood },
 	{ type: 'water', label: '喝水', icon: iconWater },
 	{ type: 'medicine', label: '用药', icon: iconMedicine },
 	{ type: 'bath', label: '洗澡', icon: iconBath },
-	{ type: 'outdoor', label: '户外活动', icon: iconOutdoor },
+	{ type: 'outdoor', label: '户外', icon: iconOutdoor },
 ]
+
+// 记录明细页标题用的全量类型信息（含所有可记录类型；height/weight 共用 height_weight 类型、按 metric 区分）
+// 现在与 tab 列表同源，保留独立常量是为了「以后 tab 想收窄、明细页仍要全量」时不改调用方。
+export const detailTypeInfo: DetailTypeTab[] = [...detailTypeTabs]
 
 export const feedingMethodLabel: Record<string, string> = {
 	breast: '母乳',

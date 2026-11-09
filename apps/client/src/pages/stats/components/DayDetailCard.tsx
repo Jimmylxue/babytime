@@ -109,6 +109,59 @@ export default function DayDetailCard({
 				),
 			},
 		]
+	} else if (activeType === 'water') {
+		// 喝水只有「总量 + 次数」，没有时长概念
+		summaryTiles = [
+			{
+				label: '总次数',
+				value: `${summary?.count ?? 0}次`,
+				delta: buildDelta(summary?.count, prevDaySummary?.count),
+			},
+			{
+				label: '总饮水',
+				value: `${summary?.totalAmount ?? 0}ml`,
+				delta: buildDelta(
+					summary?.totalAmount,
+					prevDaySummary?.totalAmount,
+					n => `${n}ml`,
+				),
+			},
+			{
+				label: '平均间隔',
+				value: avgIntervalText,
+				delta: buildDelta(
+					summary?.avgIntervalMinutes,
+					prevDaySummary?.avgIntervalMinutes,
+					formatDuration,
+				),
+			},
+		]
+	} else if (activeType === 'outdoor') {
+		summaryTiles = [
+			{
+				label: '总次数',
+				value: `${summary?.count ?? 0}次`,
+				delta: buildDelta(summary?.count, prevDaySummary?.count),
+			},
+			{
+				label: '总时长',
+				value: formatDurationLong(summary?.totalDuration ?? 0),
+				delta: buildDelta(
+					summary?.totalDuration,
+					prevDaySummary?.totalDuration,
+					formatDuration,
+				),
+			},
+			{
+				label: '平均间隔',
+				value: avgIntervalText,
+				delta: buildDelta(
+					summary?.avgIntervalMinutes,
+					prevDaySummary?.avgIntervalMinutes,
+					formatDuration,
+				),
+			},
+		]
 	} else if (activeType === 'temperature') {
 		summaryTiles = [
 			{
@@ -138,7 +191,8 @@ export default function DayDetailCard({
 				),
 			},
 		]
-	} else {
+	} else if (activeType === 'sleep') {
+		// 睡眠专属：只有睡眠的「间隔」指上一次醒来后到现在，文案与其它类型不同
 		summaryTiles = [
 			{
 				label: '总次数',
@@ -162,6 +216,30 @@ export default function DayDetailCard({
 					prevDaySummary?.avgIntervalMinutes,
 					formatDuration,
 				),
+			},
+		]
+	} else {
+		// 辅食 / 用药 / 洗澡 等「只有次数和间隔」的类型。
+		// 这里不能再沿用睡眠那套（总时长 + 睡眠专属的间隔文案）——那几个类型没有 duration 字段，
+		// 会稳定显示「0分钟」和一格名不副实的标签。
+		summaryTiles = [
+			{
+				label: '总次数',
+				value: `${summary?.count ?? 0}次`,
+				delta: buildDelta(summary?.count, prevDaySummary?.count),
+			},
+			{
+				label: '平均间隔',
+				value: avgIntervalText,
+				delta: buildDelta(
+					summary?.avgIntervalMinutes,
+					prevDaySummary?.avgIntervalMinutes,
+					formatDuration,
+				),
+			},
+			{
+				label: '最近一次',
+				value: items.length > 0 ? formatHM(items[items.length - 1].startTime) : '-',
 			},
 		]
 	}

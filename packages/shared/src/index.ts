@@ -1,4 +1,9 @@
 export * from './vaccineSchedule'
+export * from './vaccineCatchUp'
+export * from './foodObservation'
+export * from './feverEpisode'
+export * from './stoolPattern'
+export * from './checkupSchedule'
 export * from './milestoneCatalog'
 
 // 记录类型枚举

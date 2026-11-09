@@ -551,6 +551,23 @@
   }
 }
 
+// 连续记录天数：贴在月龄下面的一枚小胶囊，不抢视觉重心
+.baby-streak {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FFE9EF 0%, #FFF6EC 100%);
+}
+
+.baby-streak-text {
+  font-size: 19px;
+  color: #D4748E;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .baby-demo-badge {
   margin-left: 12px;
   padding: 3px 10px;
@@ -1494,50 +1511,6 @@
   font-weight: 600;
 }
 
-// 育娃圈入口
-.community-entry {
-  margin-bottom: 40px;
-  padding: 28px 30px;
-  border-radius: 28px;
-  background: linear-gradient(135deg, #FFF6F8 0%, #FDE7EE 100%);
-  border: 1px solid rgba(248, 118, 150, 0.14);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-
-  &:active {
-    opacity: 0.85;
-  }
-}
-
-.community-entry-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.community-entry-title {
-  font-size: 30px;
-  font-weight: 800;
-  color: #C94F70;
-  letter-spacing: 1px;
-}
-
-.community-entry-desc {
-  margin-top: 8px;
-  font-size: 23px;
-  color: #B08A94;
-}
-
-.community-entry-arrow {
-  flex-shrink: 0;
-  font-size: 40px;
-  line-height: 1;
-  color: #E79AAE;
-}
-
 .moments-scroll {
   width: 100%;
   white-space: nowrap;
@@ -1628,4 +1601,137 @@
   color: #B8909C;
   font-weight: 500;
   line-height: 1.5;
+}
+
+// ── 今日概览条（一行，点进统计页看完整时间线） ──────────────────────────
+// 首页原本做过一整块「今日记录」时间线，实际和统计页的当日明细完全重复，
+// 还占掉近一屏高度。改成一行：只回答「今天记了多少、都记了什么」，细节交给统计页。
+.today-glance {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  margin-bottom: 26px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #F6E7EA;
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+
+  &:active {
+    background: #FFF8FA;
+  }
+}
+
+.today-glance-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #F58AA1;
+  flex-shrink: 0;
+}
+
+.today-glance-count {
+  font-size: 24px;
+  color: #33272B;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.today-glance-breakdown {
+  flex: 1;
+  min-width: 0;
+  font-size: 21px;
+  color: #A08E94;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-glance-link {
+  font-size: 21px;
+  color: #F0607E;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+// ── 新食物 3 天观察卡 ────────────────────────────────────────────────────
+// 只在有正在观察的食物时渲染，无内容时整块不出现（首页已经很长）
+.food-observe-card {
+  margin-bottom: 26px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background: #fff;
+  border: 1px solid #F6E7EA;
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+.food-observe-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.food-observe-add {
+  margin-left: auto;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.food-observe-add-text {
+  font-size: 21px;
+  color: #F0607E;
+  font-weight: 600;
+}
+
+.food-observe-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid #F8F1F3;
+
+  &:last-of-type {
+    border-bottom: 0;
+  }
+
+  &.warn .food-observe-name {
+    color: #C8842E;
+  }
+}
+
+.food-observe-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.food-observe-name {
+  display: block;
+  font-size: 25px;
+  color: #3A2E33;
+  font-weight: 600;
+}
+
+.food-observe-desc {
+  display: block;
+  margin-top: 5px;
+  font-size: 21px;
+  color: #A08E94;
+  line-height: 1.45;
+}
+
+.food-observe-day {
+  flex-shrink: 0;
+  font-size: 21px;
+  color: #C98A9C;
+  font-weight: 600;
+}
+
+.food-observe-more {
+  display: block;
+  margin-top: 12px;
+  font-size: 20px;
+  color: #B8A99A;
 }

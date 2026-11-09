@@ -2,7 +2,11 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, In, DataSource } from 'typeorm';
 import { Baby } from './entities/baby.entity';
-import { FamilyMember, InviteStatus } from '../family/entities/family-member.entity';
+import {
+  FamilyMember,
+  InviteStatus,
+  MemberAccess,
+} from '../family/entities/family-member.entity';
 import { FamilyInvite } from '../family/entities/family-invite.entity';
 import { Record } from '../record/entities/record.entity';
 import { Photo } from '../photo/entities/photo.entity';
@@ -110,7 +114,48 @@ export class BabyService {
     return baby;
   }
 
-  // 仅创建者可访问（用于删除宝贝、管理成员等敏感操作）
+  /**
+   * 解析当前用户对这个宝宝的权限级别。
+   * - 创建者 → owner
+   * - 已加入成员 → 其 accessLevel（老数据默认 editor）
+   * - 其他 → 抛 403
+   *
+   * 这是**读权限**的判定；写权限再加一层 assertCanWrite()。
+   * 所有需要区分读写的入口都应该走这里，避免每个 service 各写一份 if。
+   */
+  async resolveAccessLevel(babyId: string, userId: string): Promise<MemberAccess> {
+    const baby = await this.babyRepository.findOne({ where: { id: babyId } });
+    if (!baby) {
+      throw new NotFoundException('宝贝不存在');
+    }
+    if (baby.userId === userId) {
+      return MemberAccess.OWNER;
+    }
+    const member = await this.familyRepository.findOne({
+      where: { userId, babyId, status: InviteStatus.ACCEPTED },
+    });
+    if (!member) {
+      throw new ForbiddenException('无权访问');
+    }
+    // 线上加列前的历史行可能读出 null（列刚加上、默认值还没回填），按最宽松的 editor 处理，
+    // 与「上线不降权」的前提一致
+    return (member.accessLevel as MemberAccess) || MemberAccess.EDITOR;
+  }
+
+  /**
+   * 写操作闸门：只读成员（viewer）不能增删改任何数据。
+   *
+   * 调用点必须是**所有写入口**：新增/编辑/删除记录、照片、里程碑。
+   * 读接口（统计、明细、列表）不调用，viewer 照样能看。
+   */
+  async assertCanWrite(babyId: string, userId: string): Promise<void> {
+    const level = await this.resolveAccessLevel(babyId, userId);
+    if (level === MemberAccess.VIEWER) {
+      throw new ForbiddenException('你是「只读」成员，不能修改记录');
+    }
+  }
+
+  /** 仅创建者可访问（用于删除宝贝、管理成员等敏感操作） */
   async creatorOnlyFindOne(id: string, userId: string) {
     const baby = await this.babyRepository.findOne({
       where: { id },

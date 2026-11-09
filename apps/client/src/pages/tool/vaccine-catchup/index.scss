@@ -1,0 +1,255 @@
+// 疫苗补种提醒：只做时间提示，不做医学判断，配色避开"警告红"改用琥珀色
+.vc-page {
+	min-height: 100vh;
+	background: #FFFAF9;
+	padding: 24px 24px 60px;
+	box-sizing: border-box;
+}
+
+.vc-state {
+	padding: 80px 0;
+	text-align: center;
+}
+
+.vc-state-text {
+	font-size: 26px;
+	color: #A08E94;
+}
+
+// 空状态
+.vc-empty {
+	margin-top: 60px;
+	padding: 40px 28px;
+	background: #fff;
+	border-radius: 28px;
+	border: 1px solid #F0EDE6;
+	text-align: center;
+}
+
+.vc-empty-title {
+	display: block;
+	font-size: 30px;
+	font-weight: 700;
+	color: #33272B;
+}
+
+.vc-empty-desc {
+	display: block;
+	margin-top: 12px;
+	font-size: 24px;
+	color: #A08E94;
+	line-height: 1.6;
+}
+
+.vc-empty-btn {
+	margin: 26px auto 0;
+	display: inline-flex;
+	padding: 16px 44px;
+	border-radius: 999px;
+	background: linear-gradient(135deg, #FF9CB0 0%, #F0607E 100%);
+}
+
+.vc-empty-btn-text {
+	font-size: 26px;
+	color: #fff;
+	font-weight: 600;
+}
+
+// 进度概览
+.vc-hero {
+	padding: 28px 26px;
+	background: linear-gradient(135deg, #FFF6F8 0%, #FDE7EE 100%);
+	border-radius: 28px;
+	border: 1px solid rgba(248, 118, 150, 0.14);
+	margin-bottom: 24px;
+}
+
+.vc-hero-label {
+	font-size: 24px;
+	color: #B08A94;
+}
+
+.vc-hero-value {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.vc-hero-num {
+	font-size: 56px;
+	font-weight: 800;
+	color: #C94F70;
+	line-height: 1;
+}
+
+.vc-hero-total {
+	font-size: 26px;
+	color: #C98A9C;
+	font-weight: 600;
+}
+
+.vc-hero-hint {
+	display: block;
+	margin-top: 14px;
+	font-size: 21px;
+	color: #B08A94;
+	line-height: 1.6;
+}
+
+// 分组
+.vc-section {
+	margin-bottom: 24px;
+}
+
+.vc-section-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 14px;
+}
+
+.vc-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+
+	&.overdue {
+		background: #E0913A;
+	}
+
+	&.soon {
+		background: #F58AA1;
+	}
+
+	&.later {
+		background: #C9BFC2;
+	}
+}
+
+.vc-section-title {
+	font-size: 26px;
+	font-weight: 700;
+	color: #33272B;
+}
+
+.vc-list {
+	background: #fff;
+	border-radius: 22px;
+	border: 1px solid #F0EDE6;
+	overflow: hidden;
+}
+
+.vc-row {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 22px 24px;
+	border-bottom: 1px solid #F8F1F3;
+
+	&:last-child {
+		border-bottom: 0;
+	}
+}
+
+.vc-row-main {
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-row-name {
+	display: block;
+	font-size: 26px;
+	color: #3A2E33;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.vc-row-date {
+	display: block;
+	margin-top: 6px;
+	font-size: 21px;
+	color: #A08E94;
+}
+
+.vc-row-status {
+	flex-shrink: 0;
+	max-width: 300px;
+	font-size: 21px;
+	line-height: 1.45;
+	text-align: right;
+
+	&.overdue {
+		color: #C8842E;
+		font-weight: 600;
+	}
+
+	&.soon {
+		color: #F0607E;
+		font-weight: 600;
+	}
+
+	&.later {
+		color: #A08E94;
+	}
+}
+
+.vc-cta {
+	margin-top: 14px;
+	padding: 18px;
+	border-radius: 20px;
+	background: #FFF3E6;
+	text-align: center;
+
+	&:active {
+		opacity: 0.8;
+	}
+}
+
+.vc-cta-text {
+	font-size: 25px;
+	color: #C8842E;
+	font-weight: 600;
+}
+
+.vc-link {
+	margin-top: 14px;
+	text-align: center;
+}
+
+.vc-link-text {
+	font-size: 23px;
+	color: #C98A9C;
+}
+
+// 全部按时
+.vc-allgood {
+	padding: 34px 26px;
+	background: #EFF8F2;
+	border-radius: 24px;
+	border: 1px solid #DCEDE3;
+}
+
+.vc-allgood-title {
+	display: block;
+	font-size: 27px;
+	font-weight: 700;
+	color: #2E7D52;
+}
+
+.vc-allgood-desc {
+	display: block;
+	margin-top: 10px;
+	font-size: 22px;
+	color: #5E9377;
+	line-height: 1.6;
+}
+
+.vc-disclaimer {
+	display: block;
+	margin-top: 30px;
+	font-size: 20px;
+	color: #B8A9AE;
+	line-height: 1.7;
+}

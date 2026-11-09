@@ -127,6 +127,31 @@ export class Record {
 	@Column({ name: 'food_name', nullable: true, comment: '辅食名称' })
 	foodName: string
 
+	/**
+	 * 新食物观察反应（仅辅食记录有值）。
+	 *
+	 * 6–12 月龄加新食物要观察 3 天看过敏反应，这个字段记的就是「这次吃之后怎么样」。
+	 * none/observe = 正常（继续观察）；reaction = 有反应（建议停 3 天再试或问医生）。
+	 * 只记状态不记诊断 —— 具体是不是过敏由医生判断。
+	 */
+	@Column({
+		name: 'food_reaction',
+		type: 'enum',
+		enum: ['none', 'observe', 'reaction'],
+		nullable: true,
+		comment: '新食物反应：none=无异常 / observe=继续观察 / reaction=有反应',
+	})
+	foodReaction: string
+
+	/** 是否为首日尝试的新食物（前端据此算第几天） */
+	@Column({
+		name: 'food_is_new',
+		type: 'boolean',
+		default: false,
+		comment: '是否为新食物首日',
+	})
+	foodIsNew: boolean
+
 	// 体温
 	@Column({
 		name: 'temperature',
@@ -215,6 +240,20 @@ export class Record {
 
 	@Column({ name: 'note', type: 'text', nullable: true })
 	note: string
+
+	/**
+	 * 记录配图（最多 9 张 URL 数组，转成 JSON 存）。
+	 *
+	 * 与尿布记录专门的 diaper_image 并存：diaper_image 是历史字段（尿布表单单独那张），
+	 * 新配图对所有记录类型通用。删除记录时两者都要走 CDN 清理。
+	 */
+	@Column({
+		name: 'photo_urls',
+		type: 'json',
+		nullable: true,
+		comment: '记录配图 URL 数组（最多 9 张）',
+	})
+	photoUrls: string[]
 
 	@ManyToOne(() => Baby)
 	@JoinColumn({ name: 'baby_id' })

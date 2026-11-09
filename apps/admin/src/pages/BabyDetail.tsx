@@ -108,7 +108,7 @@ export default function BabyDetailPage() {
 
 			<Card style={{ marginBottom: 16 }}>
 				<div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-					<Avatar size={56} src={baby.avatar ?? undefined}>
+					<Avatar size={56} src={baby.avatar || undefined}>
 						{(baby.name || '宝')[0]}
 					</Avatar>
 					<div>
@@ -174,7 +174,7 @@ export default function BabyDetailPage() {
 								const status = STATUS_MAP[member.status] ?? { label: member.status, color: 'default' };
 								return (
 									<div key={index} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-										<Avatar src={member.avatar ?? undefined}>{(member.nickname || '微')[0]}</Avatar>
+										<Avatar src={member.avatar || undefined}>{(member.nickname || '微')[0]}</Avatar>
 										<span>{member.nickname || '微信用户'}</span>
 										<Tag>{ROLE_LABELS[member.role] ?? member.role}</Tag>
 										<Tag color={status.color}>{status.label}</Tag>

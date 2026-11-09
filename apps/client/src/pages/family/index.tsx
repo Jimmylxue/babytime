@@ -20,6 +20,8 @@ interface Member {
   id: string
   userId: string
   role: string
+  /** 权限级别：owner=创建者 / editor=可记录 / viewer=只读 */
+  accessLevel?: 'owner' | 'editor' | 'viewer'
   /** 本家庭内的备注名（家庭昵称），未设置时为 null，前端回落到微信昵称 */
   nickname?: string | null
   user?: {
@@ -33,6 +35,13 @@ interface Member {
 interface InviteInfo {
   inviteCode: string
   expiresAt: string
+}
+
+// 权限展示：与「称谓」分开，称谓在 member.user?.role，权限在 accessLevel
+const ACCESS_LABEL: Record<string, string> = {
+  owner: '创建者',
+  editor: '可记录',
+  viewer: '只读',
 }
 
 const ROLE_MAP: Record<string, string> = {
@@ -105,6 +114,35 @@ export default function FamilyPage() {
 
   // 创建者可移除除自己以外的成员
   const canRemove = (member: Member) => isOwner && !isSelf(member)
+
+  // 创建者可调整其他成员的权限（不能改自己，自己是 owner）
+  const canToggleAccess = (member: Member) => isOwner && !isSelf(member)
+
+  // 切换成员的「可记录 / 只读」。家人常见场景：老人只想看不想误改
+  const handleToggleAccess = async (member: Member) => {
+    const next = member.accessLevel === 'viewer' ? 'editor' : 'viewer'
+    const name = getDisplayName(member)
+    const res = await Taro.showModal({
+      title: next === 'viewer' ? '改为只读' : '改为可记录',
+      content:
+        next === 'viewer'
+          ? `${name} 将只能查看宝宝记录，不能新增或修改。`
+          : `${name} 可以新增和修改宝宝的记录了。`,
+      confirmText: '确定',
+    })
+    if (!res.confirm) return
+    try {
+      await familyApi.setMemberAccessLevel(member.id, next)
+      Taro.showToast({
+        title: next === 'viewer' ? '已设为只读' : '已设为可记录',
+        icon: 'success',
+      })
+      setActionMember(null)
+      loadData()
+    } catch (error) {
+      // 失败原因由全局拦截器统一 toast
+    }
+  }
 
   const init = async () => {
     await fetchBabies()
@@ -186,7 +224,7 @@ export default function FamilyPage() {
 
   // 点成员卡片：弹出操作层（无可用操作时不响应）
   const handleMemberTap = (member: Member) => {
-    if (canRename(member) || canRemove(member)) {
+    if (canRename(member) || canRemove(member) || canToggleAccess(member)) {
       setActionMember(member)
     }
   }
@@ -353,10 +391,27 @@ export default function FamilyPage() {
                     <Text className="member-name-badge">备注</Text>
                   ) : null}
                 </View>
-                <View className="member-role-pill">
-                  <Text className="member-role-pill-text">
-                    {getRoleText(member.user?.role || member.role)}
-                  </Text>
+                <View className="member-role-row">
+                  <View className="member-role-pill">
+                    <Text className="member-role-pill-text">
+                      {getRoleText(member.user?.role || member.role)}
+                    </Text>
+                  </View>
+                  {/* 权限徽章：只读要显眼（说明为什么不能改），可记录/创建者不占用视觉 */}
+                  {member.accessLevel === 'viewer' && (
+                    <View className="member-access-pill viewer">
+                      <Text className="member-access-pill-text">
+                        {ACCESS_LABEL.viewer}
+                      </Text>
+                    </View>
+                  )}
+                  {member.accessLevel === 'owner' && (
+                    <View className="member-access-pill owner">
+                      <Text className="member-access-pill-text">
+                        {ACCESS_LABEL.owner}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
               {(canRename(member) || canRemove(member)) && (
@@ -365,7 +420,7 @@ export default function FamilyPage() {
             </View>
           ))}
           {members.some(m => canRename(m) || canRemove(m)) && (
-            <Text className="members-tip">点击其他成员可修改昵称，备注仅本家庭可见</Text>
+            <Text className="members-tip">点击其他成员可改昵称或设置权限，备注仅本家庭可见</Text>
           )}
         </View>
       )}
@@ -450,6 +505,18 @@ export default function FamilyPage() {
               {canRename(actionMember) && (
                 <View className="member-action" onClick={handleOpenRename}>
                   <Text className="member-action-text">修改昵称</Text>
+                </View>
+              )}
+              {canToggleAccess(actionMember) && (
+                <View
+                  className="member-action"
+                  onClick={() => handleToggleAccess(actionMember)}
+                >
+                  <Text className="member-action-text">
+                    {actionMember.accessLevel === 'viewer'
+                      ? '改为可记录'
+                      : '改为只读'}
+                  </Text>
                 </View>
               )}
               {canRemove(actionMember) && (

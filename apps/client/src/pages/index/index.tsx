@@ -11,7 +11,6 @@ import { useRecordStore } from '../../stores/recordStore'
 import { calculateAge, formatHM } from '../../utils/date'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi, photoApi, trackEvent } from '../../utils/request'
-import { getSystemConfig } from '../../utils/systemConfig'
 import { MOCK_BABY, MOCK_STATS } from '../../utils/mock'
 import {
 	hasAutoRedirectedToOnboarding,
@@ -28,6 +27,8 @@ import VaccineReminderCard from './components/VaccineReminderCard'
 import QuickRecord from './components/QuickRecord'
 import FirstRecordGuide from './components/FirstRecordGuide'
 import MomentsSection, { RecentPhoto } from './components/MomentsSection'
+import TodayGlance from './components/TodayGlance'
+import FoodObserveCard from './components/FoodObserveCard'
 import NowCard from './components/NowCard'
 import HandoffSheet from './components/HandoffSheet'
 import { buildDailyPosterData } from './dailyReportData'
@@ -40,6 +41,8 @@ export default function Index() {
 	const {
 		summary,
 		rhythm,
+		streak,
+		records,
 		fetchSummary,
 		latestHeightWeight,
 		latestTemperature,
@@ -81,7 +84,6 @@ export default function Index() {
 	// 首屏照片是否已拉取过。recentPhotos 初始为空数组，
 	// 不区分「还在加载」就会先闪一下「还没有照片」的拍照引导。
 	const [photosReady, setPhotosReady] = useState(false)
-	const [communityEnabled, setCommunityEnabled] = useState(false)
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
 	const momentsPreviewRef = useRef(false)
@@ -119,12 +121,19 @@ export default function Index() {
 		}
 	}
 
-	useShareAppMessage(() => ({
-		title:
-			handoffShareTitleRef.current ||
-			'育娃手记｜宝宝吃睡记录与成长统计',
-		path: '/pages/index/index',
-	}))
+	useShareAppMessage(() => {
+		// 交接班面板打开时，转发标题换成交接摘要，并在 path 上带场景值 ——
+		// 家人点开后是新用户的话，后台「来源」会记成「交接班」，能看出这条获客链路有没有用
+		const isHandoff = !!handoffShareTitleRef.current
+		return {
+			title:
+				handoffShareTitleRef.current ||
+				'育娃手记｜宝宝吃睡记录与成长统计',
+			path: isHandoff
+				? '/pages/index/index?src=handoff'
+				: '/pages/index/index',
+		}
+	})
 
 	useShareTimeline(() => ({
 		title: '育娃手记｜宝宝吃睡记录与成长统计',
@@ -174,8 +183,6 @@ export default function Index() {
 			momentsPreviewRef.current = false
 			return
 		}
-		// tab 页面不会重新挂载，育娃圈开关要在每次回到首页时刷新
-		getSystemConfig().then(config => setCommunityEnabled(config.communityEnabled))
 		if (isLoggedIn) void trackEvent('app_open')
 		const source = Taro.getCurrentInstance().router?.params?.source
 		if (
@@ -316,6 +323,13 @@ export default function Index() {
 		void navigateToRecord(type)
 	}
 
+	// 今日概览条点整行：切到统计页（那里有完整的当日时间线，还能按类型筛）
+	const openTodayDetail = () => {
+		if (!currentBaby) return
+		void trackEvent('today_glance_open')
+		Taro.switchTab({ url: '/pages/stats/index' })
+	}
+
 	const startFirstRecordOther = () => {
 		const options: { label: string; type: string }[] = [
 			{ label: '记尿布', type: 'diaper' },
@@ -445,6 +459,7 @@ export default function Index() {
 				temperature={displayTemperature}
 				tempFeverClass={tempFeverClass}
 				tempTimeText={tempTimeText}
+				streakDays={streak?.current ?? null}
 				onGhostRecord={navigateToRecord}
 			/>
 
@@ -475,6 +490,21 @@ export default function Index() {
 			{/* 快速记录保持在首屏内，状态卡只占一条提示的高度 */}
 			{displayBaby && <QuickRecord onNavigate={navigateToRecord} />}
 
+			{/* 今日概览条：一行给「记了几条、都记了什么」，明细交给统计页。
+			    未登录不展示（示例数据没有真实 records，硬数会误导） */}
+			{isLoggedIn && currentBaby && (
+				<TodayGlance
+					records={records}
+					ready={summary !== null}
+					onOpenDay={openTodayDetail}
+				/>
+			)}
+
+			{/* 新食物 3 天观察：只在有「正在观察」的辅食时出现，观察期结束自动消失 */}
+			{isLoggedIn && currentBaby && (
+				<FoodObserveCard babyId={currentBaby.id} refreshKey={vaccineRefreshKey} />
+			)}
+
 			<VaccineReminderCard
 				isLoggedIn={isLoggedIn}
 				babyId={currentBaby?.id}
@@ -495,24 +525,6 @@ export default function Index() {
 					}
 					onCreate={() => navigateToRecord('photo')}
 				/>
-			)}
-
-			{/* 育娃圈入口：后台开启后才出现 */}
-			{communityEnabled && (
-				<View
-					className="community-entry"
-					onClick={() =>
-						Taro.navigateTo({ url: '/pages/community/index' })
-					}
-				>
-					<View className="community-entry-copy">
-						<Text className="community-entry-title">育娃圈</Text>
-						<Text className="community-entry-desc">
-							看看其他家长记录的成长瞬间
-						</Text>
-					</View>
-					<Text className="community-entry-arrow">›</Text>
-				</View>
 			)}
 
 			{handoff && (

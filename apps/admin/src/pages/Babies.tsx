@@ -49,7 +49,7 @@ export default function Babies() {
 			render: (_: string, record: BabyListItem) => (
 				<Link to={`/babies/${record.id}`}>
 					<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-						<Avatar src={record.avatar ?? undefined}>{(record.name || '宝')[0]}</Avatar>
+						<Avatar src={record.avatar || undefined}>{(record.name || '宝')[0]}</Avatar>
 						<span style={{ color: 'inherit' }}>{record.name}</span>
 					</div>
 				</Link>

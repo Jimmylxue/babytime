@@ -28,6 +28,17 @@ export class RecordService {
   ) {}
 
   // 记录里允许用户自由填写的文本字段，创建/更新时统一过内容安全检测
+  /**
+   * 记录配图：最多 9 张（与微信 chooseImage 单次上限一致），
+   * 去空、去重、截断，避免客户端传进超大数组把 json 列撑爆。
+   */
+  private normalizePhotoUrls(urls?: string[] | null): string[] | null {
+    if (!Array.isArray(urls)) return null;
+    const cleaned = [...new Set(urls.map((url) => (url || '').trim()).filter(Boolean))];
+    if (cleaned.length === 0) return null;
+    return cleaned.slice(0, 9);
+  }
+
   private recordTextFields(dto: CreateRecordDto | UpdateRecordDto) {
     return [
       dto.note,
@@ -42,6 +53,8 @@ export class RecordService {
 
   async create(userId: string, createRecordDto: CreateRecordDto) {
     await this.babyService.findOne(createRecordDto.babyId, userId);
+    // 只读成员（viewer）不能新增记录
+    await this.babyService.assertCanWrite(createRecordDto.babyId, userId);
     this.validateHeightWeightDate(createRecordDto.type, createRecordDto.startTime);
     this.validateHeightWeightValues(
       createRecordDto.type,
@@ -64,7 +77,11 @@ export class RecordService {
 
     await this.contentSecurity.checkUserTexts(userId, this.recordTextFields(createRecordDto));
 
-    const record = this.recordRepository.create({ ...createRecordDto, actorUserId: userId });
+    const record = this.recordRepository.create({
+      ...createRecordDto,
+      photoUrls: this.normalizePhotoUrls(createRecordDto.photoUrls) as any,
+      actorUserId: userId,
+    });
     return this.recordRepository.save(record);
   }
 
@@ -115,14 +132,16 @@ export class RecordService {
 
   async remove(id: string, userId: string) {
     const record = await this.findOne(id, userId);
+    await this.babyService.assertCanWrite(record.babyId, userId);
     await this.recordRepository.remove(record);
-    // 换尿布记录可以配图，删记录时图也要一起走
-    this.cleanup.scheduleDelete([record.diaperImage]);
+    // 换尿布记录有专用配图，其它类型走通用 photoUrls；删记录时两者都要一起清
+    this.cleanup.scheduleDelete([record.diaperImage, ...(record.photoUrls || [])]);
     return { success: true };
   }
 
   async update(id: string, userId: string, updateRecordDto: UpdateRecordDto) {
     const record = await this.findOne(id, userId);
+    await this.babyService.assertCanWrite(record.babyId, userId);
     if (updateRecordDto.startTime) {
       this.validateHeightWeightDate(record.type, updateRecordDto.startTime);
     }
@@ -147,11 +166,23 @@ export class RecordService {
 
     // Object.assign 之后拿不到旧图，先存一份用于清理
     const previousDiaperImage = record.diaperImage;
+    const previousPhotoUrls = record.photoUrls || [];
     Object.assign(record, updateRecordDto);
+    // 配图同样要规范化（去重/截断到 9 张）；DTO 里没传就不动原值
+    if (updateRecordDto.photoUrls !== undefined) {
+      record.photoUrls = this.normalizePhotoUrls(updateRecordDto.photoUrls) as any;
+    }
     await this.contentSecurity.checkUserTexts(userId, this.recordTextFields(updateRecordDto));
     const saved = await this.recordRepository.save(record);
+
     if (saved.diaperImage !== previousDiaperImage) {
       this.cleanup.scheduleDelete([previousDiaperImage]);
+    }
+    // 只清理「本次被移除的」配图，保留仍在用的，避免误删还在展示的图
+    if (updateRecordDto.photoUrls !== undefined) {
+      const next = new Set(saved.photoUrls || []);
+      const removed = previousPhotoUrls.filter((url) => !next.has(url));
+      if (removed.length) this.cleanup.scheduleDelete(removed);
     }
     return saved;
   }
@@ -207,5 +238,19 @@ export class RecordService {
     options: { date?: string; days?: number; metric?: string },
   ) {
     return this.queryService.getRecordDetailSummary(userId, babyId, type, options);
+  }
+
+  // 健康分析（体温/排便原始点）：同一套委托模式
+  getHealthPoints(userId: string, babyId: string, days?: number) {
+    return this.queryService.getHealthPoints(userId, babyId, days);
+  }
+
+  // Excel 导出：与上面几个查询方法同一套委托模式
+  exportRecordsExcel(
+    userId: string,
+    babyId: string,
+    options: { startDate?: string; endDate?: string },
+  ) {
+    return this.queryService.exportRecordsExcel(userId, babyId, options);
   }
 }

@@ -217,3 +217,18 @@
   box-shadow: 0 8px 24px rgba(130, 110, 90, 0.03);
   border: 1px solid #F0EDE6;
 }
+
+// 记录通用配图：横向小缩略图，点开看原图
+.cell-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cell-photo {
+  width: 76px;
+  height: 76px;
+  border-radius: 10px;
+  background: #FBF6F7;
+}

@@ -1,0 +1,293 @@
+// 健康分析：发热病程 + 排便规律。配色避开"警告红"，发热用琥珀、排便用棕调
+.health-page {
+	min-height: 100vh;
+	background: #FFFAF9;
+	display: flex;
+	flex-direction: column;
+}
+
+.health-scroll {
+	flex: 1;
+	padding: 24px 24px 40px;
+	box-sizing: border-box;
+}
+
+.health-state {
+	padding: 80px 0;
+	text-align: center;
+}
+
+.health-state-text {
+	font-size: 26px;
+	color: #A08E94;
+}
+
+.health-empty {
+	margin: 60px 24px;
+	padding: 40px 28px;
+	background: #fff;
+	border-radius: 28px;
+	border: 1px solid #F0EDE6;
+	text-align: center;
+}
+
+.health-empty-title {
+	display: block;
+	font-size: 30px;
+	font-weight: 700;
+	color: #33272B;
+}
+
+.health-empty-desc {
+	display: block;
+	margin-top: 12px;
+	font-size: 24px;
+	color: #A08E94;
+	line-height: 1.6;
+}
+
+.health-empty-btn {
+	margin: 26px auto 0;
+	display: inline-flex;
+	padding: 16px 44px;
+	border-radius: 999px;
+	background: linear-gradient(135deg, #FF9CB0 0%, #F0607E 100%);
+}
+
+.health-empty-btn-text {
+	font-size: 26px;
+	color: #fff;
+	font-weight: 600;
+}
+
+.health-section {
+	margin-bottom: 30px;
+}
+
+.health-section-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.health-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+
+	&.fever {
+		background: #E0913A;
+	}
+
+	&.stool {
+		background: #B08968;
+	}
+}
+
+.health-section-title {
+	font-size: 27px;
+	font-weight: 700;
+	color: #33272B;
+}
+
+.health-section-sub {
+	margin-left: auto;
+	font-size: 21px;
+	color: #B8A99A;
+}
+
+.health-card {
+	background: #fff;
+	border-radius: 22px;
+	border: 1px solid #F0EDE6;
+	padding: 22px 24px;
+	margin-bottom: 14px;
+	animation: healthFade 0.4s ease both;
+}
+
+@keyframes healthFade {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.health-card-empty {
+	text-align: center;
+	padding: 30px 24px;
+}
+
+.health-empty-line {
+	display: block;
+	font-size: 24px;
+	color: #A08E94;
+}
+
+.health-link {
+	margin-top: 16px;
+}
+
+.health-link-text {
+	font-size: 23px;
+	color: #F0607E;
+	font-weight: 600;
+}
+
+// 正在发热：突出但不刺眼
+.health-card-active {
+	background: #FFF9F2;
+	border-color: #F3DFC4;
+}
+
+.health-active-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 14px;
+}
+
+.health-active-badge {
+	font-size: 20px;
+	color: #C8842E;
+	background: #FFEEDB;
+	padding: 4px 12px;
+	border-radius: 8px;
+	font-weight: 700;
+}
+
+.health-active-time {
+	margin-left: auto;
+	font-size: 20px;
+	color: #B8A99A;
+}
+
+.health-active-summary {
+	display: block;
+	font-size: 26px;
+	color: #3A2E33;
+	font-weight: 600;
+	line-height: 1.5;
+}
+
+.health-care-hint {
+	display: block;
+	margin-top: 14px;
+	padding: 14px 16px;
+	border-radius: 12px;
+	background: #FFF3E6;
+	font-size: 22px;
+	color: #C8842E;
+	line-height: 1.6;
+}
+
+.health-copy {
+	margin-top: 16px;
+	padding: 14px;
+	border-radius: 14px;
+	background: #FBF6F7;
+	text-align: center;
+
+	&:active {
+		opacity: 0.75;
+	}
+}
+
+.health-copy-text {
+	font-size: 23px;
+	color: #7A6A70;
+	font-weight: 600;
+}
+
+// 历史病程
+.health-episode-head {
+	display: flex;
+	align-items: baseline;
+	margin-bottom: 10px;
+}
+
+.health-episode-when {
+	font-size: 24px;
+	color: #5A4E53;
+	font-weight: 600;
+}
+
+.health-episode-peak {
+	margin-left: auto;
+	font-size: 23px;
+	color: #C8842E;
+	font-weight: 600;
+}
+
+.health-episode-detail {
+	display: block;
+	font-size: 21px;
+	color: #A08E94;
+	line-height: 1.55;
+}
+
+// 排便
+.health-stool-row {
+	display: flex;
+	gap: 16px;
+}
+
+.health-stool-metric {
+	flex: 1;
+	text-align: center;
+}
+
+.health-stool-num {
+	display: block;
+	font-size: 34px;
+	font-weight: 800;
+	color: #B08968;
+	line-height: 1.1;
+}
+
+.health-stool-label {
+	display: block;
+	margin-top: 6px;
+	font-size: 20px;
+	color: #A08E94;
+}
+
+.health-stool-interval {
+	display: block;
+	margin-top: 18px;
+	padding-top: 16px;
+	border-top: 1px solid #F8F1F3;
+	font-size: 23px;
+	color: #5A4E53;
+	text-align: center;
+}
+
+.health-card-warn {
+	background: #FFFCF7;
+	border-color: #F0E2CC;
+}
+
+.health-stool-notice {
+	display: block;
+	margin-top: 14px;
+	padding: 14px 16px;
+	border-radius: 12px;
+	background: #FFF6EC;
+	font-size: 21px;
+	color: #C8842E;
+	line-height: 1.6;
+}
+
+.health-disclaimer {
+	display: block;
+	margin-top: 20px;
+	font-size: 20px;
+	color: #B8A9AE;
+	line-height: 1.75;
+}

@@ -1,10 +1,10 @@
-import { View, Text, Image, Input, Button, Canvas } from '@tarojs/components'
+import { View, Text, Image, Input, Button, Canvas, Picker } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useRef, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { useRecordStore } from '../../stores/recordStore'
-import { userApi, notificationApi, trackEvent } from '../../utils/request'
+import { userApi, recordApi, notificationApi, trackEvent } from '../../utils/request'
 import { chooseAndUploadImage } from '../../utils/upload'
 import { fetchAlbumData } from '../../utils/albumData'
 import { deliverAlbumPoster } from '../../utils/chartExport'
@@ -25,6 +25,7 @@ import familyIcon from '../../assets/icons/family.svg'
 import bellIcon from '../../assets/icons/bell.svg'
 import parentIcon from '../../assets/icons/parent.svg'
 import albumPinkIcon from '../../assets/icons/album-pink.svg'
+import exportTableIcon from '../../assets/icons/export-table.svg'
 import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
 import minePig from '../../assets/mine-pig.jpg'
 import { fetchPosterQrCode } from '../../utils/posterQr'
@@ -47,6 +48,23 @@ interface AccountDeletionPlan {
 	}
 }
 
+// 导出范围上限，与 apps/server 的 EXPORT_MAX_DAYS 保持一致
+const EXPORT_MAX_DAYS = 31
+
+/** 把 Date 转成本地 YYYY-MM-DD（不能用 toISOString，会按 UTC 偏移一天） */
+function localDateStr(date: Date): string {
+	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+		date.getDate(),
+	).padStart(2, '0')}`
+}
+
+/** 两个 YYYY-MM-DD 之间的天数（含首含尾） */
+function inclusiveDays(start: string, end: string): number {
+	const a = new Date(`${start}T12:00:00`).getTime()
+	const b = new Date(`${end}T12:00:00`).getTime()
+	return Math.round((b - a) / 86400000) + 1
+}
+
 export default function MinePage() {
 	const { isLoggedIn, userInfo, setUserInfo } = useAuthStore()
 	const { currentBaby, fetchBabies } = useBabyStore()
@@ -59,6 +77,13 @@ export default function MinePage() {
 	const [reviewState, setReviewState] = useState<'never' | 'active' | 'exhausted'>('never')
 	// 生成纪念册期间置忙，避免连点造成重复绘制同一个画布
 	const [albumBusy, setAlbumBusy] = useState(false)
+	// 导出在途标记：导出要走网络 + 写文件，连点会写坏同一个文件
+	const [exportBusy, setExportBusy] = useState(false)
+	// 导出时间范围选择：null = 弹层关闭。最长 31 天（与服务端 EXPORT_MAX_DAYS 一致）
+	const [exportRange, setExportRange] = useState<{
+		startDate: string
+		endDate: string
+	} | null>(null)
 	// 注销账号：先拉取删除范围，再要求输入确认词
 	const [deletePlan, setDeletePlan] = useState<AccountDeletionPlan | null>(null)
 	const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -87,6 +112,114 @@ export default function MinePage() {
 				.catch(() => {})
 		}
 	})
+
+	/**
+	 * 记录导出为 Excel（.xlsx）。
+	 *
+	 * 为什么不是 CSV：微信 `wx.openDocument` 的 fileType 白名单只有
+	 * doc/docx/xls/xlsx/ppt/pptx/pdf，**没有 csv**。CSV 写出来也打不开
+	 * （真机同样如此，不是模拟器问题），只能弹「请转发到电脑」—— 那功能等于没做成。
+	 * 所以服务端直接生成真 xlsx，这里写本地文件后 openDocument 就能打开。
+	 *
+	 * 为什么要选时间范围：活跃用户日均十几条，一年 5000+ 条会让响应体到几 MB，
+	 * 弱网必超时；用户也不知道自己导的是哪一段。限制在一个月内，
+	 * 单次几百行、几十 KB，稳定且语义清晰。
+	 */
+	const openExportPicker = () => {
+		if (!currentBaby) {
+			Taro.showToast({ title: '请先添加宝宝信息', icon: 'none' })
+			return
+		}
+		if (exportBusy) return
+		// 默认「最近 31 天」：大多数场景就是导上个月看看
+		const end = new Date()
+		const start = new Date()
+		start.setDate(start.getDate() - (EXPORT_MAX_DAYS - 1))
+		setExportRange({
+			startDate: localDateStr(start),
+			endDate: localDateStr(end),
+		})
+	}
+
+	// 快捷区间：点一下直接填好起止
+	const applyQuickRange = (days: number) => {
+		const end = new Date()
+		const start = new Date()
+		start.setDate(start.getDate() - (days - 1))
+		setExportRange({
+			startDate: localDateStr(start),
+			endDate: localDateStr(end),
+		})
+	}
+
+	const handleExportExcel = async () => {
+		if (!currentBaby || !exportRange) return
+		const { startDate, endDate } = exportRange
+		if (startDate > endDate) {
+			Taro.showToast({ title: '开始日期不能晚于结束日期', icon: 'none' })
+			return
+		}
+		const span = inclusiveDays(startDate, endDate)
+		if (span > EXPORT_MAX_DAYS) {
+			Taro.showToast({
+				title: `最多导出 ${EXPORT_MAX_DAYS} 天，当前 ${span} 天`,
+				icon: 'none',
+			})
+			return
+		}
+		if (exportBusy) return
+		setExportBusy(true)
+		Taro.showLoading({ title: '正在导出…', mask: true })
+		try {
+			const res = await recordApi.exportExcel(currentBaby.id, {
+				startDate,
+				endDate,
+			})
+			const data = res.data
+			if (!data?.content) {
+				Taro.hideLoading()
+				Taro.showToast({ title: '这段时间还没有记录', icon: 'none' })
+				return
+			}
+			const filePath = `${Taro.env.USER_DATA_PATH}/${data.filename}`
+			const fs = Taro.getFileSystemManager()
+			// 同一文件名重复导出会覆盖，天然避免堆积。
+			// xlsx 是二进制，必须带 encoding:'base64' 写，按 utf8 写会损坏文件
+			fs.writeFileSync(filePath, data.content, data.encoding || 'base64')
+			Taro.hideLoading()
+			setExportRange(null)
+			void trackEvent('record_export_excel', {
+				total: data.total,
+				truncated: data.truncated,
+				days: span,
+			})
+			if (data.truncated) {
+				Taro.showToast({
+					title: '记录过多，已导出前 3000 条',
+					icon: 'none',
+					duration: 2500,
+				})
+			}
+			await Taro.openDocument({
+				filePath,
+				fileType: 'xlsx',
+				showMenu: true,
+				fail: () => {
+					// 兜底：极旧基础库可能打不开，提示改用转发
+					Taro.showModal({
+						title: '已导出',
+						content: `共 ${data.total} 条记录，文件已保存。当前微信版本无法直接预览，可点右上角「···」转发到微信后用 Excel 打开。`,
+						showCancel: false,
+					})
+				},
+			})
+		} catch (error) {
+			Taro.hideLoading()
+			// 错误提示由全局拦截器统一 toast
+		} finally {
+			setExportBusy(false)
+		}
+	}
 
 	// 成长纪念册：拉数据 → 画长图 → 拉起微信分享面板（面板里可发送给好友或存相册）
 	const handleAlbum = async () => {
@@ -445,6 +578,20 @@ export default function MinePage() {
 						<Text className="mi-arrow">›</Text>
 					</View>
 				</View>
+				<View className="mine-item" onClick={openExportPicker}>
+					<View className="mi-icon mi-icon-3">
+						<Image className="mi-icon-img" src={exportTableIcon} />
+					</View>
+					<View className="mi-copy">
+						<Text className="mi-title">导出记录表格</Text>
+						<Text className="mi-sub">
+							{exportBusy ? '正在导出…' : 'Excel 文件，可直接打开'}
+						</Text>
+					</View>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</View>
 				<View
 					className="mine-item"
 					onClick={() => Taro.navigateTo({ url: '/pages/milestones/index' })}
@@ -604,6 +751,101 @@ export default function MinePage() {
 				<Text className="mine-footer-text">育娃手记 v1.0</Text>
 				<Text className="mine-footer-text">用爱记录，用心陪伴</Text>
 			</View>
+
+			{/* 导出时间范围选择 */}
+			{exportRange && (
+				<View className="sheet-overlay" onClick={() => setExportRange(null)}>
+					<View className="sheet-panel" onClick={e => e.stopPropagation()}>
+						<View className="sheet-handle" />
+						<View className="sheet-header">
+							<Text className="sheet-title">选择导出范围</Text>
+							<Text className="sheet-subtitle">
+								最多 {EXPORT_MAX_DAYS} 天，Excel 里就是这一段的数据
+							</Text>
+						</View>
+						<View className="sheet-body">
+							<View className="export-quick-row">
+								{[7, 14, 30].map(days => (
+									<View
+										key={days}
+										className="export-quick-item"
+										onClick={() => applyQuickRange(days)}
+									>
+										<Text className="export-quick-text">最近 {days} 天</Text>
+									</View>
+								))}
+							</View>
+							<View className="export-range-row">
+								<Picker
+									mode="date"
+									value={exportRange.startDate}
+									end={exportRange.endDate}
+									onChange={e =>
+										setExportRange({
+											...exportRange,
+											startDate: e.detail.value,
+										})
+									}
+								>
+									<View className="export-range-field">
+										<Text className="export-range-label">开始</Text>
+										<Text className="export-range-value">
+											{exportRange.startDate}
+										</Text>
+									</View>
+								</Picker>
+								<Text className="export-range-sep">至</Text>
+								<Picker
+									mode="date"
+									value={exportRange.endDate}
+									start={exportRange.startDate}
+									end={localDateStr(new Date())}
+									onChange={e =>
+										setExportRange({
+											...exportRange,
+											endDate: e.detail.value,
+										})
+									}
+								>
+									<View className="export-range-field">
+										<Text className="export-range-label">结束</Text>
+										<Text className="export-range-value">
+											{exportRange.endDate}
+										</Text>
+									</View>
+								</Picker>
+							</View>
+							{/* 实时天数：超了立刻标红，不用等点了才报错 */}
+							<Text
+								className={`export-range-hint${inclusiveDays(
+									exportRange.startDate,
+									exportRange.endDate,
+								) > EXPORT_MAX_DAYS ? ' over' : ''}`}
+							>
+								共 {inclusiveDays(exportRange.startDate, exportRange.endDate)} 天
+								{inclusiveDays(exportRange.startDate, exportRange.endDate) >
+								EXPORT_MAX_DAYS
+									? `（超过 ${EXPORT_MAX_DAYS} 天上限）`
+									: ''}
+							</Text>
+							<View className="sheet-actions">
+								<View
+									className="sheet-btn sheet-btn-cancel"
+									onClick={() => setExportRange(null)}
+								>
+									<Text>取消</Text>
+								</View>
+								<View
+									className={`sheet-btn sheet-btn-confirm${exportBusy ? ' is-disabled' : ''}`}
+									onClick={handleExportExcel}
+								>
+									<Text>{exportBusy ? '导出中…' : '导出'}</Text>
+								</View>
+							</View>
+						</View>
+					</View>
+				</View>
+			)}
 
 			{/* 编辑个人信息弹窗 */}
 			{showEditSheet && (

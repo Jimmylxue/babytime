@@ -223,6 +223,32 @@ export const recordApi = {
 	},
 	delete: (id: string) =>
 		request<any>({ url: `/record/${id}`, method: 'DELETE' }),
+	// 健康分析原始点（体温 / 尿布），聚合在前端用 @baby-time/shared 的纯函数算
+	getHealthPoints: (babyId: string, days?: number) =>
+		request<{
+			temperatures: { at: string; temperature: number }[]
+			diapers: { at: string; status: string | null }[]
+			days: number
+		}>({ url: `/record/health/${babyId}${days ? `?days=${days}` : ''}` }),
+	// 记录导出为 Excel：服务端返回 base64 的 .xlsx，小程序本地写文件后打开。
+	// 必须传时间区间（最长 31 天），不传时服务端默认最近 31 天。
+	exportExcel: (
+		babyId: string,
+		range?: { startDate: string; endDate: string },
+	) => {
+		const query = range
+			? `?startDate=${range.startDate}&endDate=${range.endDate}`
+			: ''
+		return request<{
+			filename: string
+			/** base64 编码的 xlsx 内容 */
+			content: string
+			encoding: 'base64'
+			total: number
+			truncated: boolean
+			note?: string
+		}>({ url: `/record/export/${babyId}${query}` })
+	},
 }
 
 // 成长里程碑 API
@@ -295,6 +321,19 @@ export interface MomentFeedItem {
 	visibility?: 'family' | 'public'
 	canToggleVisibility?: boolean
 	photos: MomentPhotoItem[]
+	/** 家庭时光流互动：点赞数 / 评论数 / 我是否点过 / 是否可互动（旧版单图无 moment 行） */
+	likeCount?: number
+	commentCount?: number
+	likedByMe?: boolean
+	canInteract?: boolean
+}
+
+export interface MomentCommentItem {
+	id: string
+	content: string
+	createdAt: string
+	author: { nickname: string; avatar: string | null }
+	canDelete: boolean
 }
 
 export interface MomentFeedPage {
@@ -334,6 +373,28 @@ export const photoApi = {
 		}),
 	deleteMoment: (id: string) =>
 		request<any>({ url: `/photo/moment/${id}`, method: 'DELETE' }),
+	// 家庭时光流互动（不要求瞬间公开，能访问该宝宝即可）
+	setMomentLike: (id: string, liked: boolean) =>
+		request<{ liked: boolean; likeCount: number }>({
+			url: `/photo/moment/${id}/like`,
+			method: 'POST',
+			data: { liked },
+		}),
+	getMomentComments: (id: string) =>
+		request<{ items: MomentCommentItem[]; total: number }>({
+			url: `/photo/moment/${id}/comments`,
+		}),
+	addMomentComment: (id: string, content: string) =>
+		request<{ comment: MomentCommentItem; commentCount: number }>({
+			url: `/photo/moment/${id}/comments`,
+			method: 'POST',
+			data: { content },
+		}),
+	deleteMomentComment: (id: string, commentId: string) =>
+		request<any>({
+			url: `/photo/moment/${id}/comments/${commentId}`,
+			method: 'DELETE',
+		}),
 	delete: (id: string) =>
 		request<any>({ url: `/photo/${id}`, method: 'DELETE' }),
 }
@@ -580,6 +641,13 @@ export const familyApi = {
 			url: '/family/member/nickname',
 			method: 'PATCH',
 			data: { targetUserId, nickname },
+		}),
+	// 设置成员权限：editor=可记录 / viewer=只读（owner 不可转交，服务端会挡）
+	setMemberAccessLevel: (memberId: string, accessLevel: 'editor' | 'viewer') =>
+		request<{ success: boolean; memberId: string; accessLevel: string }>({
+			url: `/family/member/${memberId}/access`,
+			method: 'PATCH',
+			data: { accessLevel },
 		}),
 	removeMember: (memberId: string) =>
 		request<any>({ url: `/family/member/${memberId}`, method: 'DELETE' }),

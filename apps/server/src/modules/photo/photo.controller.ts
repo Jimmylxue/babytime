@@ -50,6 +50,54 @@ export class PhotoController {
     );
   }
 
+  /**
+   * 家庭时光流互动：点赞 / 评论 / 评论列表 / 删评论。
+   * 与育娃圈共用 moment_likes / moment_comments 表，但**不要求瞬间公开** ——
+   * 只要是自己能访问的家庭瞬间就能互动。
+   */
+  @Post('moment/:id/like')
+  @HttpCode(200)
+  async setMomentLike(
+    @Param('id') id: string,
+    @Body() body: { liked?: boolean },
+    @Request() req,
+  ) {
+    return this.photoService.setMomentLike(
+      req.user.id,
+      id,
+      body?.liked !== false,
+    );
+  }
+
+  @Get('moment/:id/comments')
+  async getMomentComments(@Param('id') id: string, @Request() req) {
+    return this.photoService.getMomentComments(req.user.id, id);
+  }
+
+  @Post('moment/:id/comments')
+  @HttpCode(200)
+  async addMomentComment(
+    @Param('id') id: string,
+    @Body() body: { content?: string },
+    @Request() req,
+  ) {
+    return this.photoService.addMomentComment(
+      req.user.id,
+      id,
+      body?.content || '',
+    );
+  }
+
+  @Delete('moment/:id/comments/:commentId')
+  @HttpCode(200)
+  async removeMomentComment(
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+    @Request() req,
+  ) {
+    return this.photoService.removeMomentComment(req.user.id, id, commentId);
+  }
+
   @Delete('moment/:id')
   @HttpCode(200)
   async removeMoment(@Param('id') id: string, @Request() req) {

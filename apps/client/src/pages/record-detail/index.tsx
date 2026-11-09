@@ -235,6 +235,27 @@ export default function RecordDetailPage() {
                         </Text>
                       )}
                       {item.note && <Text className="cell-note">备注：{item.note}</Text>}
+                      {/* 通用配图：最多 9 张，横向小缩略图，点开看原图 */}
+                      {Array.isArray(item.photoUrls) && item.photoUrls.length > 0 && (
+                        <View className="cell-photos">
+                          {item.photoUrls.map((url: string) => (
+                            <Image
+                              key={url}
+                              className="cell-photo"
+                              src={thumbUrl(url, THUMB_W.chip)}
+                              mode="aspectFill"
+                              lazyLoad
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                Taro.previewImage({
+                                  current: url,
+                                  urls: item.photoUrls as string[],
+                                });
+                              }}
+                            />
+                          ))}
+                        </View>
+                      )}
                     </View>
                     {type === 'diaper' && item.diaperImage && (
                       <Image
