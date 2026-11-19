@@ -34,6 +34,26 @@ const SETTING_DEFINITIONS: SettingDefinition[] = [
     publicKey: 'momentOriginalUpload',
   },
   {
+    key: 'moment.publishEnabled',
+    group: 'moment',
+    label: '允许发布瞬间',
+    description:
+      '关闭后，小程序隐藏「发布瞬间」入口和发布按钮，服务端拒绝新建瞬间；已有瞬间仍可查看。个人主体提审期间如审核仍以发布页为由驳回，可关闭后再提审。',
+    type: 'boolean',
+    defaultValue: true,
+    publicKey: 'momentPublishEnabled',
+  },
+  {
+    key: 'moment.interactionEnabled',
+    group: 'moment',
+    label: '允许家庭互动（点赞 / 评论）',
+    description:
+      '关闭后，家庭时光流不显示点赞、评论入口，服务端拒绝新的点赞和评论；已有互动数据保留。个人主体提审期间建议关闭，主体升级并添加「社交-笔记」类目前不要打开。',
+    type: 'boolean',
+    defaultValue: false,
+    publicKey: 'momentInteractionEnabled',
+  },
+  {
     key: 'community.enabled',
     group: 'community',
     label: '开启育娃圈',

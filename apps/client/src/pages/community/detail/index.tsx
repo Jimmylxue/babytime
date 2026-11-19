@@ -10,6 +10,7 @@ import {
 import { thumbUrl, THUMB_W } from '../../../utils/imageThumb';
 import { formatMomentTime } from '../../../utils/momentTime';
 import CommunityPostCard from '../../../components/CommunityPostCard';
+import { getSystemConfig } from '../../../utils/systemConfig';
 import './index.scss';
 
 const REPORT_LABELS = ['垃圾广告', '不友善内容', '侵犯隐私', '其他'];
@@ -52,7 +53,14 @@ export default function CommunityDetailPage() {
   };
 
   useEffect(() => {
-    load();
+    void (async () => {
+      const config = await getSystemConfig(true);
+      if (!config.communityEnabled) {
+        Taro.switchTab({ url: '/pages/index/index' });
+        return;
+      }
+      load();
+    })();
   }, [id]);
 
   const handleLike = async () => {

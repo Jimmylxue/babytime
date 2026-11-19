@@ -54,8 +54,11 @@ export class PhotoService {
     if (!content && photos.length === 0) {
       throw new BadRequestException('写点文案或选张照片吧');
     }
+    const config = await this.systemSettings.getClientConfig();
+    if (!config.momentPublishEnabled) {
+      throw new ForbiddenException('发布瞬间暂未开启');
+    }
     if (visibility === 'public') {
-      const config = await this.systemSettings.getClientConfig();
       if (!config.communityEnabled) {
         throw new ForbiddenException('育娃圈暂未开启');
       }
@@ -410,7 +413,7 @@ export class PhotoService {
         commentCount: commentCountMap.get(item.id) || 0,
         likedByMe: likedByMeSet.has(item.id),
         // 家庭流里只有 moment 能互动（旧版单张照片没有 moment 行）
-        canInteract: item.kind === 'moment',
+        canInteract: item.kind === 'moment' && config.momentInteractionEnabled,
       })),
       total,
       page: safePage,
@@ -431,6 +434,10 @@ export class PhotoService {
    * 一条瞬间如果后来被公开，之前的家庭点赞会自然带进育娃圈计数，语义是一致的。
    */
   private async getInteractableMoment(userId: string, momentId: string) {
+    const config = await this.systemSettings.getClientConfig();
+    if (!config.momentInteractionEnabled) {
+      throw new ForbiddenException('家庭互动暂未开启');
+    }
     const moment = await this.momentRepository.findOne({ where: { id: momentId } });
     if (!moment) {
       throw new NotFoundException('瞬间不存在');

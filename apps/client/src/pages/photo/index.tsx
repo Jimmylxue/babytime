@@ -1,6 +1,6 @@
 import { View, Text, Image, Input, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, useReachBottom, useRouter } from '@tarojs/taro';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   photoApi,
   trackEvent,
@@ -9,6 +9,7 @@ import {
 } from '../../utils/request';
 import { thumbUrl, THUMB_W } from '../../utils/imageThumb';
 import { formatMomentTime } from '../../utils/momentTime';
+import { getSystemConfig } from '../../utils/systemConfig';
 import { CDN_ASSETS } from '../../config/assets';
 const albumBaby = CDN_ASSETS.albumBaby;
 import cameraIcon from '../../assets/icons/camera-white.svg';
@@ -32,6 +33,9 @@ export default function PhotoPage() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // 后台合规开关：关闭发布时不露发布入口，关闭育娃圈时不露公开标记
+  const [momentPublishEnabled, setMomentPublishEnabled] = useState(false);
+  const [communityEnabled, setCommunityEnabled] = useState(false);
   const previewingRef = useRef(false);
   // 家庭互动：评论面板（openCommentItem 非空即展开）与在途标记，防止连点
   const [openCommentItem, setOpenCommentItem] = useState<MomentFeedItem | null>(null);
@@ -58,6 +62,13 @@ export default function PhotoPage() {
     }
     return { top, height, leftInset };
   });
+
+  useEffect(() => {
+    getSystemConfig().then((config) => {
+      setMomentPublishEnabled(config.momentPublishEnabled);
+      setCommunityEnabled(config.communityEnabled);
+    });
+  }, []);
 
   useDidShow(() => {
     // previewImage 关闭时也会触发 onShow，这次不需要重新拉取列表；
@@ -114,6 +125,7 @@ export default function PhotoPage() {
   };
 
   const handlePublish = () => {
+    if (!momentPublishEnabled) return;
     void trackEvent('photo_add_click', { from: 'album_page' });
     Taro.navigateTo({ url: `/pages/photo-edit/index?babyId=${babyId}` });
   };
@@ -333,11 +345,13 @@ export default function PhotoPage() {
         <Text className="album-subtitle">记录成长每一刻，留住美好回忆</Text>
       </View>
 
-      {/* 发布瞬间主按钮 */}
-      <View className="album-cta" onClick={handlePublish}>
-        <Image className="album-cta-icon" src={cameraIcon} />
-        <Text className="album-cta-text">发布瞬间</Text>
-      </View>
+      {/* 发布瞬间主按钮：后台关闭发布时整个入口不渲染 */}
+      {momentPublishEnabled && (
+        <View className="album-cta" onClick={handlePublish}>
+          <Image className="album-cta-icon" src={cameraIcon} />
+          <Text className="album-cta-text">发布瞬间</Text>
+        </View>
+      )}
 
       {/* 成长瞬间标题行 */}
       {items.length > 0 && (
@@ -356,11 +370,16 @@ export default function PhotoPage() {
           <Text className="album-state-text">加载中...</Text>
         </View>
       ) : items.length === 0 ? (
-        <View className="album-state album-state-empty" onClick={handlePublish}>
+        <View
+          className="album-state album-state-empty"
+          onClick={momentPublishEnabled ? handlePublish : undefined}
+        >
           <Text className="album-state-icon">📸</Text>
           <Text className="album-state-title">还没有瞬间</Text>
           <Text className="album-state-desc">
-            发布第一条，记录宝宝的可爱时刻
+            {momentPublishEnabled
+              ? '发布第一条，记录宝宝的可爱时刻'
+              : '暂时还没有照片'}
           </Text>
         </View>
       ) : (
@@ -388,7 +407,7 @@ export default function PhotoPage() {
                     <Text className="moment-time">
                       {formatMomentTime(item.createdAt)}
                     </Text>
-                    {item.visibility === 'public' && (
+                    {item.visibility === 'public' && communityEnabled && (
                       <Text className="moment-public-tag">育娃圈公开</Text>
                     )}
                   </View>

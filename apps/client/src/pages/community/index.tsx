@@ -7,6 +7,7 @@ import {
   CommunityPost,
 } from '../../utils/request';
 import CommunityPostCard from '../../components/CommunityPostCard';
+import { getSystemConfig } from '../../utils/systemConfig';
 import './index.scss';
 
 const PAGE_SIZE = 10;
@@ -19,7 +20,7 @@ export default function CommunityPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const previewingRef = useRef(false);
 
@@ -29,8 +30,17 @@ export default function CommunityPage() {
       previewingRef.current = false;
       return;
     }
-    fetchFirstPage();
+    checkEnabledThenLoad();
   });
+
+  const checkEnabledThenLoad = async () => {
+    const config = await getSystemConfig(true);
+    if (!config.communityEnabled) {
+      Taro.switchTab({ url: '/pages/index/index' });
+      return;
+    }
+    fetchFirstPage();
+  };
 
   useReachBottom(() => {
     loadMore();

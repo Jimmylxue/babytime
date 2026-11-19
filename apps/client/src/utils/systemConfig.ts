@@ -2,6 +2,9 @@ import { systemApi, SystemClientConfig } from './request';
 
 const DEFAULT_CONFIG: SystemClientConfig = {
 	momentOriginalUpload: false,
+	// 配置接口失败时按审核安全默认值处理：禁止发布、禁止互动、隐藏育娃圈
+	momentPublishEnabled: false,
+	momentInteractionEnabled: false,
 	communityEnabled: false,
 };
 

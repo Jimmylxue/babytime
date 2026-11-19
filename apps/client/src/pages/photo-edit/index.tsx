@@ -35,6 +35,8 @@ export default function PhotoEditPage() {
   // 默认关闭原图：接口失败或服务端未部署时也按压缩图上传，避免小服务器吃满流量
   const [allowOriginalUpload, setAllowOriginalUpload] = useState(false);
   const [communityEnabled, setCommunityEnabled] = useState(false);
+  const [momentPublishEnabled, setMomentPublishEnabled] = useState(false);
+  const [configReady, setConfigReady] = useState(false);
   const [publicToCommunity, setPublicToCommunity] = useState(false);
   const baby = useBabyStore((state) =>
     state.babies.find((item) => item.id === babyId)
@@ -135,11 +137,27 @@ export default function PhotoEditPage() {
       if (!alive) return;
       setAllowOriginalUpload(config.momentOriginalUpload);
       setCommunityEnabled(config.communityEnabled);
+      setMomentPublishEnabled(config.momentPublishEnabled);
+      setConfigReady(true);
+
+      // 后台关闭发布时不允许停留在这个页面；深链进入也直接退回相册
+      if (!config.momentPublishEnabled) {
+        Taro.showToast({ title: '发布暂未开放', icon: 'none' });
+        setTimeout(() => {
+          if (!alive) return;
+          const pages = Taro.getCurrentPages();
+          if (pages.length > 1) {
+            Taro.navigateBack();
+          } else {
+            Taro.redirectTo({ url: `/pages/photo/index?babyId=${babyId}` });
+          }
+        }, 600);
+      }
     });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [babyId]);
 
   const handlePhotoTouchStart = (event: BaseEventOrig<any>, id: string) => {
     if (dragIdRef.current) return;
@@ -276,7 +294,7 @@ export default function PhotoEditPage() {
   };
 
   const handlePublish = async () => {
-    if (publishing) return;
+    if (publishing || !momentPublishEnabled) return;
     const text = content.trim();
     if (!text && images.length === 0) {
       Taro.showToast({ title: '写点文案或选张照片吧', icon: 'none' });
@@ -333,12 +351,18 @@ export default function PhotoEditPage() {
     }
   };
 
-  const canPublish = content.trim().length > 0 || images.length > 0;
+  const canPublish =
+    momentPublishEnabled && (content.trim().length > 0 || images.length > 0);
   const canAdd = images.length < MAX_BATCH_COUNT;
   const canPublic = communityEnabled && baby?.isOwner === true;
   const dragPhoto = dragId
     ? images.find((photo) => photo.id === dragId)
     : undefined;
+
+  // 配置未回来或后台已关闭发布时，不渲染任何发布 UI（避免审核看到一闪而过的发布页）
+  if (!configReady || !momentPublishEnabled) {
+    return <View className="publish-page" />;
+  }
 
   return (
     <View className="publish-page">

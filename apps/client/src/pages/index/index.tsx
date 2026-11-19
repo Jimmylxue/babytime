@@ -11,6 +11,7 @@ import { useRecordStore } from '../../stores/recordStore'
 import { calculateAge, formatHM } from '../../utils/date'
 import { needLogin } from '../../utils/needLogin'
 import { announcementApi, photoApi, trackEvent } from '../../utils/request'
+import { getSystemConfig } from '../../utils/systemConfig'
 import { MOCK_BABY, MOCK_STATS } from '../../utils/mock'
 import {
 	hasAutoRedirectedToOnboarding,
@@ -84,6 +85,8 @@ export default function Index() {
 	// 首屏照片是否已拉取过。recentPhotos 初始为空数组，
 	// 不区分「还在加载」就会先闪一下「还没有照片」的拍照引导。
 	const [photosReady, setPhotosReady] = useState(false)
+	// 后台「允许发布瞬间」关闭时，首页不再引导发布，照片入口退化为看相册
+	const [momentPublishEnabled, setMomentPublishEnabled] = useState(false)
 	const announcementCheckingRef = useRef(false)
 	const notificationTrackedRef = useRef(false)
 	const momentsPreviewRef = useRef(false)
@@ -93,6 +96,12 @@ export default function Index() {
 	useEffect(() => {
 		const timer = setInterval(() => setNow(Date.now()), 60 * 1000)
 		return () => clearInterval(timer)
+	}, [])
+
+	useEffect(() => {
+		getSystemConfig().then(config => {
+			setMomentPublishEnabled(config.momentPublishEnabled)
+		})
 	}, [])
 
 	const showAnnouncementIfNeeded = async () => {
@@ -294,7 +303,9 @@ export default function Index() {
 		if (type === 'photo') {
 			void trackEvent('photo_add_click', { from: 'home' })
 			Taro.navigateTo({
-				url: `/pages/photo-edit/index?babyId=${currentBaby.id}`,
+				url: momentPublishEnabled
+					? `/pages/photo-edit/index?babyId=${currentBaby.id}`
+					: `/pages/photo/index?babyId=${currentBaby.id}`,
 			})
 			return
 		}
@@ -517,6 +528,7 @@ export default function Index() {
 					babyName={displayBaby.name}
 					photos={recentPhotos}
 					ready={photosReady}
+					canCreate={momentPublishEnabled}
 					onPreview={handleMomentsPreview}
 					onOpenAlbum={() =>
 						Taro.navigateTo({

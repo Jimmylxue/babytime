@@ -416,6 +416,10 @@ export const announcementApi = {
 export interface SystemClientConfig {
 	/** 发布瞬间时是否允许用户选择「原图」 */
 	momentOriginalUpload: boolean
+	/** 是否允许发布瞬间 */
+	momentPublishEnabled: boolean
+	/** 是否允许家庭互动（点赞/评论） */
+	momentInteractionEnabled: boolean
 	/** 育娃圈是否开启 */
 	communityEnabled: boolean
 }

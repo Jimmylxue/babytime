@@ -13,6 +13,8 @@ interface MomentsSectionProps {
 	photos: RecentPhoto[]
 	/** 首屏照片是否已拉取过（区分「加载中」与「真的没有照片」） */
 	ready: boolean
+	/** 后台「允许发布瞬间」关闭时，空态不再引导发布 */
+	canCreate?: boolean
 	onPreview: (photo: RecentPhoto) => void
 	onOpenAlbum: () => void
 	onCreate: () => void
@@ -23,6 +25,7 @@ export default function MomentsSection({
 	babyName,
 	photos,
 	ready,
+	canCreate = true,
 	onPreview,
 	onOpenAlbum,
 	onCreate,
@@ -78,12 +81,17 @@ export default function MomentsSection({
 					<View className="moments-photo sk-photo" />
 					<View className="moments-photo sk-photo" />
 				</View>
-			) : (
+			) : canCreate ? (
 				<View className="moments-empty" onClick={onCreate}>
 					<Text className="moments-empty-icon">📷</Text>
 					<Text className="moments-empty-text">
 						发布 {babyName} 的第一个瞬间吧，它会出现在这里
 					</Text>
+				</View>
+			) : (
+				<View className="moments-empty">
+					<Text className="moments-empty-icon">📷</Text>
+					<Text className="moments-empty-text">相册里还没有照片</Text>
 				</View>
 			)}
 		</View>
