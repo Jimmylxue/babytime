@@ -493,6 +493,8 @@ export interface SystemClientConfig {
 	momentInteractionEnabled: boolean
 	/** 育娃圈是否开启 */
 	communityEnabled: boolean
+	/** 养娃账本是否开启 */
+	expenseEnabled: boolean
 }
 
 export const systemApi = {

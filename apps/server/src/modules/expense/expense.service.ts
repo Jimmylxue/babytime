@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository } from 'typeorm'
 import {
@@ -8,6 +8,7 @@ import {
 } from '@baby-time/shared'
 import { BabyService } from '../baby/baby.service'
 import { ContentSecurityService } from '../content-security/content-security.service'
+import { SystemSettingsService } from '../system-settings/system-settings.service'
 import { buildXlsx } from '../../common/xlsx'
 import { Expense } from './entities/expense.entity'
 import { ExpenseBudget } from './entities/expense-budget.entity'
@@ -21,6 +22,7 @@ const MAX_EXPORT_DAYS = 366
 const MAX_EXPORT_ROWS = 5000
 const DEFAULT_PAGE_SIZE = 50
 const MAX_PAGE_SIZE = 100
+const ENABLED_SETTING_KEY = 'expense.enabled'
 
 @Injectable()
 export class ExpenseService {
@@ -33,7 +35,15 @@ export class ExpenseService {
     private readonly dataSource: DataSource,
     private readonly babyService: BabyService,
     private readonly contentSecurity: ContentSecurityService,
+    private readonly systemSettings: SystemSettingsService,
   ) {}
+
+  /** 后台「开启养娃账本」总闸：关闭时所有账本接口统一 403，数据保留不删 */
+  private async assertEnabled() {
+    if (!(await this.systemSettings.isEnabled(ENABLED_SETTING_KEY))) {
+      throw new ForbiddenException('养娃账本暂未开启')
+    }
+  }
 
   /**
    * 新增一笔。
@@ -42,6 +52,7 @@ export class ExpenseService {
    * 长辈代买衣服、纸尿裤是常见场景，账本按家庭共享；不调用 assertCanWrite。
    */
   async create(userId: string, dto: CreateExpenseDto) {
+    await this.assertEnabled()
     await this.babyService.findOne(dto.babyId, userId)
 
     const itemName = this.trimToNull(dto.itemName)
@@ -63,6 +74,7 @@ export class ExpenseService {
   }
 
   async findList(userId: string, babyId: string, query: QueryExpenseDto) {
+    await this.assertEnabled()
     await this.babyService.findOne(babyId, userId)
 
     const { start, end } = this.resolveMonth(query.month)
@@ -132,6 +144,7 @@ export class ExpenseService {
   }
 
   async getSummary(userId: string, babyId: string, month?: string) {
+    await this.assertEnabled()
     await this.babyService.findOne(babyId, userId)
 
     const { month: selectedMonth, start, end } = this.resolveMonth(month)
@@ -269,6 +282,7 @@ export class ExpenseService {
   }
 
   async findOne(userId: string, id: string) {
+    await this.assertEnabled()
     const expense = await this.expenseRepository.findOne({ where: { id } })
     if (!expense) {
       throw new NotFoundException('花费记录不存在')
@@ -278,6 +292,7 @@ export class ExpenseService {
   }
 
   async update(userId: string, id: string, dto: UpdateExpenseDto) {
+    await this.assertEnabled()
     const expense = await this.findOne(userId, id)
     const patch: Partial<Expense> = {}
 
@@ -299,6 +314,7 @@ export class ExpenseService {
   }
 
   async remove(userId: string, id: string) {
+    await this.assertEnabled()
     const expense = await this.findOne(userId, id)
     await this.expenseRepository.delete(expense.id)
     return { success: true }
@@ -306,6 +322,7 @@ export class ExpenseService {
 
   /** 设置/清除每月预算；amount 为 null 表示清除 */
   async setBudget(userId: string, babyId: string, dto: SetBudgetDto) {
+    await this.assertEnabled()
     await this.babyService.findOne(babyId, userId)
 
     if (dto.amount == null) {
@@ -327,6 +344,7 @@ export class ExpenseService {
   }
 
   async export(userId: string, babyId: string, startDate?: string, endDate?: string) {
+    await this.assertEnabled()
     await this.babyService.findOne(babyId, userId)
     const { start, end } = this.parseExportRange(startDate, endDate)
 

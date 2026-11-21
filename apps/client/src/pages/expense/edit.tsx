@@ -1,5 +1,5 @@
 import { View, Text, Image, Input, Textarea, Picker } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { useEffect, useState } from 'react'
 import {
 	EXPENSE_CATEGORIES,
@@ -9,6 +9,7 @@ import {
 } from '@baby-time/shared'
 import { useBabyStore } from '../../stores/babyStore'
 import { expenseApi, trackEvent } from '../../utils/request'
+import { getSystemConfig } from '../../utils/systemConfig'
 import { EXPENSE_CATEGORY_ICONS } from './categoryIcons'
 import calendarIcon from '../../assets/icons/calendar-pink.svg'
 import pencilIcon from '../../assets/icons/pencil-coral.svg'
@@ -59,6 +60,18 @@ export default function ExpenseEditPage() {
 	useEffect(() => {
 		void Taro.setNavigationBarTitle({ title: isEdit ? '编辑花费' : '记一笔' })
 	}, [isEdit])
+
+	// 深链兜底：后台总闸关闭时（配置强刷）直接回首页，与账本首页同一套兜底
+	useDidShow(() => {
+		void checkEnabledThenShow()
+	})
+
+	const checkEnabledThenShow = async () => {
+		const config = await getSystemConfig(true)
+		if (!config.expenseEnabled) {
+			Taro.switchTab({ url: '/pages/index/index' })
+		}
+	}
 
 	useEffect(() => {
 		if (!currentBaby) void fetchBabies()

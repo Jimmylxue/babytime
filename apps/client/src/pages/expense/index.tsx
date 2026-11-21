@@ -12,6 +12,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useBabyStore } from '../../stores/babyStore'
 import { needLogin } from '../../utils/needLogin'
 import { expenseApi, trackEvent } from '../../utils/request'
+import { getSystemConfig } from '../../utils/systemConfig'
 import { EXPENSE_CATEGORY_ICONS } from './categoryIcons'
 import walletIcon from '../../assets/expense-icons/wallet.svg'
 import emptyWalletIcon from '../../assets/expense-icons/empty-wallet.svg'
@@ -204,10 +205,21 @@ export default function ExpensePage() {
 	}, [month, category, currentBaby?.id, refreshKey, isLoggedIn])
 
 	useDidShow(() => {
+		void checkEnabledThenShow()
+	})
+
+	// 后台总闸关闭时（配置强刷、不走 60 秒缓存），直接回首页；与育娃圈页面同一套兜底
+	const checkEnabledThenShow = async () => {
 		if (!isLoggedIn) {
 			void needLogin()
 			return
 		}
+		const config = await getSystemConfig(true)
+		if (!config.expenseEnabled) {
+			Taro.switchTab({ url: '/pages/index/index' })
+			return
+		}
+
 		void fetchBabies()
 
 		// 编辑页保存后写入 focusMonth：先消费它，再判断是不是首次展示。
@@ -232,7 +244,7 @@ export default function ExpensePage() {
 		}
 
 		setRefreshKey(key => key + 1)
-	})
+	}
 
 	useReachBottom(() => {
 		if (!currentBaby || !hasMore || loading || loadingMore) return

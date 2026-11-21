@@ -6,6 +6,8 @@ const DEFAULT_CONFIG: SystemClientConfig = {
 	momentPublishEnabled: false,
 	momentInteractionEnabled: false,
 	communityEnabled: false,
+	// 养娃账本默认关：与瞬间/育娃圈同一套「配置接口失败按关处理」的安全降级
+	expenseEnabled: false,
 };
 
 let cached: { at: number; data: SystemClientConfig } | null = null;

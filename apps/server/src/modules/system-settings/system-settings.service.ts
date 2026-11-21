@@ -19,6 +19,7 @@ interface SettingDefinition {
 const GROUP_LABELS: Record<string, string> = {
   moment: '瞬间',
   community: '育娃圈',
+  expense: '养娃账本',
 };
 
 // 新增设置项只需在这里加一条；后台页会按 group 自动分组渲染。
@@ -63,6 +64,16 @@ const SETTING_DEFINITIONS: SettingDefinition[] = [
     defaultValue: false,
     publicKey: 'communityEnabled',
   },
+  {
+    key: 'expense.enabled',
+    group: 'expense',
+    label: '开启养娃账本',
+    description:
+      '关闭后，小程序隐藏「我的」页和发现页的养娃账本入口，账本页自动返回首页，服务端拒绝所有账本接口（记账/汇总/预算/导出）；已有账本数据保留不删除。纯个人数据工具、无公开内容，一般保持开启即可。',
+    type: 'boolean',
+    defaultValue: true,
+    publicKey: 'expenseEnabled',
+  },
 ];
 
 @Injectable()
@@ -88,6 +99,14 @@ export class SystemSettingsService {
       config[def.publicKey] = this.normalize(def, values.get(def.key));
     }
     return config;
+  }
+
+  /** 开关类配置的快捷读取：expense 等服务端闸门用；key 不存在或非布尔时按关处理 */
+  async isEnabled(key: string): Promise<boolean> {
+    const def = SETTING_DEFINITIONS.find((item) => item.key === key);
+    if (!def || def.type !== 'boolean') return false;
+    const row = await this.settingsRepository.findOne({ where: { key } });
+    return this.normalize(def, row?.value);
   }
 
   async getAdminSettings() {

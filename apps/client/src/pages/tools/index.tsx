@@ -110,17 +110,25 @@ export default function ToolsPage() {
 	const { currentBaby } = useBabyStore()
 	const [showTips, setShowTips] = useState(false)
 	const [communityEnabled, setCommunityEnabled] = useState(false)
+	const [expenseEnabled, setExpenseEnabled] = useState(false)
 	const monthlyTips = currentBaby
 		? getMonthlyTips(calculateAge(currentBaby.birthday).months)
 		: null
 	const contextTools = monthlyTips ? [monthlyTipsTool, ...tools] : tools
+	// 养娃账本被后台开关关掉时，从宫格里摘掉（与育娃圈同一套门控）
+	const gatedTools = expenseEnabled
+		? contextTools
+		: contextTools.filter(tool => tool.key !== 'expense')
 	const toolItems = communityEnabled
-		? [communityTool, ...contextTools]
-		: contextTools
+		? [communityTool, ...gatedTools]
+		: gatedTools
 
 	useDidShow(() => {
 		trackEvent('tools_hub_view')
-		getSystemConfig().then(config => setCommunityEnabled(config.communityEnabled))
+		getSystemConfig().then(config => {
+			setCommunityEnabled(config.communityEnabled)
+			setExpenseEnabled(config.expenseEnabled)
+		})
 	})
 
 	const handleTap = (tool: ToolItem) => {

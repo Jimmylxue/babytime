@@ -30,6 +30,7 @@ import walletIcon from '../../assets/expense-icons/wallet.svg'
 import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
 import minePig from '../../assets/mine-pig.jpg'
 import { fetchPosterQrCode } from '../../utils/posterQr'
+import { getSystemConfig } from '../../utils/systemConfig'
 import TabBar from '../../components/TabBar'
 import './index.scss'
 
@@ -89,6 +90,7 @@ export default function MinePage() {
 	const [deletePlan, setDeletePlan] = useState<AccountDeletionPlan | null>(null)
 	const [deleteConfirm, setDeleteConfirm] = useState('')
 	const [deleteBusy, setDeleteBusy] = useState(false)
+	const [expenseEnabled, setExpenseEnabled] = useState(false)
 	const deleteSubmittingRef = useRef(false)
 	const deletePreviewLoadingRef = useRef(false)
 	const deleteConfirmingRef = useRef(false)
@@ -97,6 +99,9 @@ export default function MinePage() {
 		if (isLoggedIn) {
 			fetchProfile()
 			fetchBabies()
+			getSystemConfig()
+				.then(config => setExpenseEnabled(config.expenseEnabled))
+				.catch(() => setExpenseEnabled(false))
 			notificationApi
 				.getConfig()
 				.then(res => {
@@ -579,24 +584,26 @@ export default function MinePage() {
 						<Text className="mi-arrow">›</Text>
 					</View>
 				</View>
-				<View
-					className="mine-item"
-					onClick={() => {
-						if (isLoggedIn) void trackEvent('tool_click', { name: 'expense' })
-						Taro.navigateTo({ url: '/pages/expense/index' })
-					}}
-				>
-					<View className="mi-icon mi-icon-1">
-						<Image className="mi-icon-img" src={walletIcon} />
+				{expenseEnabled && (
+					<View
+						className="mine-item"
+						onClick={() => {
+							if (isLoggedIn) void trackEvent('tool_click', { name: 'expense' })
+							Taro.navigateTo({ url: '/pages/expense/index' })
+						}}
+					>
+						<View className="mi-icon mi-icon-1">
+							<Image className="mi-icon-img" src={walletIcon} />
+						</View>
+						<View className="mi-copy">
+							<Text className="mi-title">养娃账本</Text>
+							<Text className="mi-sub">纸尿裤、奶粉花了多少，心里有数</Text>
+						</View>
+						<View className="mi-right">
+							<Text className="mi-arrow">›</Text>
+						</View>
 					</View>
-					<View className="mi-copy">
-						<Text className="mi-title">养娃账本</Text>
-						<Text className="mi-sub">纸尿裤、奶粉花了多少，心里有数</Text>
-					</View>
-					<View className="mi-right">
-						<Text className="mi-arrow">›</Text>
-					</View>
-				</View>
+				)}
 				<View className="mine-item" onClick={openExportPicker}>
 					<View className="mi-icon mi-icon-3">
 						<Image className="mi-icon-img" src={exportTableIcon} />
