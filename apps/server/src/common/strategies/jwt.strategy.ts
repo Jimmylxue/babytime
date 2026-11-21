@@ -1,11 +1,18 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Repository } from 'typeorm';
+import { User } from '../../modules/user/entities/user.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -17,7 +24,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
+  /**
+   * 校验 token 的同时确认用户仍然存在。
+   *
+   * 之前只验签不查库：用户注销（或本地库被重建/恢复）后，旧 token 仍能通过，
+   * GET 宝宝返回空数组、POST 建宝宝撞 users 外键 500，前端会卡在「没有数据 +
+   * 建不上宝宝」。这里直接抛 401，让客户端走已有的静默续期/重新登录链路。
+   */
   async validate(payload: any) {
-    return { id: payload.sub, openId: payload.openId };
+    if (!payload?.sub) {
+      throw new UnauthorizedException('登录状态已失效，请重新登录');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+      select: ['id', 'openId'],
+    });
+    if (!user) {
+      throw new UnauthorizedException('登录状态已失效，请重新登录');
+    }
+
+    return { id: user.id, openId: user.openId };
   }
 }

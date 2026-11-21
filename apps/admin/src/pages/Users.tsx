@@ -22,6 +22,8 @@ const DELETION_LABELS: { key: keyof UserDeletionCounts; label: string }[] = [
 	{ key: 'photos', label: '相册照片' },
 	{ key: 'milestones', label: '里程碑' },
 	{ key: 'vaccinePlans', label: '疫苗计划' },
+	{ key: 'expenses', label: '账本记录' },
+	{ key: 'expenseBudgets', label: '账本预算' },
 	{ key: 'invites', label: '邀请卡' },
 	{ key: 'familyMembers', label: '其家庭成员' },
 	{ key: 'joinedFamilies', label: '加入的他人家庭' },
@@ -179,7 +181,7 @@ export default function Users() {
 				confirm: deletionPlan.confirmWord,
 			});
 			message.success(
-				`已注销「${result.nickname}」：删除 ${result.counts.babies} 个宝宝档案、${result.counts.records} 条记录、${result.counts.photos} 张照片`,
+				`已注销「${result.nickname}」：删除 ${result.counts.babies} 个宝宝档案、${result.counts.records} 条记录、${result.counts.photos} 张照片、${result.counts.expenses} 笔账本`,
 			);
 			closeDelete();
 			load();

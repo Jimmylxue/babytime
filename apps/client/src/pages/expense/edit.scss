@@ -1,0 +1,467 @@
+// 记一笔 / 编辑花费：大金额输入 + 分类宫格 + 日期/项目/备注白卡
+.expense-edit-page {
+  min-height: 100vh;
+  padding: 24px 28px calc(40px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #FBF5F8 0%, #FDF8FA 42%, #FDFDFD 100%);
+}
+
+.edit-hero {
+  padding: 36px 32px 30px;
+  border-radius: 40px;
+  background: linear-gradient(135deg, #FFF0F4 0%, #FDE2EA 52%, #FFF7F2 100%);
+  box-shadow: 0 18px 40px rgba(240, 160, 170, 0.16);
+  text-align: center;
+}
+
+// 金额输入：白色胶囊把 ¥ 和数字收在一起，避免 ¥ 与数字分离、光标悬空
+.edit-amount-capsule {
+  width: 440px;
+  height: 112px;
+  margin: 6px auto 0;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.edit-currency {
+  font-size: 34px;
+  font-weight: 700;
+  color: #C97B8E;
+  flex-shrink: 0;
+}
+
+.edit-amount-input {
+  width: 300px;
+  height: 112px;
+  font-size: 60px;
+  font-weight: 800;
+  color: #8C5B6B;
+  text-align: center;
+  line-height: 112px;
+  font-variant-numeric: tabular-nums;
+}
+
+.edit-amount-placeholder {
+  color: #E3BFC9;
+  font-weight: 700;
+}
+
+.edit-amount-hint {
+  display: block;
+  margin-top: 16px;
+  font-size: 20px;
+  color: #B98E9B;
+}
+
+.edit-card {
+  margin-top: 24px;
+  padding: 28px;
+  border-radius: 36px;
+  background: #FFFFFF;
+  box-shadow: 0 12px 32px rgba(214, 168, 158, 0.07);
+}
+
+.edit-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.edit-card-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #33272B;
+}
+
+.edit-card-sub {
+  font-size: 20px;
+  color: #A99AA0;
+}
+
+.edit-category-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.edit-category-cell {
+  position: relative;
+  width: 20%;
+  padding: 12px 0 10px;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+
+  &.is-active {
+    background: #FFF6F8;
+  }
+
+  &:active {
+    opacity: 0.72;
+  }
+}
+
+.edit-category-icon {
+  width: 74px;
+  height: 74px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-category-img {
+  width: 36px;
+  height: 36px;
+}
+
+.edit-category-label {
+  margin-top: 8px;
+  font-size: 20px;
+  color: #6F6568;
+  line-height: 1.2;
+
+  &.is-active {
+    color: #E06480;
+    font-weight: 700;
+  }
+}
+
+.edit-category-check {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF9CB0 0%, #F0607E 100%);
+  border: 2px solid #FFFFFF;
+  color: #FFFFFF;
+  font-size: 17px;
+  line-height: 28px;
+  text-align: center;
+  box-sizing: content-box;
+}
+
+.edit-form-card {
+  padding: 6px 28px;
+}
+
+.edit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 0;
+  border-bottom: 1px solid #F8F4F4;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.edit-row-column {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.edit-row-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-row-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.edit-row-icon-note {
+  width: 26px;
+  height: 26px;
+}
+
+.edit-row-label {
+  font-size: 24px;
+  font-weight: 600;
+  color: #3A3336;
+}
+
+.edit-row-optional {
+  font-size: 18px;
+  color: #B7A5AA;
+}
+
+.edit-row-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-row-value-text {
+  font-size: 24px;
+  color: #8E6A74;
+  font-variant-numeric: tabular-nums;
+}
+
+.edit-row-arrow {
+  font-size: 28px;
+  color: #C9C3C9;
+  line-height: 1;
+}
+
+.edit-input {
+  width: 100%;
+  height: 80px;
+  padding: 0 22px;
+  border-radius: 20px;
+  background: #FBF7F7;
+  font-size: 26px;
+  color: #3A3336;
+  box-sizing: border-box;
+}
+
+.edit-input-placeholder {
+  color: #C9B8BD;
+}
+
+// 单位固定三选：包 / 片 / 罐，chips 单选，再点一次取消
+.edit-unit-chips {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.edit-unit-chip {
+  min-width: 120px;
+  height: 64px;
+  padding: 0 28px;
+  border-radius: 999px;
+  background: #FBF7F7;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.is-active {
+    background: #FFF0F4;
+    border-color: #F58AA1;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.edit-unit-chip-text {
+  font-size: 24px;
+  color: #6F6568;
+
+  &.is-active {
+    color: #E06480;
+    font-weight: 700;
+  }
+}
+
+.edit-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 18px 22px;
+  border-radius: 20px;
+  background: #FBF7F7;
+  font-size: 24px;
+  line-height: 1.55;
+  color: #3A3336;
+  box-sizing: border-box;
+}
+
+.edit-counter {
+  display: block;
+  text-align: right;
+  font-size: 18px;
+  color: #C0B2B7;
+}
+
+// 保存按钮放流内而不是 fixed：textarea 是原生组件、层级高于普通 View，
+// fixed 按钮盖不住输入中的文字（用户看到「sadas 透出在保存按钮上」就是这个原因）
+.edit-save {
+  margin-top: 32px;
+  height: 96px;
+  border-radius: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #FF9CB0 0%, #F0607E 100%);
+  box-shadow: 0 14px 30px rgba(240, 96, 126, 0.3);
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &.is-disabled {
+    opacity: 0.45;
+    box-shadow: none;
+  }
+}
+
+.edit-save-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.edit-save-text {
+  font-size: 30px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 1px;
+}
+
+.edit-delete {
+  margin: 20px auto 0;
+  width: 240px;
+  height: 72px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #FFF4F6;
+
+  &:active {
+    opacity: 0.72;
+  }
+}
+
+.edit-delete-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.edit-delete-text {
+  font-size: 24px;
+  font-weight: 600;
+  color: #E06480;
+}
+
+.edit-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.es-hero,
+.es-card {
+  border-radius: 40px;
+  background: linear-gradient(100deg, #F8F1F3 20%, #FFF8F9 40%, #F8F1F3 60%);
+  background-size: 200% 100%;
+  animation: editShimmer 1.25s ease-in-out infinite;
+}
+
+.es-hero {
+  height: 260px;
+}
+
+.es-card {
+  height: 300px;
+  border-radius: 36px;
+}
+
+.es-card-tall {
+  height: 400px;
+}
+
+.edit-state {
+  margin-top: 40px;
+  padding: 60px 32px 50px;
+  border-radius: 40px;
+  background: #FFFFFF;
+  box-shadow: 0 12px 32px rgba(214, 168, 158, 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.edit-state-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #3A3336;
+}
+
+.edit-state-desc {
+  margin-top: 10px;
+  font-size: 22px;
+  color: #A99AA0;
+}
+
+.edit-state-btn {
+  margin-top: 26px;
+  height: 76px;
+  padding: 0 44px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FF9CB0 0%, #F0607E 100%);
+  box-shadow: 0 10px 22px rgba(240, 96, 126, 0.22);
+}
+
+.edit-state-btn-text {
+  font-size: 27px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.tint-pink {
+  background: linear-gradient(160deg, #FDF4F6 0%, #FCE3EB 100%);
+}
+
+.tint-blue {
+  background: linear-gradient(160deg, #F3F7FD 0%, #E4EEFB 100%);
+}
+
+.tint-sand {
+  background: linear-gradient(160deg, #FDF8F0 0%, #FBEEDC 100%);
+}
+
+.tint-cream {
+  background: linear-gradient(160deg, #FDF8F4 0%, #FBEDE2 100%);
+}
+
+.tint-lilac {
+  background: linear-gradient(160deg, #F8F5FD 0%, #EEE6FA 100%);
+}
+
+.tint-rose {
+  background: linear-gradient(160deg, #FFF4F7 0%, #FBDFE8 100%);
+}
+
+.tint-green {
+  background: linear-gradient(160deg, #F1F8F3 0%, #DFF0E5 100%);
+}
+
+.tint-gray {
+  background: linear-gradient(160deg, #F7F6F4 0%, #ECE9E4 100%);
+}
+
+@keyframes editShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}

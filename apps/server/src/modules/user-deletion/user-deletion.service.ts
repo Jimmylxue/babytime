@@ -85,6 +85,12 @@ export class UserDeletionService {
          WHERE actor_user_id = ? AND baby_id NOT IN ${OWNED_BABIES}`,
         [userId, userId],
       );
+      // 账本与记录同一语义：别人家宝宝上的花费归那个家庭，只把记账人置空
+      await manager.query(
+        `UPDATE expenses SET actor_user_id = NULL
+         WHERE actor_user_id = ? AND baby_id NOT IN ${OWNED_BABIES}`,
+        [userId, userId],
+      );
 
       // 2) 名下的流水与素材（baby_id 外键是 NO ACTION，必须先于 babies 删）
       await manager.query(`DELETE FROM records WHERE baby_id IN ${OWNED_BABIES}`, [userId]);
@@ -97,6 +103,11 @@ export class UserDeletionService {
       );
       await manager.query(
         `DELETE FROM vaccine_plans WHERE baby_id IN ${OWNED_BABIES}`,
+        [userId],
+      );
+      await manager.query(`DELETE FROM expenses WHERE baby_id IN ${OWNED_BABIES}`, [userId]);
+      await manager.query(
+        `DELETE FROM expense_budgets WHERE baby_id IN ${OWNED_BABIES}`,
         [userId],
       );
 
@@ -169,6 +180,8 @@ export class UserDeletionService {
         (SELECT COUNT(*) FROM photos WHERE baby_id IN ${OWNED_BABIES}) AS photos,
         (SELECT COUNT(*) FROM baby_milestones WHERE baby_id IN ${OWNED_BABIES}) AS milestones,
         (SELECT COUNT(*) FROM vaccine_plans WHERE baby_id IN ${OWNED_BABIES}) AS vaccinePlans,
+        (SELECT COUNT(*) FROM expenses WHERE baby_id IN ${OWNED_BABIES}) AS expenses,
+        (SELECT COUNT(*) FROM expense_budgets WHERE baby_id IN ${OWNED_BABIES}) AS expenseBudgets,
         (SELECT COUNT(*) FROM family_invites WHERE inviter_id = ? OR baby_id IN ${OWNED_BABIES}) AS invites,
         (SELECT COUNT(*) FROM family_members WHERE baby_id IN ${OWNED_BABIES}) AS familyMembers,
         (SELECT COUNT(*) FROM family_members
@@ -179,7 +192,9 @@ export class UserDeletionService {
         (SELECT COUNT(*) FROM user_events WHERE user_id = ?) AS events,
         (SELECT COUNT(*) FROM records WHERE actor_user_id = ? AND baby_id NOT IN ${OWNED_BABIES}) AS externalRecords,
         (SELECT COUNT(*) FROM baby_milestones
-         WHERE actor_user_id = ? AND baby_id NOT IN ${OWNED_BABIES}) AS externalMilestones
+         WHERE actor_user_id = ? AND baby_id NOT IN ${OWNED_BABIES}) AS externalMilestones,
+        (SELECT COUNT(*) FROM expenses
+         WHERE actor_user_id = ? AND baby_id NOT IN ${OWNED_BABIES}) AS externalExpenses
     `;
     const [row] = await this.dataSource.query(sql, scoped(sql, userId));
     const num = (key: string) => Number(row[key]);
@@ -189,6 +204,8 @@ export class UserDeletionService {
       photos: num('photos'),
       milestones: num('milestones'),
       vaccinePlans: num('vaccinePlans'),
+      expenses: num('expenses'),
+      expenseBudgets: num('expenseBudgets'),
       invites: num('invites'),
       familyMembers: num('familyMembers'),
       joinedFamilies: num('joinedFamilies'),
@@ -196,7 +213,8 @@ export class UserDeletionService {
       deliveries: num('deliveries'),
       grants: num('grants'),
       events: num('events'),
-      externalActorRows: num('externalRecords') + num('externalMilestones'),
+      externalActorRows:
+        num('externalRecords') + num('externalMilestones') + num('externalExpenses'),
     };
   }
 

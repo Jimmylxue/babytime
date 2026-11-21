@@ -26,6 +26,7 @@ import bellIcon from '../../assets/icons/bell.svg'
 import parentIcon from '../../assets/icons/parent.svg'
 import albumPinkIcon from '../../assets/icons/album-pink.svg'
 import exportTableIcon from '../../assets/icons/export-table.svg'
+import walletIcon from '../../assets/expense-icons/wallet.svg'
 import sparkleGoldIcon from '../../assets/icons/sparkle-gold.svg'
 import minePig from '../../assets/mine-pig.jpg'
 import { fetchPosterQrCode } from '../../utils/posterQr'
@@ -573,6 +574,24 @@ export default function MinePage() {
 						<Text className="mi-sub">
 							{albumBusy ? '正在生成…' : '把这一个月记成一张长图'}
 						</Text>
+					</View>
+					<View className="mi-right">
+						<Text className="mi-arrow">›</Text>
+					</View>
+				</View>
+				<View
+					className="mine-item"
+					onClick={() => {
+						if (isLoggedIn) void trackEvent('tool_click', { name: 'expense' })
+						Taro.navigateTo({ url: '/pages/expense/index' })
+					}}
+				>
+					<View className="mi-icon mi-icon-1">
+						<Image className="mi-icon-img" src={walletIcon} />
+					</View>
+					<View className="mi-copy">
+						<Text className="mi-title">养娃账本</Text>
+						<Text className="mi-sub">纸尿裤、奶粉花了多少，心里有数</Text>
 					</View>
 					<View className="mi-right">
 						<Text className="mi-arrow">›</Text>

@@ -549,6 +549,7 @@ export class AdminStatsService {
       age_calc: '月龄计算器',
       vaccine_table: '疫苗接种时间表',
       milk_calc: '奶量估算器',
+      expense: '养娃账本',
     };
 
     const clickMap = new Map<string, { count: number; users: number }>(

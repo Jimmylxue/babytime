@@ -13,6 +13,8 @@ import { Photo } from '../photo/entities/photo.entity';
 import { Moment } from '../photo/entities/moment.entity';
 import { Milestone } from '../milestone/entities/milestone.entity';
 import { VaccinePlan } from '../notification/entities/vaccine-plan.entity';
+import { Expense } from '../expense/entities/expense.entity';
+import { ExpenseBudget } from '../expense/entities/expense-budget.entity';
 import { CreateBabyDto, UpdateBabyDto } from './dto/create-baby.dto';
 import { ContentSecurityService } from '../content-security/content-security.service';
 import { CdnCleanupService } from '../upload/cdn-cleanup.service';
@@ -201,6 +203,8 @@ export class BabyService {
       await manager.delete(Moment, { babyId: id });
       await manager.delete(Milestone, { babyId: id });
       await manager.delete(VaccinePlan, { babyId: id });
+      await manager.delete(Expense, { babyId: id });
+      await manager.delete(ExpenseBudget, { babyId: id });
       await manager.delete(FamilyInvite, { babyId: id });
       await manager.delete(FamilyMember, { babyId: id });
       await manager.delete(Baby, { id });

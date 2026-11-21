@@ -5,6 +5,7 @@ export * from './feverEpisode'
 export * from './stoolPattern'
 export * from './checkupSchedule'
 export * from './milestoneCatalog'
+export * from './expense'
 
 // 记录类型枚举
 export enum RecordType {

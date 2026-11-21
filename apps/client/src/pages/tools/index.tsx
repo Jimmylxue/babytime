@@ -17,6 +17,7 @@ import toolMilkIcon from '../../assets/tool-icons/tool-milk.svg'
 import toolMilestoneIcon from '../../assets/tool-icons/tool-milestone.svg'
 import toolCheckupIcon from '../../assets/tool-icons/tool-checkup.svg'
 import toolHealthIcon from '../../assets/tool-icons/tool-health.svg'
+import toolWalletIcon from '../../assets/tool-icons/tool-wallet.svg'
 import toolTipsIcon from '../../assets/tool-icons/tool-tips.svg'
 import toolCommunityIcon from '../../assets/tool-icons/tool-community.svg'
 import './index.scss'
@@ -80,6 +81,13 @@ const tools: ToolItem[] = [
 		title: '健康分析',
 		tint: 'rose',
 		path: '/pages/tool/health/index',
+	},
+	{
+		key: 'expense',
+		iconSrc: toolWalletIcon,
+		title: '养娃账本',
+		tint: 'pink',
+		path: '/pages/expense/index',
 	},
 ]
 

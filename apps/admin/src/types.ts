@@ -148,6 +148,8 @@ export interface UserDeletionCounts {
 	photos: number;
 	milestones: number;
 	vaccinePlans: number;
+	expenses: number;
+	expenseBudgets: number;
 	invites: number;
 	/** 他创建的家庭里已加入的家人数 */
 	familyMembers: number;

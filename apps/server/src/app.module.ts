@@ -22,6 +22,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { CommunityModule } from './modules/community/community.module';
+import { ExpenseModule } from './modules/expense/expense.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { CommunityModule } from './modules/community/community.module';
     NotificationModule,
     SystemSettingsModule,
     CommunityModule,
+    ExpenseModule,
   ],
   controllers: [AppController],
   providers: [

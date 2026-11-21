@@ -1,4 +1,10 @@
 import Taro from '@tarojs/taro'
+import type {
+	Expense,
+	ExpenseCategoryCode,
+	ExpenseListResult,
+	ExpenseMonthSummary,
+} from '@baby-time/shared'
 import { useAuthStore } from '../stores/authStore'
 import { API_PREFIX } from '../config/env'
 
@@ -249,6 +255,71 @@ export const recordApi = {
 			note?: string
 		}>({ url: `/record/export/${babyId}${query}` })
 	},
+}
+
+// 养娃账本 API
+export interface ExpenseInput {
+	amount: number
+	category: ExpenseCategoryCode
+	itemName?: string
+	note?: string
+	/** 数量/规格，选填；清空时传 null */
+	quantity?: number | null
+	/** 单位，选填；清空时传 null */
+	unit?: string | null
+	/** YYYY-MM-DD；新增不传默认今天 */
+	expenseDate?: string
+}
+
+export interface ExpenseListParams {
+	month?: string
+	category?: ExpenseCategoryCode
+	page?: number
+	pageSize?: number
+}
+
+export const expenseApi = {
+	create: (data: ExpenseInput & { babyId: string }) =>
+		request<Expense>({ url: '/expense', method: 'POST', data }),
+	// 读接口不静默：静默会让 401 跳过 token 自动续期，账本页会一直加载失败。
+	// 非家庭成员 403 时页面自己渲染「仅对家庭成员开放」，全局 toast 只做补充。
+	list: (babyId: string, params: ExpenseListParams = {}) => {
+		const query = new URLSearchParams()
+		if (params.month) query.set('month', params.month)
+		if (params.category) query.set('category', params.category)
+		if (params.page) query.set('page', String(params.page))
+		if (params.pageSize) query.set('pageSize', String(params.pageSize))
+		const suffix = query.toString()
+		return request<ExpenseListResult>({
+			url: `/expense/list/${babyId}${suffix ? `?${suffix}` : ''}`,
+		})
+	},
+	summary: (babyId: string, month?: string) =>
+		request<ExpenseMonthSummary>({
+			url: `/expense/summary/${babyId}${month ? `?month=${month}` : ''}`,
+		}),
+	get: (id: string) => request<Expense>({ url: `/expense/${id}` }),
+	setBudget: (babyId: string, amount: number | null) =>
+		request<{ amount: number | null }>({
+			url: `/expense/budget/${babyId}`,
+			method: 'PUT',
+			data: { amount },
+		}),
+	update: (id: string, data: Partial<ExpenseInput>) =>
+		request<Expense>({ url: `/expense/${id}`, method: 'PATCH', data }),
+	remove: (id: string) =>
+		request<{ success: boolean }>({ url: `/expense/${id}`, method: 'DELETE' }),
+	exportExcel: (babyId: string, range: { startDate: string; endDate: string }) =>
+		request<{
+			filename: string
+			content: string
+			encoding: 'base64'
+			total: number
+			truncated: boolean
+			note?: string
+		}>({
+			url: `/expense/export/${babyId}?startDate=${range.startDate}&endDate=${range.endDate}`,
+		}),
 }
 
 // 成长里程碑 API

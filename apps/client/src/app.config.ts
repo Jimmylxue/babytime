@@ -11,6 +11,8 @@ export default defineAppConfig({
 		'pages/tool/health/index',
 		'pages/tool/milk-calc/index',
 		'pages/mine/index',
+		'pages/expense/index',
+		'pages/expense/edit',
 		'pages/weekly-report/index',
 		'pages/login/index',
 		'pages/record/index',

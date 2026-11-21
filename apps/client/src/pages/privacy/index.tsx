@@ -6,7 +6,7 @@ export default function PrivacyPage() {
 		<View className="privacy-page">
 			<View className="privacy-header">
 				<Text className="privacy-title">《育娃手记》隐私政策</Text>
-				<Text className="privacy-update">更新日期：2026年5月1日</Text>
+				<Text className="privacy-update">更新日期：2026年11月21日</Text>
 			</View>
 
 			<View className="privacy-body">
@@ -32,6 +32,10 @@ export default function PrivacyPage() {
 				</Text>
 				<Text className="section-text">
 					4.
+					您主动记录的育儿花费：包括金额、分类、日期、项目名称和备注，用于为您提供月度汇总、分类统计和 Excel 导出。
+				</Text>
+				<Text className="section-text">
+					5.
 					设备信息：我们可能会收集设备型号、操作系统版本等基本设备信息，用于优化应用体验和问题排查。
 				</Text>
 
@@ -63,7 +67,7 @@ export default function PrivacyPage() {
 
 				<Text className="section-title">四、信息共享与披露</Text>
 				<Text className="section-text">
-					我们不会向第三方共享、转让或披露您的个人信息，但以下情况除外：
+					您通过家人邀请加入家庭的成员属于您授权的共同使用者，可以在家庭内查看和记录宝宝信息（包括育儿花费账本）。除此之外，我们不会向第三方共享、转让或披露您的个人信息，但以下情况除外：
 				</Text>
 				<Text className="section-text">1. 获得您的明确同意或授权；</Text>
 				<Text className="section-text">
@@ -80,7 +84,7 @@ export default function PrivacyPage() {
 				</Text>
 				<Text className="section-text">
 					2.
-					删除：您可以删除单条记录、照片和里程碑，对应的图片文件会随删除从对象存储中一并移除。如需删除全部个人信息，您可以通过注销账号实现。
+					删除：您可以删除单条记录、照片、里程碑和花费记录，对应的图片文件会随删除从对象存储中一并移除。如需删除全部个人信息，您可以通过注销账号实现。
 				</Text>
 				<Text className="section-text">
 					3.
